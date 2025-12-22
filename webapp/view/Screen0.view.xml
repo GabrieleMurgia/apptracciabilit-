@@ -1,0 +1,95 @@
+<mvc:View
+    id="screen0View"
+    controllerName="apptracciabilita.apptracciabilita.controller.Screen0"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <Page
+        id="page0"
+        title="Modalità d'accesso">
+        <customHeader>
+            <Toolbar id="toolbar0">
+                <Title id="title0" text="Gestione lotti fornitore - Seleziona modalità" />
+                <ToolbarSpacer id="toolbarSpacer0" />
+                <Image id="imageLogo0" src="img/valentino_logo.png" decorative="false" />
+            </Toolbar>
+        </customHeader>
+
+        <content>
+            <VBox
+                id="vbox0"
+                width="100%"
+                justifyContent="Center"
+                alignItems="Center"
+                renderType="Div">
+                <Text
+                    id="textIntro0"
+                    text="Seleziona il flusso di lavoro"
+                    textAlign="Center"
+                     />
+
+                <HBox
+                    id="hboxTiles0"
+                    justifyContent="Center"
+                    alignItems="Start"
+                    width="100%">
+                    <!-- Flusso A: Dati aggregati -->
+                    <GenericTile
+                        id="tileFlowA"
+                        header="Dati aggregati"
+                        subheader="Innesca flusso A"
+                        press="onPressFlowA">
+                        <tileContent>
+                            <TileContent id="tileContentA">
+                                <content>
+                                    <core:Icon
+                                        id="iconFlowA"
+                                        src="sap-icon://combine"
+                                        size="3rem" />
+                                </content>
+                            </TileContent>
+                        </tileContent>
+                    </GenericTile>
+
+                    <!-- Flusso B: Carica da Excel -->
+                    <GenericTile
+                        id="tileFlowB"
+                        header="Carica dati da Excel"
+                        subheader="Innesca flusso B"
+                        press="onPressFlowB">
+                        <tileContent>
+                            <TileContent id="tileContentB">
+                                <content>
+                                    <core:Icon
+                                        id="iconFlowB"
+                                        src="sap-icon://excel-attachment"
+                                        size="3rem" />
+                                </content>
+                            </TileContent>
+                        </tileContent>
+                    </GenericTile>
+
+                    <!-- Flusso C: Dati in tabella -->
+                    <GenericTile
+                        id="tileFlowC"
+                        visible="{vm>/showAggregatedTile}"
+                        header="Dati in tabella"
+                        subheader="Innesca flusso C"
+                        press="onPressFlowC">
+                        <tileContent>
+                            <TileContent id="tileContentC">
+                                <content>
+                                    <core:Icon
+                                        id="iconFlowC"
+                                        src="sap-icon://table-view"
+                                        size="3rem" />
+                                </content>
+                            </TileContent>
+                        </tileContent>
+                    </GenericTile>
+                </HBox>
+            </VBox>
+        </content>
+    </Page>
+</mvc:View>

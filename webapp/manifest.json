@@ -1,0 +1,153 @@
+{
+  "_version": "1.48.0",
+  "sap.app": {
+    "id": "apptracciabilita.apptracciabilita",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.20.0",
+      "toolsId": "a54b0d4b-3752-4463-971d-21b9d47befd8"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata/sap/ZVEND_TRACE_SRV/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "localUri": "localService/mainService/metadata.xml",
+          "odataVersion": "2.0"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.108.31",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "apptracciabilita.apptracciabilita.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {}
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "async": true,
+        "viewPath": "apptracciabilita.apptracciabilita.view",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "clearControlAggregation": false
+      },
+      "routes": [
+        {
+          "name": "Screen0",
+          "pattern": "",
+          "target": "Screen0"
+        },
+        {
+          "name": "Screen1",
+          "pattern": "vendors/{mode}",
+          "target": "Screen1"
+        },
+        {
+          "name": "Screen2",
+          "pattern": "materials/{vendorId}/{mode}",
+          "target": "Screen2"
+        },
+        {
+          "name": "Screen3",
+          "pattern": "data/{vendorId}/{material}/{mode}",
+          "target": "Screen3"
+        }
+      ],
+      "targets": {
+        "Screen0": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen0",
+          "viewName": "Screen0"
+        },
+        "Screen1": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen1",
+          "viewName": "Screen1"
+        },
+        "Screen2": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen2",
+          "viewName": "Screen2"
+        },
+        "Screen3": {
+  "viewType": "XML",
+  "transition": "slide",
+  "clearControlAggregation": false,
+  "viewId": "Screen3",
+  "viewName": "Screen3"
+}
+      }
+    },
+    "rootView": {
+      "viewName": "apptracciabilita.apptracciabilita.view.App",
+      "type": "XML",
+      "async": true,
+      "id": "App"
+    }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "apptracciabilitaapptracciabilita"
+  }
+}

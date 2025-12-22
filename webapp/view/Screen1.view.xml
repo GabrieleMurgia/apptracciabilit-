@@ -1,0 +1,116 @@
+<mvc:View
+    id="screen1View"
+    controllerName="apptracciabilita.apptracciabilita.controller.Screen1"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <Page
+        id="page1"
+        title="Fornitori">
+
+        <customHeader>
+            <Toolbar id="toolbar1">
+                <Button
+                    id="buttonBack1"
+                    icon="sap-icon://nav-back"
+                    press=".onNavBack" />
+                <Title
+                    id="title1"
+                    text="Dati aggregati per fornitore" />
+                <ToolbarSpacer id="toolbarSpacer1" />
+                <Image
+                    id="imageLogo1"
+                    src="img/valentino_logo.png"
+                    decorative="false" />
+            </Toolbar>
+        </customHeader>
+
+        <subHeader>
+            <Toolbar id="toolbarFilters1">
+
+                <Label id="labelOnlyIncomplete1" text="Solo dati incompleti" />
+                <Switch
+                    id="switchOnlyIncomplete1"
+                    state="true"
+                    change=".onFilterChanged" />
+
+                <ToolbarSpacer id="toolbarSpacerFilters1" />
+
+                <Label id="labelVendorFilter1" text="Fornitore" />
+                <SearchField
+                    id="inputVendorFilter1"
+                    width="15rem"
+                    liveChange=".onFilterChanged"
+                    search=".onFilterChanged"
+                    placeholder="Cerca per nome o codice..." />
+
+            </Toolbar>
+        </subHeader>
+
+        <content>
+            <Table
+                id="tableVendors1"
+                mode="SingleSelectMaster"
+                items="{
+                    path: 'vm>/userVendors'
+                }"
+                itemPress=".onVendorPress">
+
+                <headerToolbar>
+                    <Toolbar id="toolbarTableHeader1">
+                        <Title id="titleTable1" text="Fornitori" level="H2" />
+                    </Toolbar>
+                </headerToolbar>
+
+                <columns>
+                    <Column id="columnVendor1">
+                        <Text id="textColumnVendor1" text="Fornitore" />
+                    </Column>
+                    <Column id="columnOpenPo1">
+                        <Text id="textColumnOpenPo1" text="Aperti" />
+                    </Column>
+                    <Column id="columnRejected1">
+                        <Text id="textColumnRejected1" text="Rifiutati" />
+                    </Column>
+                    <Column id="columnPending1">
+                        <Text id="textColumnPending1" text="In attesa approvazione" />
+                    </Column>
+                    <Column id="columnApproved1">
+                        <Text id="textColumnApproved1" text="Approvati" />
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem id="columnListItemVendor1" type="Active">
+                        <cells>
+                            <ObjectIdentifier
+                                id="objectIdentifierVendor1"
+                                title="{vm>ReagSoc}"
+                                text="{vm>Fornitore}" />
+
+                            <ObjectNumber
+                                id="objectNumberOpenPo1"
+                                number="{vm>Open}" />
+
+                            <ObjectNumber
+                                id="objectNumberRejected1"
+                                number="{vm>Rejected}"
+                                state="Error" />
+
+                            <ObjectNumber
+                                id="objectNumberPending1"
+                                number="{vm>ToApprove}"
+                                state="Warning" />
+
+                            <ObjectNumber
+                                id="objectNumberApproved1"
+                                number="{vm>Approved}"
+                                state="Success" />
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </content>
+    </Page>
+</mvc:View>

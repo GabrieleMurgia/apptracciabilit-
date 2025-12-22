@@ -1,0 +1,152 @@
+<mvc:View
+    id="screen2View"
+    controllerName="apptracciabilita.apptracciabilita.controller.Screen2"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <Page
+        id="page2"
+        title="Materiali fornitore">
+
+        <customHeader>
+            <Toolbar id="toolbar2">
+                <Button
+                    id="buttonBack2"
+                    icon="sap-icon://nav-back"
+                    press=".onNavBack" />
+                <Title
+                    id="title2"
+                    text="Dati aggregati per materiale" />
+                <ToolbarSpacer id="toolbarSpacer2" />
+                <Image
+                    id="imageLogo2"
+                    src="img/valentino_logo.png"
+                    decorative="false" />
+            </Toolbar>
+        </customHeader>
+
+        <subHeader>
+            <Toolbar id="toolbarFilters2">
+                <Label
+                    id="labelVendor2"
+                    text="Fornitore:" />
+                <Text
+                    id="textVendor2"
+                    text="{/CurrentVendorName}" />
+
+                <ToolbarSpacer id="toolbarSpacerFilters2" />
+
+                <Label
+                    id="labelOnlyIncomplete2"
+                    text="Solo dati incompleti" />
+                <Switch
+                    id="switchOnlyIncomplete2"
+                    state="true"
+                    change=".onFilterChanged" />
+
+                <Label
+                    id="labelMatCat2"
+                    text="Categoria prodotto" />
+                <Select
+                    id="selectMatCat2"
+                    selectedKey="{/SelectedMatCat}"
+                    change=".onFilterChanged">
+                    <items>
+                        <core:Item
+                            id="itemMatCatAll2"
+                            key=""
+                            text="Tutte" />
+                    </items>
+                </Select>
+
+                <Label
+                    id="labelMaterialFilter2"
+                    text="Materiale" />
+                <SearchField
+                    id="inputMaterialFilter2"
+                    width="15rem"
+                    liveChange=".onFilterChanged"
+                    search=".onFilterChanged"
+                    placeholder="Cerca per codice o descrizione..." />
+            </Toolbar>
+        </subHeader>
+
+        <content>
+            <Table
+                id="tableMaterials2"
+                mode="SingleSelectMaster"
+                items="{
+                    path: '/Materials'
+                }"
+                itemPress=".onMaterialPress">
+
+                <headerToolbar>
+                    <Toolbar id="toolbarTableHeader2">
+                        <Title
+                            id="titleTable2"
+                            text="Materiali"
+                            level="H2" />
+                    </Toolbar>
+                </headerToolbar>
+
+                <columns>
+                    <Column id="columnMaterial2">
+                        <Text id="textColumnMaterial2" text="Materiale" />
+                    </Column>
+                    <Column id="columnMaterialDesc2">
+                        <Text id="textColumnMaterialDesc2" text="Descrizione" />
+                    </Column>
+                    <Column id="columnOpenPo2">
+                        <Text id="textColumnOpenPo2" text="Aperti" />
+                    </Column>
+                    <Column id="columnRejected2">
+                        <Text id="textColumnRejected2" text="Rifiutati" />
+                    </Column>
+                    <Column id="columnPending2">
+                        <Text id="textColumnPending2" text="In attesa approvazione" />
+                    </Column>
+                    <Column id="columnApproved2">
+                        <Text id="textColumnApproved2" text="Approvati" />
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem
+                        id="columnListItemMaterial2"
+                        type="Active">
+
+                        <cells>
+                            <ObjectIdentifier
+                                id="objectIdentifierMaterial2"
+                                title="{Material}" />
+
+                            <Text
+                                id="textMaterialDescription2"
+                                text="{MaterialDescription}" />
+
+                            <ObjectNumber
+                                id="objectNumberOpenPo2"
+                                number="{OpenPo}" />
+
+                            <ObjectNumber
+                                id="objectNumberRejected2"
+                                number="{Rejected}"
+                                state="Error" />
+
+                            <ObjectNumber
+                                id="objectNumberPending2"
+                                number="{Pending}"
+                                state="Warning" />
+
+                            <ObjectNumber
+                                id="objectNumberApproved2"
+                                number="{Approved}"
+                                state="Success" />
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </content>
+    </Page>
+</mvc:View>

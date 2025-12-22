@@ -21,7 +21,7 @@ sap.ui.define([
         MatCategories: [],      
         SelectedMatCat: "",
         MaterialFilter: "",
-        Materials: []           
+        Materials: []           /* dda not k 123 */
       });
       this.getView().setModel(oModel);
     },

@@ -21,7 +21,7 @@
                 <ToolbarSpacer id="toolbarSpacer2" />
                 <Image
                     id="imageLogo2"
-                    src="img/valentino_logo.png"
+                    src="IMG/Valentino.png"
                     decorative="false" />
             </Toolbar>
         </customHeader>

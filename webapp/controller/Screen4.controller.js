@@ -8,7 +8,8 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "sap/ui/mdc/table/Column",
-  "sap/ui/mdc/Field"
+  "sap/ui/mdc/Field",
+  "sap/ui/mdc/p13n/StateUtil"
 ], function (
   Controller,
   History,
@@ -18,13 +19,18 @@ sap.ui.define([
   BusyIndicator,
   MessageToast,
   MdcColumn,
-  MdcField
+  MdcField,
+  StateUtil
 ) {
   "use strict";
+
+  function ts() { return new Date().toISOString(); }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
 
     onInit: function () {
+      this._log("onInit");
+
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.getRoute("Screen4").attachPatternMatched(this._onRouteMatched, this);
 
@@ -36,19 +42,81 @@ sap.ui.define([
         Fibra: "",
         RowsAll: [],
         Rows: [],
+        RowsCount: 0,
         _mmct: { cat: "", s02: [] }
       });
 
-      this.getView().setModel(oDetail);
       this.getView().setModel(oDetail, "detail");
     },
 
+    // =========================
+    // LOG
+    // =========================
+    _log: function () {
+      var a = Array.prototype.slice.call(arguments);
+      a.unshift("[S4] " + ts());
+      console.log.apply(console, a);
+    },
+
+    _logTable: function (label) {
+      var oTbl = this.byId("mdcTable4");
+      if (!oTbl) return this._log(label, "NO TABLE");
+
+      var aCols = (oTbl.getColumns && oTbl.getColumns()) || [];
+      var vis = aCols.filter(function (c) { return c.getVisible && c.getVisible(); }).length;
+
+      var oRB = oTbl.getRowBinding && oTbl.getRowBinding();
+      var oIB = oTbl.getItemBinding && oTbl.getItemBinding();
+
+      this._log(label, {
+        id: oTbl.getId && oTbl.getId(),
+        colsCount: aCols.length,
+        visibleCols: vis,
+        delegate: oTbl.getDelegate && oTbl.getDelegate(),
+        hasRowBinding: !!oRB,
+        hasItemBinding: !!oIB
+      });
+    },
+
+    // =========================
+    // ✅ FIX: visible rows = rows length (cap 10)
+    // =========================
+    _setTableRowsToData: async function (sTableId, iLen) {
+      try {
+        var oMdc = this.byId(sTableId);
+        if (!oMdc) return;
+
+        if (oMdc.initialized) await oMdc.initialized();
+
+        var oInner = (oMdc.getInnerTable && oMdc.getInnerTable()) || oMdc._oTable;
+        if (!oInner) return;
+
+        var n = Math.max(1, Math.min(10, parseInt(iLen, 10) || 0)); // cap=10
+
+        var oRowMode = oInner.getRowMode && oInner.getRowMode();
+        if (oRowMode && oRowMode.setMinRowCount && oRowMode.setMaxRowCount) {
+          oRowMode.setMinRowCount(n);
+          oRowMode.setMaxRowCount(n);
+        } else if (oInner.setVisibleRowCount) {
+          oInner.setVisibleRowCountMode && oInner.setVisibleRowCountMode("Fixed");
+          oInner.setVisibleRowCount(n);
+        }
+      } catch (e) {
+        console.error("_setTableRowsToData error", e);
+      }
+    },
+
+    // =========================
+    // Route
+    // =========================
     _onRouteMatched: function (oEvent) {
       var oArgs = oEvent.getParameter("arguments") || {};
       this._sMode = oArgs.mode || "A";
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sRecordKey = decodeURIComponent(oArgs.recordKey || "0");
+
+      this._log("_onRouteMatched args", oArgs);
 
       var oDetail = this.getView().getModel("detail");
       oDetail.setData({
@@ -59,49 +127,35 @@ sap.ui.define([
         Fibra: "",
         RowsAll: [],
         Rows: [],
+        RowsCount: 0,
         _mmct: { cat: "", s02: [] }
       }, true);
 
+      this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
+
       this._loadSelectedRecordRows(function () {
-        this._rebuildMdcColumns02();
+        this._bindRowsAndColumns();
       }.bind(this));
     },
 
     // =========================
-    // MDC columns builder (Screen 02)
+    // CACHE VM
     // =========================
-    _rebuildMdcColumns02: async function () {
-      try {
-        var oTbl = this.byId("mdcTable4");
-        if (!oTbl) return;
+    _ensureVmCache: function () {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      if (!oVm) oVm = new JSONModel({});
 
-        if (oTbl.initialized) await oTbl.initialized();
+      if (!oVm.getProperty("/cache")) oVm.setProperty("/cache", {});
+      if (!oVm.getProperty("/cache/dataRowsByKey")) oVm.setProperty("/cache/dataRowsByKey", {});
+      if (!oVm.getProperty("/cache/recordsByKey")) oVm.setProperty("/cache/recordsByKey", {});
+      if (!oVm.getProperty("/mdcCfg")) oVm.setProperty("/mdcCfg", {});
 
-        var aOld = oTbl.getColumns ? oTbl.getColumns() : [];
-        (aOld || []).slice().forEach(function (c) {
-          oTbl.removeColumn(c);
-          c.destroy();
-        });
+      this.getOwnerComponent().setModel(oVm, "vm");
+      return oVm;
+    },
 
-        var oDetail = this.getView().getModel("detail");
-        var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-
-        (aCfg02 || []).forEach(function (f) {
-          var ui = String(f.ui || "").trim();
-          if (!ui) return;
-
-          oTbl.addColumn(new MdcColumn({
-            propertyKey: ui,
-            header: f.label || ui,
-            template: new MdcField({
-              value: { path: ui },
-              editMode: "Display"
-            })
-          }));
-        });
-      } catch (e) {
-        console.error("Errore rebuild colonne Screen4", e);
-      }
+    _getCacheKeySafe: function () {
+      return encodeURIComponent((this._sVendorId || "") + "||" + (this._sMaterial || ""));
     },
 
     // =========================
@@ -109,18 +163,10 @@ sap.ui.define([
     // =========================
     _getMmctCfgForCat: function (sCat) {
       var oVm = this.getOwnerComponent().getModel("vm");
-      if (!oVm || !sCat) return [];
+      var aUserInfos = (oVm && (oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userInfosMMCT"))) || [];
+      if (!Array.isArray(aUserInfos)) return [];
 
-      var mByCat = oVm.getProperty("/mmctFieldsByCat");
-      if (mByCat && Array.isArray(mByCat[sCat])) return mByCat[sCat];
-
-      var aUserInfos = oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userInfosMMCT") || [];
-      if (!Array.isArray(aUserInfos) || !aUserInfos.length) return [];
-
-      var oCat = aUserInfos.find(function (x) {
-        return String(x && x.CatMateriale) === String(sCat);
-      });
-
+      var oCat = aUserInfos.find(function (x) { return String(x && x.CatMateriale) === String(sCat); });
       var aFields = (oCat && oCat.UserMMCTFields && oCat.UserMMCTFields.results) ? oCat.UserMMCTFields.results : [];
       return Array.isArray(aFields) ? aFields : [];
     },
@@ -138,7 +184,7 @@ sap.ui.define([
     },
 
     // =========================
-    // Data Load
+    // ODATA READ (solo se cache non c'è)
     // =========================
     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
@@ -193,7 +239,7 @@ sap.ui.define([
     },
 
     // =========================
-    // Record select: cache Screen3 (se c'è) oppure ricostruisce
+    // Record select (come Screen3)
     // =========================
     _toStableString: function (v) {
       if (v === null || v === undefined) return "";
@@ -210,25 +256,6 @@ sap.ui.define([
     _rowFibra: function (r) {
       var v = r && (r.Fibra || r.FIBRA || r.Fiber || r.FIBER);
       return this._toStableString(v);
-    },
-
-    _ensureVmCache: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      if (!oVm) return null;
-
-      var oCache = oVm.getProperty("/cache") || {};
-      if (!oCache.dataRowsByKey) oCache.dataRowsByKey = {};
-      if (!oCache.recordsByKey) oCache.recordsByKey = {};
-      oVm.setProperty("/cache", oCache);
-      return oVm;
-    },
-
-    _getCacheKeyRaw: function () {
-      return (this._sVendorId || "") + "||" + (this._sMaterial || "");
-    },
-
-    _getCacheKeySafe: function () {
-      return encodeURIComponent(this._getCacheKeyRaw());
     },
 
     _buildRecordsForCache: function (aAllRows) {
@@ -251,8 +278,8 @@ sap.ui.define([
       var oVm = this._ensureVmCache();
       var sKey = this._getCacheKeySafe();
 
-      var aAllRows = (oVm && oVm.getProperty("/cache/dataRowsByKey/" + sKey)) || null;
-      var aRecords = (oVm && oVm.getProperty("/cache/recordsByKey/" + sKey)) || null;
+      var aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
+      var aRecords = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
 
       var after = function () {
         var oDetail = this.getView().getModel("detail");
@@ -264,6 +291,7 @@ sap.ui.define([
         if (!oRec) {
           oDetail.setProperty("/RowsAll", []);
           oDetail.setProperty("/Rows", []);
+          oDetail.setProperty("/RowsCount", 0);
           if (typeof fnDone === "function") fnDone();
           return;
         }
@@ -285,6 +313,16 @@ sap.ui.define([
 
         oDetail.setProperty("/RowsAll", aSelected || []);
         oDetail.setProperty("/Rows", aSelected || []);
+        oDetail.setProperty("/RowsCount", (aSelected || []).length);
+
+        this._log("_loadSelectedRecordRows", {
+          cacheKey: sKey,
+          recIdx: iIdx,
+          guidKey: sGuidKey,
+          fibra: sFibra,
+          rows: (aSelected || []).length,
+          s02Cols: aCfg02.length
+        });
 
         if (typeof fnDone === "function") fnDone();
       }.bind(this);
@@ -298,17 +336,117 @@ sap.ui.define([
         aAllRows = aResults;
         aRecords = this._buildRecordsForCache(aResults);
 
-        if (oVm) {
-          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
-          oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
-        }
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
 
         after();
       }.bind(this));
     },
 
     // =========================
-    // Global filter (client side)
+    // MDC cfg + columns + bind
+    // =========================
+    _ensureMdcCfgScreen4: function (aCfg02) {
+      var oVm = this._ensureVmCache();
+
+      var aProps = (aCfg02 || []).map(function (f) {
+        return { name: f.ui, label: f.label || f.ui, dataType: "String" };
+      });
+
+      oVm.setProperty("/mdcCfg/screen4", {
+        modelName: "detail",
+        collectionPath: "/Rows",
+        properties: aProps
+      });
+
+      this._log("vm>/mdcCfg/screen4 set", { props: aProps.length });
+    },
+
+    _rebuildColumnsHard: async function (oTbl, aCfg02) {
+      if (!oTbl) return;
+      if (oTbl.initialized) await oTbl.initialized();
+
+      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+      aOld.slice().forEach(function (c) {
+        oTbl.removeColumn(c);
+        c.destroy();
+      });
+
+      (aCfg02 || []).forEach(function (f) {
+        var sKey = String(f.ui || "").trim();
+        if (!sKey) return;
+
+        oTbl.addColumn(new MdcColumn({
+          header: f.label || sKey,
+          visible: true,
+          dataProperty: sKey,
+          template: new MdcField({
+            value: "{detail>" + sKey + "}",
+            editMode: "Display"
+          })
+        }));
+      });
+
+      this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
+    },
+
+    _forceP13nAllVisible: async function (oTbl, reason) {
+      if (!oTbl || !StateUtil) return;
+      try {
+        var st = await StateUtil.retrieveExternalState(oTbl);
+        var patched = JSON.parse(JSON.stringify(st || {}));
+
+        var arr =
+          patched.items ||
+          patched.columns ||
+          patched.Columns ||
+          (patched.table && patched.table.items) ||
+          null;
+
+        if (Array.isArray(arr) && arr.length) {
+          arr.forEach(function (it) {
+            if (!it) return;
+            if (it.visible === false) it.visible = true;
+            if (it.visible == null) it.visible = true;
+          });
+
+          await StateUtil.applyExternalState(oTbl, patched);
+          this._log("P13N applyExternalState FORCED visible @ " + reason);
+          if (typeof oTbl.rebind === "function") oTbl.rebind();
+        }
+      } catch (e) {
+        this._log("P13N force visible FAILED @ " + reason, e && e.message);
+      }
+    },
+
+    _bindRowsAndColumns: async function () {
+      var oDetail = this.getView().getModel("detail");
+      var oTbl = this.byId("mdcTable4");
+      if (!oTbl) return;
+
+      var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
+      this._ensureMdcCfgScreen4(aCfg02);
+
+      await this._rebuildColumnsHard(oTbl, aCfg02);
+
+      if (oTbl.initialized) await oTbl.initialized();
+      oTbl.setModel(oDetail, "detail");
+
+      if (typeof oTbl.bindRows === "function") oTbl.bindRows({ path: "detail>/Rows" });
+      if (typeof oTbl.rebind === "function") oTbl.rebind();
+
+      await this._forceP13nAllVisible(oTbl, "t0");
+      setTimeout(function () { this._forceP13nAllVisible(oTbl, "t300"); this._logTable("TABLE STATE @ t300"); }.bind(this), 300);
+      setTimeout(function () { this._forceP13nAllVisible(oTbl, "t900"); this._logTable("TABLE STATE @ t900"); }.bind(this), 900);
+
+      this._logTable("TABLE STATE @ after bindRowsAndColumns");
+
+      // ✅ FIX: adatta righe ai dati
+      await this._setTableRowsToData("mdcTable4", (oDetail.getProperty("/Rows") || []).length);
+    },
+
+    // =========================
+    // Global filter
     // =========================
     onGlobalFilter: function (oEvt) {
       var q = String(oEvt.getParameter("value") || "").trim().toUpperCase();
@@ -317,6 +455,8 @@ sap.ui.define([
 
       if (!q) {
         oDetail.setProperty("/Rows", aAll);
+        oDetail.setProperty("/RowsCount", (aAll || []).length);
+        this._setTableRowsToData("mdcTable4", (aAll || []).length);
         return;
       }
 
@@ -330,6 +470,8 @@ sap.ui.define([
       });
 
       oDetail.setProperty("/Rows", aFiltered);
+      oDetail.setProperty("/RowsCount", (aFiltered || []).length);
+      this._setTableRowsToData("mdcTable4", (aFiltered || []).length);
     },
 
     onNavBack: function () {

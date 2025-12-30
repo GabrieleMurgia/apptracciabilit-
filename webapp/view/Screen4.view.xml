@@ -39,6 +39,13 @@
           <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 02"/>
         </HBox>
 
+        <HBox id="hboxToolbarTable4" width="100%" justifyContent="End" class="sapUiTinyMargin">
+          <Toolbar id="tblToolbar4" design="Transparent">
+          <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
+          <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
+          </Toolbar>
+        </HBox>
+
         <mdc:Table
           id="mdcTable4"
           type="Table"
@@ -46,7 +53,7 @@
           header="Schermata 02"
           selectionMode="None"
           p13nMode="Column,Sort,Group"
-          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MDCDelegate","payload":{"collectionName":"Rows"}}'>
+          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen4"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>
       </VBox>

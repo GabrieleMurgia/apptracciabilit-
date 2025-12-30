@@ -12,7 +12,7 @@
             <Toolbar id="toolbar0">
                 <Title id="title0" text="Gestione lotti fornitore - Seleziona modalità" />
                 <ToolbarSpacer id="toolbarSpacer0" />
-                <Image id="imageLogo0" src="img/valentino_logo.png" decorative="false" />
+                <Image id="imageLogo0" src="IMG/Valentino.png" decorative="false" />
             </Toolbar>
         </customHeader>
 

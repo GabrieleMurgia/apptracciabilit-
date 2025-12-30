@@ -13,7 +13,7 @@
         <Button id="buttonBack3" icon="sap-icon://nav-back" press=".onNavBack" />
         <Title id="title3" text="Tracciabilità (Schermata 01)" />
         <ToolbarSpacer id="spacerHdr3" />
-        <Image id="imageLogo3" src="img/valentino_logo.png" decorative="false" />
+        <Image id="imageLogo3" src="IMG/Valentino.png" decorative="false" />
       </Toolbar>
     </customHeader>
 
@@ -39,6 +39,14 @@
           <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 01"/>
         </HBox>
 
+        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" class="sapUiTinyMargin">
+          <Toolbar id="tblToolbar3" design="Transparent">
+          <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
+          <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
+          </Toolbar>
+        </HBox>
+
+
         <mdc:Table
           id="mdcTable3"
           type="Table"
@@ -46,13 +54,7 @@
           header="Schermata 01"
           selectionMode="Single"
           p13nMode="Column,Sort,Group"
-          delegate='{
-    "name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate",
-    "payload":{
-      "cfgModel":"vm",
-      "cfgPath":"/mdcCfg/screen3"
-    }
-  }'
+          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'
           >
           <!-- colonne create in controller -->
         </mdc:Table>

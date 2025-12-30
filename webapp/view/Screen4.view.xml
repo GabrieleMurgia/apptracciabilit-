@@ -1,0 +1,57 @@
+<mvc:View
+  id="screen4View"
+  controllerName="apptracciabilita.apptracciabilita.controller.Screen4"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+
+  <Page id="page4" title="Dettaglio tracciabilità materiale">
+    <customHeader>
+      <Toolbar id="toolbar4">
+        <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack" />
+        <Title id="title4" text="Dettaglio tracciabilità" />
+        <ToolbarSpacer id="spacerHdr4" />
+        <Image id="imageLogo4" src="img/valentino_logo.png" decorative="false" />
+      </Toolbar>
+    </customHeader>
+
+    <subHeader>
+      <Toolbar id="toolbarInfo4">
+        <Label id="lblVend4" text="Fornitore:" />
+        <Text id="txtVend4" text="{detail>/VendorId}" />
+        <ToolbarSpacer id="sp1_4" />
+
+        <Label id="lblRag4" text="Ragione sociale:" />
+        <Text id="txtRag4" text="{detail>/VendorName}" />
+        <ToolbarSpacer id="sp2_4" />
+
+        <Label id="lblMat4" text="Materiale:" />
+        <Text id="txtMat4" text="{detail>/Material}" />
+        <ToolbarSpacer id="sp3_4" />
+
+        <Label id="lblFib4" text="Fibra:" />
+        <Text id="txtFib4" text="{detail>/Fibra}" />
+      </Toolbar>
+    </subHeader>
+
+    <content>
+      <ScrollContainer
+        id="scrollTable4"
+        width="100%"
+        height="auto"
+        horizontal="true"
+        vertical="false"
+        focusable="false">
+
+        <Table id="tableData4" inset="false" fixedLayout="true">
+          <headerToolbar>
+            <Toolbar id="toolbarTableHeader4">
+              <Title id="titleTable4" text="Campi tracciabilità" level="H2" />
+            </Toolbar>
+          </headerToolbar>
+        </Table>
+
+      </ScrollContainer>
+    </content>
+  </Page>
+</mvc:View>

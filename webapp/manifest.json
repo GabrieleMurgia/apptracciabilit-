@@ -106,7 +106,12 @@
           "name": "Screen3",
           "pattern": "data/{vendorId}/{material}/{mode}",
           "target": "Screen3"
-        }
+        },
+        {
+  "name": "Screen4",
+  "pattern": "detail/{vendorId}/{material}/{recordKey}/{mode}",
+  "target": "Screen4"
+}
       ],
       "targets": {
         "Screen0": {
@@ -136,6 +141,13 @@
   "clearControlAggregation": false,
   "viewId": "Screen3",
   "viewName": "Screen3"
+},
+"Screen4": {
+  "viewType": "XML",
+  "transition": "slide",
+  "clearControlAggregation": false,
+  "viewId": "Screen4",
+  "viewName": "Screen4"
 }
       }
     },

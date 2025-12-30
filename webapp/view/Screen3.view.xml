@@ -5,11 +5,12 @@
   xmlns="sap.m"
   xmlns:core="sap.ui.core">
 
-  <Page id="page3" title="Dettaglio tracciabilità materiale">
+  <!-- Screen3 = Schermata 01 (solo aUi01) -->
+  <Page id="page3" title="Tracciabilità (Schermata 01)">
     <customHeader>
       <Toolbar id="toolbar3">
         <Button id="buttonBack3" icon="sap-icon://nav-back" press=".onNavBack" />
-        <Title id="title3" text="Dettaglio tracciabilità" />
+        <Title id="title3" text="Tracciabilità - Schermata 01" />
         <ToolbarSpacer id="spacerHdr3" />
         <Image id="imageLogo3" src="img/valentino_logo.png" decorative="false" />
       </Toolbar>
@@ -21,16 +22,12 @@
         <Text id="txtVend3" text="{detail>/VendorId}" />
         <ToolbarSpacer id="sp1_3" />
 
-        <Label id="lblRag3" text="Ragione sociale:" />
-        <Text id="txtRag3" text="{detail>/VendorName}" />
-        <ToolbarSpacer id="sp2_3" />
-
         <Label id="lblMat3" text="Materiale:" />
         <Text id="txtMat3" text="{detail>/Material}" />
-        <ToolbarSpacer id="sp3_3" />
+        <ToolbarSpacer id="sp2_3" />
 
-        <Label id="lblGrp3" text="Gruppo merci:" />
-        <Text id="txtGrp3" text="{detail>/MaterialGroup}" />
+        <Label id="lblCount3" text="Record:" />
+        <Text id="txtCount3" text="{detail>/RowsS3Count}" />
       </Toolbar>
     </subHeader>
 
@@ -43,18 +40,18 @@
         vertical="false"
         focusable="false">
 
+        <!-- Colonne + righe create dal controller in base a aUi01 -->
         <Table
           id="tableData3"
           inset="false"
-          fixedLayout="true">
-
+          fixedLayout="false">
           <headerToolbar>
             <Toolbar id="toolbarTableHeader3">
-              <Title id="titleTable3" text="Righe di tracciabilità" level="H2" />
+              <Title id="titleTable3" text="Righe tracciabilità (aUi01)" level="H2" />
             </Toolbar>
           </headerToolbar>
-
         </Table>
+
       </ScrollContainer>
     </content>
   </Page>

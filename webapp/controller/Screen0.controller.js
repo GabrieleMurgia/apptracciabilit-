@@ -41,7 +41,7 @@ sap.ui.define([
           "sap-language": "IT" 
         },
         success: function (oData) {
-          debugger
+          
           BusyIndicator.hide();
 
 
@@ -87,7 +87,7 @@ var mmctFieldsByCat = aMMCT.reduce(function (acc, cat) {
               domainsByName: domainsByName,        // ✅
           });
 
-          debugger
+          
 
           }.bind(this),
 

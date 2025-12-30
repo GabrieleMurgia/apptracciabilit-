@@ -74,7 +74,7 @@ sap.ui.define([
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
-          debugger
+          
           BusyIndicator.hide();
 
           var aResults = (oData && oData.results) || [];

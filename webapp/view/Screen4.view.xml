@@ -3,13 +3,15 @@
   controllerName="apptracciabilita.apptracciabilita.controller.Screen4"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
-  xmlns:core="sap.ui.core">
+  xmlns:core="sap.ui.core"
+  xmlns:mdc="sap.ui.mdc"
+  xmlns:mdctable="sap.ui.mdc.table">
 
-  <Page id="page4" title="Dettaglio tracciabilità materiale">
+  <Page id="page4" title="Tracciabilità - Schermata 02">
     <customHeader>
       <Toolbar id="toolbar4">
         <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack" />
-        <Title id="title4" text="Dettaglio tracciabilità" />
+        <Title id="title4" text="Tracciabilità (Schermata 02)" />
         <ToolbarSpacer id="spacerHdr4" />
         <Image id="imageLogo4" src="img/valentino_logo.png" decorative="false" />
       </Toolbar>
@@ -19,15 +21,11 @@
       <Toolbar id="toolbarInfo4">
         <Label id="lblVend4" text="Fornitore:" />
         <Text id="txtVend4" text="{detail>/VendorId}" />
-        <ToolbarSpacer id="sp1_4" />
-
-        <Label id="lblRag4" text="Ragione sociale:" />
-        <Text id="txtRag4" text="{detail>/VendorName}" />
-        <ToolbarSpacer id="sp2_4" />
+        <ToolbarSpacer id="spVend4"/>
 
         <Label id="lblMat4" text="Materiale:" />
         <Text id="txtMat4" text="{detail>/Material}" />
-        <ToolbarSpacer id="sp3_4" />
+        <ToolbarSpacer id="spMat4"/>
 
         <Label id="lblFib4" text="Fibra:" />
         <Text id="txtFib4" text="{detail>/Fibra}" />
@@ -35,23 +33,23 @@
     </subHeader>
 
     <content>
-      <ScrollContainer
-        id="scrollTable4"
-        width="100%"
-        height="auto"
-        horizontal="true"
-        vertical="false"
-        focusable="false">
+      <VBox id="vboxContent4" width="100%">
+        <HBox id="hboxFilter4" width="100%" justifyContent="End" class="sapUiTinyMargin">
+          <Label id="lblSearch4" text="Cerca:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
+          <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 02"/>
+        </HBox>
 
-        <Table id="tableData4" inset="false" fixedLayout="true">
-          <headerToolbar>
-            <Toolbar id="toolbarTableHeader4">
-              <Title id="titleTable4" text="Campi tracciabilità" level="H2" />
-            </Toolbar>
-          </headerToolbar>
-        </Table>
-
-      </ScrollContainer>
+        <mdc:Table
+          id="mdcTable4"
+          type="Table"
+          width="100%"
+          header="Schermata 02"
+          selectionMode="None"
+          p13nMode="Column,Sort,Group"
+          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MDCDelegate","payload":{"collectionName":"Rows"}}'>
+          <!-- colonne create in controller -->
+        </mdc:Table>
+      </VBox>
     </content>
   </Page>
 </mvc:View>

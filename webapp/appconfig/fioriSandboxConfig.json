@@ -1,0 +1,60 @@
+{
+  "sap-ushell-config": {
+    "defaultRenderer": "fiori2",
+    "renderers": {
+      "fiori2": {
+        "componentData": {
+          "config": {
+            "search": "hidden"
+          }
+        }
+      }
+    },
+    "bootstrapPlugins": {},
+    "services": {
+      "ClientSideTargetResolution": {
+        "adapter": {
+          "config": {
+            "inbounds": {
+              "project1-display": {
+                "semanticObject": "project1",
+                "action": "display",
+                "title": "Project 1",
+                "signature": { "parameters": {} },
+                "resolutionResult": {
+                  "applicationType": "SAPUI5",
+                  "additionalInformation": "SAPUI5.Component=project1",
+                  "url": "../"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NavTargetResolution": {
+        "config": {
+          "enableClientSideTargetResolution": true
+        }
+      },
+      "LaunchPage": {
+        "adapter": {
+          "config": {
+            "groups": [
+              {
+                "tiles": [
+                  {
+                    "tileType": "sap.ushell.ui.tile.StaticTile",
+                    "properties": {
+                      "title": "Project 1",
+                      "targetURL": "#project1-display"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -25,6 +25,7 @@ sap.ui.define([
   "use strict";
 
   function ts() { return new Date().toISOString(); }
+  function deepClone(x) { try { return JSON.parse(JSON.stringify(x)); } catch (e) { return x; } }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
 
@@ -47,6 +48,12 @@ sap.ui.define([
       });
 
       this.getView().setModel(oDetail, "detail");
+
+      if (!this.getView().getModel("ui")) {
+        this.getView().setModel(new JSONModel({ edit: false }), "ui");
+      }
+
+      this._editSnapshot = null;
     },
 
     // =========================
@@ -79,30 +86,48 @@ sap.ui.define([
     },
 
     // =========================
-    // ✅ FIX: visible rows = rows length (cap 10)
+    // helpers inner table + selection
     // =========================
-    _setTableRowsToData: async function (sTableId, iLen) {
-      try {
-        var oMdc = this.byId(sTableId);
-        if (!oMdc) return;
+    _getInnerTable: async function (sMdcId) {
+      var oMdc = this.byId(sMdcId);
+      if (!oMdc) return null;
+      if (oMdc.initialized) await oMdc.initialized();
+      return (oMdc.getInnerTable && oMdc.getInnerTable()) || oMdc._oTable || null;
+    },
 
-        if (oMdc.initialized) await oMdc.initialized();
+    _getInnerBindingLength: function (oInner) {
+      if (!oInner) return 0;
+      var b = (oInner.getBinding && (oInner.getBinding("rows") || oInner.getBinding("items"))) || null;
+      if (b && typeof b.getLength === "function") return b.getLength();
+      if (b && typeof b.getCurrentContexts === "function") return (b.getCurrentContexts() || []).length;
+      return 0;
+    },
 
-        var oInner = (oMdc.getInnerTable && oMdc.getInnerTable()) || oMdc._oTable;
-        if (!oInner) return;
+    _toggleSelectAllInner: function (oInner) {
+      if (!oInner) return;
 
-        var n = Math.max(1, Math.min(10, parseInt(iLen, 10) || 0)); // cap=10
+      if (typeof oInner.setSelectionInterval === "function") {
+        var len = this._getInnerBindingLength(oInner);
+        if (len <= 0) return;
 
-        var oRowMode = oInner.getRowMode && oInner.getRowMode();
-        if (oRowMode && oRowMode.setMinRowCount && oRowMode.setMaxRowCount) {
-          oRowMode.setMinRowCount(n);
-          oRowMode.setMaxRowCount(n);
-        } else if (oInner.setVisibleRowCount) {
-          oInner.setVisibleRowCountMode && oInner.setVisibleRowCountMode("Fixed");
-          oInner.setVisibleRowCount(n);
+        var sel = (typeof oInner.getSelectedIndices === "function") ? (oInner.getSelectedIndices() || []) : [];
+        var allSelected = sel.length >= len;
+
+        if (allSelected && typeof oInner.clearSelection === "function") {
+          oInner.clearSelection();
+        } else {
+          oInner.setSelectionInterval(0, len - 1);
         }
-      } catch (e) {
-        console.error("_setTableRowsToData error", e);
+        return;
+      }
+
+      if (typeof oInner.selectAll === "function" && typeof oInner.removeSelections === "function") {
+        var items = (oInner.getItems && oInner.getItems()) || [];
+        var selectedItems = (oInner.getSelectedItems && oInner.getSelectedItems()) || [];
+        var allSelected2 = selectedItems.length >= items.length && items.length > 0;
+
+        if (allSelected2) oInner.removeSelections(true);
+        else oInner.selectAll();
       }
     },
 
@@ -117,6 +142,9 @@ sap.ui.define([
       this._sRecordKey = decodeURIComponent(oArgs.recordKey || "0");
 
       this._log("_onRouteMatched args", oArgs);
+
+      this.getView().getModel("ui").setProperty("/edit", false);
+      this._editSnapshot = null;
 
       var oDetail = this.getView().getModel("detail");
       oDetail.setData({
@@ -239,7 +267,7 @@ sap.ui.define([
     },
 
     // =========================
-    // Record select (come Screen3)
+    // Record select
     // =========================
     _toStableString: function (v) {
       if (v === null || v === undefined) return "";
@@ -382,7 +410,7 @@ sap.ui.define([
           dataProperty: sKey,
           template: new MdcField({
             value: "{detail>" + sKey + "}",
-            editMode: "Display"
+            editMode: "{= ${ui>/edit} ? 'Editable' : 'Display' }"
           })
         }));
       });
@@ -441,9 +469,230 @@ sap.ui.define([
 
       this._logTable("TABLE STATE @ after bindRowsAndColumns");
 
-      // ✅ FIX: adatta righe ai dati
       await this._setTableRowsToData("mdcTable4", (oDetail.getProperty("/Rows") || []).length);
     },
+
+    // =========================
+    // ✅ rows = data length (cap 10)
+    // =========================
+    _setTableRowsToData: async function (sTableId, iLen) {
+      try {
+        var oMdc = this.byId(sTableId);
+        if (!oMdc) return;
+
+        if (oMdc.initialized) await oMdc.initialized();
+
+        var oInner = (oMdc.getInnerTable && oMdc.getInnerTable()) || oMdc._oTable;
+        if (!oInner) return;
+
+        var n = Math.max(1, Math.min(10, parseInt(iLen, 10) || 0));
+
+        var oRowMode = oInner.getRowMode && oInner.getRowMode();
+        if (oRowMode && oRowMode.setMinRowCount && oRowMode.setMaxRowCount) {
+          oRowMode.setMinRowCount(n);
+          oRowMode.setMaxRowCount(n);
+        } else if (oInner.setVisibleRowCount) {
+          oInner.setVisibleRowCountMode && oInner.setVisibleRowCountMode("Fixed");
+          oInner.setVisibleRowCount(n);
+        }
+      } catch (e) {
+        console.error("_setTableRowsToData error", e);
+      }
+    },
+
+    // =========================
+    // Toolbar actions
+    // =========================
+    onSelectAll: async function () {
+      if (this.getView().getModel("ui").getProperty("/edit")) return;
+      var oInner = await this._getInnerTable("mdcTable4");
+      this._toggleSelectAllInner(oInner);
+    },
+
+    onEdit: function () {
+      var oUi = this.getView().getModel("ui");
+      if (oUi.getProperty("/edit")) return;
+
+      var oDetail = this.getView().getModel("detail");
+      var aCur = oDetail.getProperty("/Rows") || [];
+      this._editSnapshot = deepClone(aCur);
+
+      oUi.setProperty("/edit", true);
+      MessageToast.show("Modalità modifica attiva");
+    },
+
+    _diffByCfg: function (aBefore, aAfter, aKeys) {
+      var changed = [];
+      var len = Math.max(aBefore ? aBefore.length : 0, aAfter ? aAfter.length : 0);
+
+      for (var i = 0; i < len; i++) {
+        var b = (aBefore && aBefore[i]) || {};
+        var a = (aAfter && aAfter[i]) || {};
+        var patch = {};
+        var has = false;
+
+        (aKeys || []).forEach(function (k) {
+          var vb = b[k];
+          var va = a[k];
+          if (String(vb ?? "") !== String(va ?? "")) {
+            patch[k] = va;
+            has = true;
+          }
+        });
+
+        if (has) changed.push({ idx: i, before: b, after: a, patch: patch });
+      }
+
+      return changed;
+    },
+
+    _toODataPathFromUri: function (oModel, sUri) {
+      if (!oModel || !sUri) return null;
+      var base = (oModel.sServiceUrl || "").replace(/\/$/, "");
+      var uri = String(sUri || "");
+      if (base && uri.indexOf(base) === 0) uri = uri.slice(base.length);
+      if (uri[0] !== "/") uri = "/" + uri;
+      return uri;
+    },
+
+    _updateOData: function (oModel, sPath, oPatch) {
+      return new Promise(function (resolve, reject) {
+        try {
+          oModel.update(sPath, oPatch, {
+            merge: true,
+            success: function () { resolve(true); },
+            error: function (e) { reject(e); }
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    },
+
+    onSave: async function () {
+      var oUi = this.getView().getModel("ui");
+      if (!oUi.getProperty("/edit")) return;
+
+      var oDetail = this.getView().getModel("detail");
+      var aNow = oDetail.getProperty("/Rows") || [];
+      var aCfg02 = (oDetail.getProperty("/_mmct/s02") || []).map(function (x) { return x.ui; }).filter(Boolean);
+
+      var diffs = this._diffByCfg(this._editSnapshot || [], aNow, aCfg02);
+      if (!diffs.length) {
+        oUi.setProperty("/edit", false);
+        this._editSnapshot = null;
+        MessageToast.show("Nessuna modifica");
+        return;
+      }
+
+      BusyIndicator.show(0);
+
+      try {
+        // aggiorna RowsAll in modo coerente (stesso idx / stessa reference)
+        var aAll = oDetail.getProperty("/RowsAll") || [];
+        diffs.forEach(function (d) {
+          if (aAll[d.idx]) {
+            Object.keys(d.patch || {}).forEach(function (k) { aAll[d.idx][k] = d.patch[k]; });
+          }
+        });
+
+        oDetail.setProperty("/RowsAll", aAll);
+
+        // tenta update OData per ogni riga che ha uri
+        var oOData = this.getOwnerComponent().getModel();
+        if (oOData) {
+          for (var i = 0; i < diffs.length; i++) {
+            var row = diffs[i].after;
+            var uri = row && row.__metadata && row.__metadata.uri;
+            if (!uri) continue;
+
+            var path = this._toODataPathFromUri(oOData, uri);
+            if (!path) continue;
+
+            try {
+              await this._updateOData(oOData, path, diffs[i].patch);
+            } catch (e) {
+              console.error("[S4] OData update failed", e);
+            }
+          }
+        }
+
+        oUi.setProperty("/edit", false);
+        this._editSnapshot = null;
+        MessageToast.show("Salvato");
+      } finally {
+        BusyIndicator.hide();
+      }
+    },
+
+    onPrint: function () {
+      var oDetail = this.getView().getModel("detail");
+      var aRows = oDetail.getProperty("/Rows") || [];
+      var aCols = oDetail.getProperty("/_mmct/s02") || [];
+
+      var html = [];
+      html.push("<html><head><meta charset='utf-8'/>");
+      html.push("<title>Stampa - Schermata 02</title>");
+      html.push("<style>body{font-family:Arial} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ccc;padding:6px;font-size:12px} th{background:#f3f3f3}</style>");
+      html.push("</head><body>");
+      html.push("<h3>Tracciabilità - Schermata 02</h3>");
+      html.push("<div><b>Fornitore:</b> " + String(oDetail.getProperty("/VendorId") || "") +
+        " &nbsp; <b>Materiale:</b> " + String(oDetail.getProperty("/Material") || "") +
+        " &nbsp; <b>Fibra:</b> " + String(oDetail.getProperty("/Fibra") || "") + "</div>");
+      html.push("<br/>");
+      html.push("<table><thead><tr>");
+      aCols.forEach(function (c) { html.push("<th>" + String(c.label || c.ui) + "</th>"); });
+      html.push("</tr></thead><tbody>");
+
+      aRows.forEach(function (r) {
+        html.push("<tr>");
+        aCols.forEach(function (c) {
+          var k = c.ui;
+          html.push("<td>" + String((r && r[k]) != null ? r[k] : "") + "</td>");
+        });
+        html.push("</tr>");
+      });
+
+      html.push("</tbody></table>");
+      html.push("</body></html>");
+
+      var w = window.open("", "_blank");
+      if (!w) return;
+      w.document.open();
+      w.document.write(html.join(""));
+      w.document.close();
+      w.focus();
+      w.print();
+    },
+
+    onExportExcel: function () {
+      var oDetail = this.getView().getModel("detail");
+      var aData = oDetail.getProperty("/Rows") || [];
+      var aCols = oDetail.getProperty("/_mmct/s02") || [];
+
+      sap.ui.require(["sap/ui/export/Spreadsheet", "sap/ui/export/library"], function (Spreadsheet, exportLibrary) {
+        var EdmType = exportLibrary.EdmType;
+
+        var aColumnCfg = (aCols || []).map(function (c) {
+          return {
+            label: c.label || c.ui,
+            property: c.ui,
+            type: EdmType.String
+          };
+        });
+
+        var oSettings = {
+          workbook: { columns: aColumnCfg },
+          dataSource: aData,
+          fileName: "Screen4_Schermata02.xlsx"
+        };
+
+        var sheet = new Spreadsheet(oSettings);
+        sheet.build().finally(function () { sheet.destroy(); });
+      });
+    },
+
+    onExport: function () { this.onExportExcel(); },
 
     // =========================
     // Global filter
@@ -475,6 +724,11 @@ sap.ui.define([
     },
 
     onNavBack: function () {
+      if (this.getView().getModel("ui").getProperty("/edit")) {
+        MessageToast.show("Salva o esci da Modifica prima di tornare indietro");
+        return;
+      }
+
       var oHistory = History.getInstance();
       var sPreviousHash = oHistory.getPreviousHash();
 

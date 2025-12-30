@@ -1,3 +1,4 @@
+<!-- Screen3.view.xml -->
 <mvc:View
   id="screen3View"
   controllerName="apptracciabilita.apptracciabilita.controller.Screen3"
@@ -34,30 +35,34 @@
 
     <content>
       <VBox id="box3" width="100%">
-        <HBox id="hboxFilter3" width="100%" justifyContent="End" class="sapUiTinyMargin">
-          <Label id="lblFilter3" text="Cerca:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
-          <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 01"/>
-        </HBox>
 
-        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" class="sapUiTinyMargin">
+        <!-- Toolbar stile "Pelletterie": filtro + bottoni -->
+        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin">
+          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd" alignItems="Center">
+            <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
+            <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 01"/>
+          </HBox>
+
           <Toolbar id="tblToolbar3" design="Transparent">
-          <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
-          <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
+          <!--   <Button id="tbSelectAll3" icon="sap-icon://multi-select" tooltip="Seleziona tutto" press=".onSelectAll" enabled="{= !${ui>/edit} }"/>
+            <Button id="tbEdit3"      icon="sap-icon://edit"        tooltip="Modifica"         press=".onEdit"      enabled="{= !${ui>/edit} }"/>
+            <Button id="tbSave3"      icon="sap-icon://save"        tooltip="Salva"            press=".onSave"      enabled="{ui>/edit}"/> -->
+            <Button id="tbPrint3"     icon="sap-icon://print"       tooltip="Stampa"           press=".onPrint"/>
+            <Button id="tbExcel3"     icon="sap-icon://excel-attachment" tooltip="Excel"       press=".onExportExcel"/>
           </Toolbar>
         </HBox>
-
 
         <mdc:Table
           id="mdcTable3"
           type="Table"
           width="100%"
           header="Schermata 01"
-          selectionMode="Single"
+          selectionMode="Multi"
           p13nMode="Column,Sort,Group"
-          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'
-          >
+          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>
+
       </VBox>
     </content>
   </Page>

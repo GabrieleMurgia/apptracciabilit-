@@ -41,6 +41,8 @@ sap.ui.define([
           "sap-language": "IT" 
         },
         success: function (oData) {
+
+          debugger
           
           BusyIndicator.hide();
 

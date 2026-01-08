@@ -109,9 +109,9 @@ sap.ui.define([
   "sap/m/HBox",
   "sap/m/Text",
   "sap/m/Input",
-  "sap/m/ComboBox",
+  "sap/m/MultiComboBox",
   "sap/ui/core/ListItem"
-], function (BaseTableDelegate, Column, HBox, Text, Input, ComboBox, ListItem) {
+], function (BaseTableDelegate, Column, HBox, Text, Input, MultiComboBox, ListItem) {
   "use strict";
 
   const Delegate = Object.assign({}, BaseTableDelegate);
@@ -187,7 +187,7 @@ sap.ui.define([
     let oEditCtrl;
 
     if (sDomain && _hasDomainValues(sDomain)) {
-      oEditCtrl = new ComboBox({
+      oEditCtrl = new MultiComboBox({
         selectedKey: "{" + sBinding + "}",
         value: "{" + sBinding + "}",
         visible: "{= !" + sReadOnlyExpr + " }",

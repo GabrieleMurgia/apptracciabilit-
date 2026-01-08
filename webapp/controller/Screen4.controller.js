@@ -511,7 +511,7 @@ sap.ui.define([
   "sap/m/HBox",
   "sap/m/Text",
   "sap/m/Input",
-  "sap/m/ComboBox",
+  "sap/m/MultiComboBox",
   "sap/ui/core/Item",
   "sap/ui/mdc/p13n/StateUtil"
 ], function (
@@ -526,7 +526,7 @@ sap.ui.define([
   HBox,
   Text,
   Input,
-  ComboBox,
+  MultiComboBox,
   Item,
   StateUtil
 ) {
@@ -648,7 +648,7 @@ sap.ui.define([
       var oEditCtrl;
 
       if (bUseCombo) {
-        oEditCtrl = new ComboBox({
+        oEditCtrl = new MultiComboBox({
           visible: "{= !" + sReadOnlyExpr + " }",
           selectedKey: sValueBind,
           value: sValueBind,
@@ -966,7 +966,7 @@ sap.ui.define([
           visible: true,
           dataProperty: sKey,
           propertyKey: sKey,
-          template: this._createCellTemplate(sKey, f) // ✅ Input/ComboBox + readOnly + required
+          template: this._createCellTemplate(sKey, f) // ✅ Input/MultiComboBox + readOnly + required
         }));
       }.bind(this));
 

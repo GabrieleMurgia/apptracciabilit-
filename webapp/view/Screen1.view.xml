@@ -10,19 +10,32 @@
         title="Fornitori">
 
         <customHeader>
+
+        
             <Toolbar id="toolbar1">
-                <Button
+
+                    <Bar id="bar1">
+            <contentLeft>
+            
+            <Image id="imageLogo1" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            <Button
                     id="buttonBack1"
                     icon="sap-icon://nav-back"
                     press=".onNavBack" />
-                <Title
+            </contentLeft>
+
+        <contentMiddle>
+            <Title
                     id="title1"
                     text="Dati aggregati per fornitore" />
-                <ToolbarSpacer id="toolbarSpacer1" />
-                <Image
-                    id="imageLogo1"
-                    src="IMG/Valentino.png"
-                    decorative="false" />
+        </contentMiddle>
+
+        <contentRight>
+            <HBox id ="hbox2" width="200px"/>
+        </contentRight>
+        </Bar>
+
+
             </Toolbar>
         </customHeader>
 

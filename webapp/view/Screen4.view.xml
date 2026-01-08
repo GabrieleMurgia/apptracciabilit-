@@ -9,14 +9,32 @@
   xmlns:mdctable="sap.ui.mdc.table">
 
   <Page id="page4" title="Tracciabilità - Schermata 02">
-    <customHeader>
-      <Toolbar id="toolbar4">
-        <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack" />
-        <Title id="title4" text="Tracciabilità (Schermata 02)" />
-        <ToolbarSpacer id="spacerHdr4" />
-        <Image id="imageLogo4" src="img/valentino_logo.png" decorative="false" />
-      </Toolbar>
-    </customHeader>
+
+          <customHeader>
+            <Toolbar id="toolbar4">
+                <Bar id="bar4">
+            <contentLeft>
+            
+            <Image id="imageLogo4" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            <Button
+                    id="buttonBack4"
+                    icon="sap-icon://nav-back"
+                    press=".onNavBack" />
+            </contentLeft>
+
+        <contentMiddle>
+             
+              <Title id="title4" text="Tracciabilità (Schermata 02)" />
+        </contentMiddle>
+
+        <contentRight>
+            <HBox id ="hbox5" width="200px"/>
+        </contentRight>
+        </Bar>
+
+
+            </Toolbar>
+        </customHeader>
 
     <subHeader>
       <Toolbar id="toolbarInfo4">
@@ -37,19 +55,20 @@
       <VBox id="vboxContent4" width="100%">
 
         <!-- Toolbar stile "Pelletterie": filtro + bottoni -->
-        <HBox id="hboxToolbarTable4" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin">
-          <HBox id="hboxFilter4" class="sapUiTinyMarginEnd" alignItems="Center">
+        <HBox id="hboxToolbarTable4" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
+
+          <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblSearch4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
             <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 02"/>
           </HBox>
-
+          
+          <HBox id="hboxFilter4dx">
           <Toolbar id="tblToolbar4" design="Transparent">
-           <!--  <Button id="tbSelectAll4" icon="sap-icon://multi-select" tooltip="Seleziona tutto" press=".onSelectAll" enabled="{= !${ui>/edit} }"/>
-            <Button id="tbEdit4"      icon="sap-icon://edit"        tooltip="Modifica"         press=".onEdit"      enabled="{= !${ui>/edit} }"/>
-            <Button id="tbSave4"      icon="sap-icon://save"        tooltip="Salva"            press=".onSave"      enabled="{ui>/edit}"/> -->
+            <Button id="btnAddRow" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" press=".onAddRow" />
             <Button id="tbPrint4"     icon="sap-icon://print"       tooltip="Stampa"           press=".onPrint"/>
             <Button id="tbExcel4"     icon="sap-icon://excel-attachment" tooltip="Excel"       press=".onExportExcel"/>
           </Toolbar>
+          </HBox>
         </HBox>
 
         <mdc:Table

@@ -10,9 +10,21 @@
         title="Modalità d'accesso">
         <customHeader>
             <Toolbar id="toolbar0">
-                <Title id="title0" text="Gestione lotti fornitore - Seleziona modalità" />
-                <ToolbarSpacer id="toolbarSpacer0" />
-                <Image id="imageLogo0" src="IMG/Valentino.png" decorative="false" />
+
+        <Bar id="bar0">
+            <contentLeft>
+            <Image id="imageLogo0" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            </contentLeft>
+
+        <contentMiddle>
+            <Title id="title0" text="Gestione lotti fornitore - Seleziona modalità" textAlign="Center"/>
+        </contentMiddle>
+
+        <contentRight>
+            <HBox id ="hbox1" width="200px"/>
+        </contentRight>
+        </Bar>
+
             </Toolbar>
         </customHeader>
 

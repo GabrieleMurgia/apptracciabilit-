@@ -11,18 +11,29 @@
 
         <customHeader>
             <Toolbar id="toolbar2">
-                <Button
+                <Bar id="bar2">
+            <contentLeft>
+            
+            <Image id="imageLogo2" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            <Button
                     id="buttonBack2"
                     icon="sap-icon://nav-back"
                     press=".onNavBack" />
+            </contentLeft>
+
+        <contentMiddle>
+             
                 <Title
                     id="title2"
                     text="Dati aggregati per materiale" />
-                <ToolbarSpacer id="toolbarSpacer2" />
-                <Image
-                    id="imageLogo2"
-                    src="IMG/Valentino.png"
-                    decorative="false" />
+        </contentMiddle>
+
+        <contentRight>
+            <HBox id ="hbox3" width="200px"/>
+        </contentRight>
+        </Bar>
+
+
             </Toolbar>
         </customHeader>
 

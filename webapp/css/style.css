@@ -1,1 +1,18 @@
 /* Enter your custom styles here */
+
+.alignTableButton{
+    justify-content: space-between;
+    position: relative;
+    top: 47px;
+    z-index: 1000;
+    padding: 0 50px;
+}
+
+.left20{
+    position: relative;
+    left: 100px;
+}
+
+.alignTableButton .sapMTBStandard{
+    border-bottom: none!important;
+}

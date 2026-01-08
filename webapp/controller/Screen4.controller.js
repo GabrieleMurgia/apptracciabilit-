@@ -560,6 +560,102 @@ sap.ui.define([
     },
 
     // =========================
+// ADD ROW (Screen4)
+// =========================
+_generateTempId: function () {
+  return "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 1e9);
+},
+
+_copyIfPresent: function (src, dst, keyCandidates, fallbackValue) {
+  // keyCandidates: array di possibili nomi campo (es: ["Guid","GUID","ItmGuid"])
+  for (var i = 0; i < keyCandidates.length; i++) {
+    var k = keyCandidates[i];
+    if (src && Object.prototype.hasOwnProperty.call(src, k)) {
+      dst[k] = src[k];
+      return;
+    }
+  }
+  if (fallbackValue !== undefined) dst[keyCandidates[0]] = fallbackValue;
+},
+
+_buildNewRowFromTemplate: function (oTemplateRow) {
+  var oDetail = this.getView().getModel("detail");
+  var aCfg02 = oDetail.getProperty("/_mmct/s02") || []; // campi di dettaglio (screen4)
+
+  // 1) base: copia solo campi "chiave/testata" dal template (se esistono)
+  var oNew = {};
+
+  // vendor/material dal model "detail"
+  var sVendorId = oDetail.getProperty("/VendorId") || "";
+  var sMaterial = oDetail.getProperty("/Material") || "";
+  var sGuidKey  = oDetail.getProperty("/guidKey") || "";
+  var sFibra    = oDetail.getProperty("/Fibra") || "";
+
+  // Copie robuste (se presenti nel row raw)
+  this._copyIfPresent(oTemplateRow, oNew, ["UserID", "UserId"], undefined);
+  this._copyIfPresent(oTemplateRow, oNew, ["Fornitore", "FORNITORE"], sVendorId);
+  this._copyIfPresent(oTemplateRow, oNew, ["Materiale", "MATERIALE"], sMaterial);
+
+  // Guid / Fibra (ci sono mille varianti possibili…)
+  this._copyIfPresent(oTemplateRow, oNew, ["Guid", "GUID", "ItmGuid", "ItemGuid", "GUID_ITM", "GUID_ITM2"], sGuidKey);
+  this._copyIfPresent(oTemplateRow, oNew, ["Fibra", "FIBRA", "Fiber", "FIBER"], sFibra);
+
+  // CatMateriale (serve spesso per la logica MMCT)
+  this._copyIfPresent(oTemplateRow, oNew, ["CatMateriale", "CATMATERIALE"], oDetail.getProperty("/_mmct/cat") || "");
+
+  // Stato: nuovo record NON deve essere approved
+  oNew.Stato = "";        // o 0, come preferisci
+  oNew.__status = "";
+  oNew.__approved = false;
+
+  // Flag interno utile per SAVE
+  oNew.__new = true;
+  oNew.__tempId = this._generateTempId();
+
+  // 2) campi di dettaglio (Screen4): inizializza vuoti
+  // Se nel template sono array (es MultiComboBox), metti [].
+  aCfg02.forEach(function (f) {
+    var k = String(f.ui || "").trim();
+    if (!k) return;
+
+    var tv = oTemplateRow ? oTemplateRow[k] : undefined;
+    if (Array.isArray(tv)) oNew[k] = [];
+    else oNew[k] = "";
+  });
+
+  return oNew;
+},
+
+onAddRow: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aRows = oDetail.getProperty("/Rows") || [];
+  var aAll  = oDetail.getProperty("/RowsAll") || [];
+
+  // template: prima riga esistente (stesso gruppo Guid+Fibra)
+  var oTemplate = (aRows && aRows[0]) || (aAll && aAll[0]) || null;
+
+  // se non c’è neanche una riga, creo comunque un “base” usando i dati del detail model
+  var oNew = this._buildNewRowFromTemplate(oTemplate);
+
+  // aggiungi in coda (o in testa, se preferisci unshift)
+  var aNext = aRows.slice();
+  aNext.push(oNew);
+
+  // aggiorna anche RowsAll per coerenza con i filtri
+  oDetail.setProperty("/Rows", aNext);
+  oDetail.setProperty("/RowsAll", aNext);
+  oDetail.setProperty("/RowsCount", aNext.length);
+
+  // refresh MDC (di solito basta l’update del JSONModel, ma così sei sicuro)
+  var oTbl = this.byId("mdcTable4");
+  if (oTbl && typeof oTbl.rebind === "function") {
+    oTbl.rebind();
+  }
+
+  // opzionale: scroll / focus? (lo aggiungiamo se ti serve)
+},
+
+    // =========================
     // LOG
     // =========================
     _log: function () {

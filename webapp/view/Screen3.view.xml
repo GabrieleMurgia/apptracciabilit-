@@ -9,14 +9,33 @@
   xmlns:mdctable="sap.ui.mdc.table">
 
   <Page id="page3" title="Tracciabilità - Schermata 01">
-    <customHeader>
-      <Toolbar id="toolbar3">
-        <Button id="buttonBack3" icon="sap-icon://nav-back" press=".onNavBack" />
-        <Title id="title3" text="Tracciabilità (Schermata 01)" />
-        <ToolbarSpacer id="spacerHdr3" />
-        <Image id="imageLogo3" src="IMG/Valentino.png" decorative="false" />
-      </Toolbar>
-    </customHeader>
+
+
+        <customHeader>
+            <Toolbar id="toolbar3">
+                <Bar id="bar3">
+            <contentLeft>
+            
+            <Image id="imageLogo3" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            <Button
+                    id="buttonBack3"
+                    icon="sap-icon://nav-back"
+                    press=".onNavBack" />
+            </contentLeft>
+
+        <contentMiddle>
+             
+              <Title id="title3" text="Tracciabilità (Schermata 01)" />
+        </contentMiddle>
+
+        <contentRight>
+            <HBox id ="hbox4" width="200px"/>
+        </contentRight>
+        </Bar>
+
+
+            </Toolbar>
+        </customHeader>
 
     <subHeader>
       <Toolbar id="toolbarInfo3">
@@ -37,19 +56,18 @@
       <VBox id="box3" width="100%">
 
         <!-- Toolbar stile "Pelletterie": filtro + bottoni -->
-        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin">
-          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd" alignItems="Center">
+        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
+
+          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
             <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 01"/>
           </HBox>
 
           <Toolbar id="tblToolbar3" design="Transparent">
-          <!--   <Button id="tbSelectAll3" icon="sap-icon://multi-select" tooltip="Seleziona tutto" press=".onSelectAll" enabled="{= !${ui>/edit} }"/>
-            <Button id="tbEdit3"      icon="sap-icon://edit"        tooltip="Modifica"         press=".onEdit"      enabled="{= !${ui>/edit} }"/>
-            <Button id="tbSave3"      icon="sap-icon://save"        tooltip="Salva"            press=".onSave"      enabled="{ui>/edit}"/> -->
             <Button id="tbPrint3"     icon="sap-icon://print"       tooltip="Stampa"           press=".onPrint"/>
             <Button id="tbExcel3"     icon="sap-icon://excel-attachment" tooltip="Excel"       press=".onExportExcel"/>
           </Toolbar>
+
         </HBox>
 
         <mdc:Table

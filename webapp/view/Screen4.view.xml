@@ -1,4 +1,3 @@
-<!-- Screen4.view.xml -->
 <mvc:View
   id="screen4View"
   controllerName="apptracciabilita.apptracciabilita.controller.Screen4"
@@ -10,31 +9,27 @@
 
   <Page id="page4" title="Tracciabilità - Schermata 02">
 
-          <customHeader>
-            <Toolbar id="toolbar4">
-                <Bar id="bar4">
-            <contentLeft>
-            
+    <customHeader>
+      <Toolbar id="toolbar4">
+        <Bar id="bar4">
+          <contentLeft>
             <Image id="imageLogo4" src="IMG/Valentino.png" decorative="false" width="200px"/>
             <Button
-                    id="buttonBack4"
-                    icon="sap-icon://nav-back"
-                    press=".onNavBack" />
-            </contentLeft>
+              id="buttonBack4"
+              icon="sap-icon://nav-back"
+              press=".onNavBack" />
+          </contentLeft>
 
-        <contentMiddle>
-             
-              <Title id="title4" text="Tracciabilità (Schermata 02)" />
-        </contentMiddle>
+          <contentMiddle>
+            <Title id="title4" text="Tracciabilità (Schermata 02)" />
+          </contentMiddle>
 
-        <contentRight>
-            <HBox id ="hbox5" width="200px"/>
-        </contentRight>
+          <contentRight>
+            <HBox id="hbox5" width="200px"/>
+          </contentRight>
         </Bar>
-
-
-            </Toolbar>
-        </customHeader>
+      </Toolbar>
+    </customHeader>
 
     <subHeader>
       <Toolbar id="toolbarInfo4">
@@ -54,20 +49,19 @@
     <content>
       <VBox id="vboxContent4" width="100%">
 
-        <!-- Toolbar stile "Pelletterie": filtro + bottoni -->
         <HBox id="hboxToolbarTable4" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
 
           <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblSearch4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
             <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 02"/>
           </HBox>
-          
+
           <HBox id="hboxFilter4dx">
-          <Toolbar id="tblToolbar4" design="Transparent">
-            <Button id="btnAddRow" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" press=".onAddRow" />
-            <Button id="tbPrint4"     icon="sap-icon://print"       tooltip="Stampa"           press=".onPrint"/>
-            <Button id="tbExcel4"     icon="sap-icon://excel-attachment" tooltip="Excel"       press=".onExportExcel"/>
-          </Toolbar>
+            <Toolbar id="tblToolbar4" design="Transparent">
+              <Button id="btnAddRow" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" press=".onAddRow" />
+              <Button id="tbPrint4"     icon="sap-icon://print"             tooltip="Stampa" press=".onPrint"/>
+              <Button id="tbExcel4"     icon="sap-icon://excel-attachment"  tooltip="Excel"  press=".onExportExcel"/>
+            </Toolbar>
           </HBox>
         </HBox>
 
@@ -84,5 +78,19 @@
 
       </VBox>
     </content>
+
+    <footer>
+      <OverflowToolbar id="footerToolbar4">
+        <ToolbarSpacer id="footerSpacer4"/>
+        <Button
+          id="btnSaveLocal4"
+          text="Salva"
+          icon="sap-icon://save"
+          type="Emphasized"
+          enabled="{detail>/__dirty}"
+          press=".onSaveLocal"/>
+      </OverflowToolbar>
+    </footer>
+
   </Page>
 </mvc:View>

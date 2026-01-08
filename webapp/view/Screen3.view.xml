@@ -83,5 +83,18 @@
 
       </VBox>
     </content>
+
+        <footer>
+      <OverflowToolbar id="footerToolbar5">
+        <ToolbarSpacer id="footerSpacer5"/>
+        <Button
+          id="btnSaveLocal5"
+          text="Salva"
+          icon="sap-icon://save"
+          type="Emphasized"
+          press=".onSave"/>
+      </OverflowToolbar>
+    </footer>
+
   </Page>
 </mvc:View>

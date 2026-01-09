@@ -95,7 +95,7 @@ sap.ui.define([
 
           /* QUI MOCK PER DATASET SCREEN3 (opzionale) */
           // var bMockS3 = true;
-          var bMockS3 = false;
+          var bMockS3 = true;
 
           /* QUI MOCK vendor index (per skip Screen1) */
           var iVendorIdx = 0;

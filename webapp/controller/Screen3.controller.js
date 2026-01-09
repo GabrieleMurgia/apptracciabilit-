@@ -384,6 +384,7 @@ sap.ui.define([
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
           done((oData && oData.results) || []);
         },

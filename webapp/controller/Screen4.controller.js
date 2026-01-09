@@ -668,75 +668,105 @@ oDetail.setData({
 onAddRow: function () {
   try {
     var oDetail = this.getView().getModel("detail");
-    var aAll = oDetail.getProperty("/RowsAll") || [];
+    if (!oDetail) return;
 
-    if (!Array.isArray(aAll) || aAll.length === 0) {
-      MessageToast.show("Nessuna riga disponibile come base per la nuova riga");
+    var aRowsAll = oDetail.getProperty("/RowsAll") || [];
+    var aRows    = oDetail.getProperty("/Rows") || [];
+
+    // Se non ho righe base, non posso “ereditare”
+    if (!Array.isArray(aRowsAll) || aRowsAll.length === 0) {
+      MessageToast.show("Nessuna riga di base da copiare");
       return;
     }
 
-    // base = prima riga del gruppo selezionato (contiene guid/fibra + campi comuni)
-    var oBase = aAll[0];
-    var oNew = deepClone(oBase) || {};
+    // Se il record è readonly (almeno una riga Approved), blocco l’aggiunta
+    var bAnyReadOnly = (aRowsAll || []).some(function (r) { return !!(r && r.__readOnly); });
+    if (bAnyReadOnly) {
+      MessageToast.show("Record approvato: non è possibile aggiungere righe");
+      return;
+    }
 
-    // housekeeping
-    try { delete oNew.__metadata; } catch (e) { /* ignore */ }
-
-    oNew.Approved = 0;
-    oNew.__readOnly = false;
-    oNew.__isNew = true;
-    oNew.__localId = "NEW_" + Date.now() + "_" + Math.random().toString(16).slice(2);
-
-    // svuota SOLO i campi Screen02 non locked (e rispetta multi)
     var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
 
-    // proteggi chiavi “di contesto” (non vogliamo svuotarle mai)
-    var mProtect = {
-      Guid: true, GUID: true, ItmGuid: true, ItemGuid: true, GUID_ITM: true, GUID_ITM2: true,
-      Fibra: true, FIBRA: true, Fiber: true, FIBER: true
-    };
+    // Base: prendo la prima riga del gruppo (guid+fibra). Se vuoi, puoi cambiare in last.
+    var oBase = aRowsAll[0];
 
+    // ✅ CLONE COMPLETO: così erediti anche 0 / 0.000 / valori già compilati
+    var oNew = deepClone(oBase) || {};
+
+    // Pulizia “minima” + flags locali
+    delete oNew.__metadata;     // evita residui odata
+    oNew.__readOnly = false;
+    oNew.Approved = 0;
+
+    // ID locale per distinguere righe aggiunte (non rompe nulla: è extra)
+    oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+
+    // ✅ MULTI: assicuro che i campi multiple rimangano array (copia vera)
     (aCfg02 || []).forEach(function (f) {
-      var k = String(f && f.ui || "").trim();
+      if (!f || !f.ui || !f.multiple) return;
+      var k = String(f.ui).trim();
       if (!k) return;
 
-      if (mProtect[k]) return;       // non toccare chiavi
-      if (f.locked) return;          // locked => eredita
-      oNew[k] = f.multiple ? [] : ""; // editable => vuoto
+      if (Array.isArray(oNew[k])) {
+        oNew[k] = oNew[k].slice();
+      } else {
+        // se per qualche motivo non è array, lo normalizzo
+        var s = String(oNew[k] || "").trim();
+        oNew[k] = s ? s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean) : [];
+      }
     });
 
-    // 1) salva nella cache VM (così persiste anche tornando indietro e rientrando)
+    // Aggiorno liste (clono array per triggerare il binding)
+    var aRowsAll2 = aRowsAll.slice();
+    aRowsAll2.push(oNew);
+
+    var aRows2 = Array.isArray(aRows) ? aRows.slice() : [];
+    aRows2.push(oNew);
+
+    oDetail.setProperty("/RowsAll", aRowsAll2);
+    oDetail.setProperty("/Rows", aRows2);
+    oDetail.setProperty("/RowsCount", aRowsAll2.length);
+
+    // ✅ dirty per abilitare il Salva in footer (tu ce l’hai bindato)
+    oDetail.setProperty("/__dirty", true);
+
+    // ✅ persistenza anche nella cache VM (così non la perdi tornando indietro)
     var oVm = this._ensureVmCache();
     var sKey = this._getCacheKeySafe();
-    var aCache = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
-    aCache = Array.isArray(aCache) ? aCache.slice() : [];
-    aCache.unshift(oNew);
-    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCache);
 
-    // 2) salva nel model detail (RowsAll / Rows)
-    aAll = aAll.slice();
-    aAll.unshift(oNew);
-    oDetail.setProperty("/RowsAll", aAll);
+    var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+    if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-    // riapplica filtro corrente (se c’è)
-    this._applyGlobalFilterFromInput();
+    // Nota: salvo in cache una copia (evito side-effect strani)
+    var oNewCacheRow = deepClone(oNew);
+    aCacheAll = aCacheAll.slice();
+    aCacheAll.push(oNewCacheRow);
 
-    // marca dirty (abilita “Salva”)
-    this._markDirty();
+    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 
-    // refresh tabella
+    // Rebind table (MDC)
     var oTbl = this.byId("mdcTable4");
     if (oTbl && typeof oTbl.rebind === "function") {
       oTbl.rebind();
-    } else {
-      oDetail.refresh(true);
     }
 
-    this._log("onAddRow DONE", { rowsAll: aAll.length });
+    this._log("onAddRow OK", {
+      cacheKey: sKey,
+      rowsAll: aRowsAll2.length,
+      guidKey: oDetail.getProperty("/guidKey"),
+      fibra: oDetail.getProperty("/Fibra"),
+      sampleKeep: {
+        FattEmissione: oNew.FattEmissione,
+        QtaFibra: oNew.QtaFibra
+      }
+    });
+
     MessageToast.show("Riga aggiunta");
+
   } catch (e) {
     console.error("[S4] onAddRow ERROR", e);
-    MessageToast.show("Errore durante aggiunta riga");
+    MessageToast.show("Errore aggiunta riga");
   }
 },
 

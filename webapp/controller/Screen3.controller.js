@@ -1,5 +1,3 @@
-
-
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -13,6 +11,7 @@ sap.ui.define([
   "sap/m/HBox",
   "sap/m/Text",
   "sap/m/Input",
+  "sap/m/ComboBox",
   "sap/m/MultiComboBox",
   "sap/ui/core/Item",
   "sap/ui/mdc/p13n/StateUtil"
@@ -29,6 +28,7 @@ sap.ui.define([
   HBox,
   Text,
   Input,
+  ComboBox,
   MultiComboBox,
   Item,
   StateUtil
@@ -137,7 +137,23 @@ sap.ui.define([
     },
 
     // =========================
-    // DOMAINS / REQUIRED
+    // IMPOSTAZIONE / MULTIPLE
+    // =========================
+    _getSettingFlags: function (c) {
+      var s = String((c && (c.Impostazione ?? c.IMPOSTAZIONE)) || "").trim().toUpperCase();
+      return {
+        required: s === "O", // ✅ O = Obbligatorio
+        locked:   s === "B"  // ✅ B = Bloccato
+      };
+    },
+
+    _isMultipleField: function (c) {
+      var s = String((c && (c.MultipleVal ?? c.MULTIPLEVAL)) || "").trim().toUpperCase();
+      return s === "X"; // ✅ X = multi valori
+    },
+
+    // =========================
+    // DOMAINS
     // =========================
     _domainHasValues: function (sDomain) {
       if (!sDomain) return false;
@@ -146,29 +162,24 @@ sap.ui.define([
       return Array.isArray(a) && a.length > 0;
     },
 
-    _isRequiredField: function (c) {
-      if (!c) return false;
-      var v = c.Impostazione ?? c.IMPOSTAZIONE ?? c.Required ?? c.REQUIRED ?? c.Obbligatorio ?? c.OBBLIGATORIO;
-      if (v === true) return true;
-      var s = String(v || "").trim().toUpperCase();
-      // "B" è quello più comune nei vostri MMCT; supporto anche 1/X/TRUE
-      return s === "B" || s === "1" || s === "X" || s === "TRUE";
-    },
-
     _createCellTemplate: function (sKey, oMeta) {
       var bRequired = !!(oMeta && oMeta.required);
+      var bLocked   = !!(oMeta && oMeta.locked);
+      var bMultiple = !!(oMeta && oMeta.multiple);
+
       var sDomain = String((oMeta && oMeta.domain) || "").trim();
       var bUseCombo = !!sDomain && this._domainHasValues(sDomain);
 
       var sValueBind = "{detail>" + sKey + "}";
       var sReadOnlyExpr = "${detail>__readOnly}";
-      var sIsEmptyExpr = "(${detail>" + sKey + "} === null || ${detail>" + sKey + "} === undefined || ${detail>" + sKey + "} === '')";
+      var sIsEmptyExpr =
+        "(${detail>" + sKey + "} === null || ${detail>" + sKey + "} === undefined || ${detail>" + sKey + "} === '' || ${detail>" + sKey + "}.length === 0)";
 
-      var sValueState = bRequired
+      var sValueState = (bRequired && !bLocked)
         ? "{= (!" + sReadOnlyExpr + " && " + sIsEmptyExpr + ") ? 'Error' : 'None' }"
         : "None";
 
-      var sValueStateText = bRequired ? "Campo obbligatorio" : "";
+      var sValueStateText = (bRequired && !bLocked) ? "Campo obbligatorio" : "";
 
       var oText = new Text({
         text: sValueBind,
@@ -178,23 +189,42 @@ sap.ui.define([
       var oEditCtrl;
 
       if (bUseCombo) {
-        oEditCtrl = new MultiComboBox({
-          visible: "{= !" + sReadOnlyExpr + " }",
-          selectedKey: sValueBind,
-          value: sValueBind,
-          valueState: sValueState,
-          valueStateText: sValueStateText,
-          items: {
-            path: "vm>/domainsByName/" + sDomain,
-            template: new Item({
-              key: "{vm>key}",
-              text: "{vm>text}"
-            })
-          }
-        });
+
+        if (bMultiple) {
+          // ✅ MULTI + Dominio -> MultiComboBox (solo valori di dominio)
+          oEditCtrl = new MultiComboBox({
+            visible: "{= !" + sReadOnlyExpr + " }",
+            enabled: !bLocked,
+            allowCustomValues: false,
+            selectedKeys: sValueBind, // ✅ array
+            valueState: sValueState,
+            valueStateText: sValueStateText,
+            items: {
+              path: "vm>/domainsByName/" + sDomain,
+              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
+            }
+          });
+        } else {
+          // ✅ SINGLE + Dominio -> ComboBox
+          oEditCtrl = new ComboBox({
+            visible: "{= !" + sReadOnlyExpr + " }",
+            enabled: !bLocked,
+            allowCustomValues: false,
+            selectedKey: sValueBind, // ✅ string
+            valueState: sValueState,
+            valueStateText: sValueStateText,
+            items: {
+              path: "vm>/domainsByName/" + sDomain,
+              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
+            }
+          });
+        }
+
       } else {
+        // ✅ NO Dominio -> Input libero
         oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
+          editable: !bLocked,
           value: sValueBind,
           valueState: sValueState,
           valueStateText: sValueStateText
@@ -282,9 +312,13 @@ sap.ui.define([
 
           var label = (c.Descrizione || c.DESCRIZIONE || ui);
           var domain = String(c.Dominio ?? c.DOMINIO ?? c.Domain ?? c.DOMAIN ?? "").trim();
-          var required = this._isRequiredField(c);
 
-          return { ui: ui, label: label, domain: domain, required: required };
+          var flags = this._getSettingFlags(c);
+          var required = !!flags.required; // ✅ O
+          var locked   = !!flags.locked;   // ✅ B
+          var multiple = this._isMultipleField(c); // ✅ MultipleVal
+
+          return { ui: ui, label: label, domain: domain, required: required, locked: locked, multiple: multiple };
         }.bind(this))
         .filter(Boolean);
     },
@@ -380,6 +414,19 @@ sap.ui.define([
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
 
+      // ✅ mappa campi multi
+      var mIsMulti = {};
+      (aCfg01 || []).forEach(function (f) {
+        if (f && f.ui && f.multiple) mIsMulti[f.ui] = true;
+      });
+
+      function toArray(v) {
+        if (Array.isArray(v)) return v;
+        var s = String(v || "").trim();
+        if (!s) return [];
+        return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+      }
+
       this._log("_buildRecords01 using columns", aCols01.length, aCols01);
 
       var m = {};
@@ -403,7 +450,11 @@ sap.ui.define([
           };
 
           // valorizza i campi dalla prima riga trovata
-          aCols01.forEach(function (c) { oRec[c] = (r && r[c] !== undefined) ? r[c] : ""; });
+          aCols01.forEach(function (c) {
+            var v = (r && r[c] !== undefined) ? r[c] : "";
+            oRec[c] = mIsMulti[c] ? toArray(v) : v;
+          });
+
           m[sKey] = oRec;
           a.push(oRec);
         } else {
@@ -542,7 +593,7 @@ sap.ui.define([
           visible: true,
           dataProperty: sKey,
           propertyKey: sKey,
-          template: this._createCellTemplate(sKey, f) // ✅ Input/MultiComboBox + readOnly + required
+          template: this._createCellTemplate(sKey, f)
         }));
       }.bind(this));
 

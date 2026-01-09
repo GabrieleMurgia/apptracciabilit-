@@ -135,68 +135,67 @@ sap.ui.define([
     },
 
     // =========================
-// DIRTY
-// =========================
-_markDirty: function () {
-  var oDetail = this.getView().getModel("detail");
-  if (oDetail) {
-    oDetail.setProperty("/__dirty", true);
-  }
-},
+    // DIRTY
+    // =========================
+    _markDirty: function () {
+      var oDetail = this.getView().getModel("detail");
+      if (oDetail) {
+        oDetail.setProperty("/__dirty", true);
+      }
+    },
 
-_hookDirtyOnEdit: function (oCtrl) {
-  if (!oCtrl) return;
+    _hookDirtyOnEdit: function (oCtrl) {
+      if (!oCtrl) return;
 
-  // evita doppio hook
-  try {
-    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
-    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-  } catch (e) { /* ignore */ }
+      // evita doppio hook
+      try {
+        if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+        if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+      } catch (e) { /* ignore */ }
 
-  var fn = this._markDirty.bind(this);
+      var fn = this._markDirty.bind(this);
 
-  // Input / ComboBox
-  if (typeof oCtrl.attachChange === "function") {
-    oCtrl.attachChange(fn);
-  }
+      // Input / ComboBox
+      if (typeof oCtrl.attachChange === "function") {
+        oCtrl.attachChange(fn);
+      }
 
-  // ComboBox
-  if (typeof oCtrl.attachSelectionChange === "function") {
-    oCtrl.attachSelectionChange(fn);
-  }
+      // ComboBox
+      if (typeof oCtrl.attachSelectionChange === "function") {
+        oCtrl.attachSelectionChange(fn);
+      }
 
-  // MultiComboBox
-  if (typeof oCtrl.attachSelectionFinish === "function") {
-    oCtrl.attachSelectionFinish(fn);
-  }
-},
+      // MultiComboBox
+      if (typeof oCtrl.attachSelectionFinish === "function") {
+        oCtrl.attachSelectionFinish(fn);
+      }
+    },
 
-_applyGlobalFilterFromInput: function () {
-  var oInput = this.byId("inputFilter4");
-  var q = String((oInput && oInput.getValue && oInput.getValue()) || "").trim().toUpperCase();
+    _applyGlobalFilterFromInput: function () {
+      var oInput = this.byId("inputFilter4");
+      var q = String((oInput && oInput.getValue && oInput.getValue()) || "").trim().toUpperCase();
 
-  var oDetail = this.getView().getModel("detail");
-  var aAll = oDetail.getProperty("/RowsAll") || [];
+      var oDetail = this.getView().getModel("detail");
+      var aAll = oDetail.getProperty("/RowsAll") || [];
 
-  if (!q) {
-    oDetail.setProperty("/Rows", aAll);
-    oDetail.setProperty("/RowsCount", (aAll || []).length);
-    return;
-  }
+      if (!q) {
+        oDetail.setProperty("/Rows", aAll);
+        oDetail.setProperty("/RowsCount", (aAll || []).length);
+        return;
+      }
 
-  var aFiltered = aAll.filter(function (r) {
-    return Object.keys(r || {}).some(function (k) {
-      if (k === "__metadata" || k === "AllData") return false;
-      var v = r[k];
-      if (v === null || v === undefined) return false;
-      return String(v).toUpperCase().indexOf(q) >= 0;
-    });
-  });
+      var aFiltered = aAll.filter(function (r) {
+        return Object.keys(r || {}).some(function (k) {
+          if (k === "__metadata" || k === "AllData") return false;
+          var v = r[k];
+          if (v === null || v === undefined) return false;
+          return String(v).toUpperCase().indexOf(q) >= 0;
+        });
+      });
 
-  oDetail.setProperty("/Rows", aFiltered);
-  oDetail.setProperty("/RowsCount", (aFiltered || []).length);
-},
-
+      oDetail.setProperty("/Rows", aFiltered);
+      oDetail.setProperty("/RowsCount", (aFiltered || []).length);
+    },
 
     _createCellTemplate: function (sKey, oMeta) {
       var bRequired = !!(oMeta && oMeta.required);
@@ -282,19 +281,18 @@ _applyGlobalFilterFromInput: function () {
       this._snapshotRows = null;
 
       var oDetail = this.getView().getModel("detail");
-oDetail.setData({
-  VendorId: this._sVendorId,
-  Material: this._sMaterial,
-  recordKey: this._sRecordKey,
-  guidKey: "",
-  Fibra: "",
-  RowsAll: [],
-  Rows: [],
-  RowsCount: 0,
-  _mmct: { cat: "", s02: [] },
-  __dirty: false
-}, true);
-
+      oDetail.setData({
+        VendorId: this._sVendorId,
+        Material: this._sMaterial,
+        recordKey: this._sRecordKey,
+        guidKey: "",
+        Fibra: "",
+        RowsAll: [],
+        Rows: [],
+        RowsCount: 0,
+        _mmct: { cat: "", s02: [] },
+        __dirty: false
+      }, true);
 
       this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
 
@@ -470,12 +468,75 @@ oDetail.setData({
           return this._rowGuidKey(r) === sGuidKey && this._rowFibra(r) === sFibra;
         }.bind(this));
 
-        // ✅ __readOnly per riga: Approved === 1
-        (aSelected || []).forEach(function (r) {
+        // ✅ __readOnly / permessi basati su RUOLO e STATO (ST/AP/RJ/CH) + forceStato da vm>/mock
+        var oVm2 = this.getOwnerComponent().getModel("vm");
+        var sRole = (oVm2 && oVm2.getProperty("/userType")) || "";
+        sRole = String(sRole || "").trim().toUpperCase(); // E/I/S
+
+        var mock2 = (oVm2 && oVm2.getProperty("/mock")) || {};
+        var sForceStato = String(mock2.forceStato || "").trim().toUpperCase();
+
+        function normStatoRow(r) {
+          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") return sForceStato;
+
+          var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
+          if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
+
           var ap = this._getApprovedFlag(r);
-          r.Approved = ap;
-          r.__readOnly = (ap === 1);
+          if (ap === 1) return "AP";
+
+          var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
+          if (rej > 0) return "RJ";
+
+          var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
+          if (pend > 0) return "ST";
+
+          return "ST";
+        }
+
+        function rank(st) {
+          if (st === "AP") return 4;
+          if (st === "CH") return 3;
+          if (st === "RJ") return 2;
+          return 1;
+        }
+        function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
+
+        function canEdit(role, status) {
+          if (role === "S") return false;
+          if (role === "I") return false;
+          if (role === "E") return status !== "AP";
+          return false;
+        }
+        function canApprove(role, status) {
+          return role === "I" && (status === "ST" || status === "CH");
+        }
+        function canReject(role, status) {
+          return role === "I" && (status === "ST" || status === "CH");
+        }
+
+        // stato record (aggregato)
+        var groupStatus = "ST";
+        (aSelected || []).forEach(function (r) {
+          var st = normStatoRow.call(this, r);
+          groupStatus = mergeStatus(groupStatus, st);
         }.bind(this));
+
+        var bCanEdit = canEdit(sRole, groupStatus);
+
+        // applico readonly alle righe e valorizzo Stato
+        (aSelected || []).forEach(function (r) {
+          r.Stato = normStatoRow.call(this, r);
+          r.__readOnly = !bCanEdit;
+        }.bind(this));
+
+        // flags su detail (usabili per bottoni/footer)
+        oDetail.setProperty("/__role", sRole);
+        oDetail.setProperty("/__status", groupStatus);
+        oDetail.setProperty("/__canEdit", bCanEdit);
+        oDetail.setProperty("/__canAddRow", (sRole === "E" && groupStatus !== "AP"));
+        oDetail.setProperty("/__canApprove", canApprove(sRole, groupStatus));
+        oDetail.setProperty("/__canReject", canReject(sRole, groupStatus));
 
         var r0 = aSelected[0] || {};
         var sCat = String(r0.CatMateriale || "").trim();
@@ -508,7 +569,9 @@ oDetail.setData({
           guidKey: sGuidKey,
           fibra: sFibra,
           rows: (aSelected || []).length,
-          s02Cols: aCfg02.length
+          s02Cols: aCfg02.length,
+          role: sRole,
+          status: groupStatus
         });
 
         if (typeof fnDone === "function") fnDone();
@@ -663,113 +726,153 @@ oDetail.setData({
     },
 
     // =========================
-// ADD ROW (Screen4)
-// =========================
-onAddRow: function () {
-  try {
-    var oDetail = this.getView().getModel("detail");
-    if (!oDetail) return;
+    // ADD ROW (Screen4)
+    // =========================
+    onAddRow: function () {
+      try {
+        var oDetail = this.getView().getModel("detail");
+        if (!oDetail) return;
 
-    var aRowsAll = oDetail.getProperty("/RowsAll") || [];
-    var aRows    = oDetail.getProperty("/Rows") || [];
+        // permessi add row (solo FORNITORE e stato != AP)
+        var bCanAdd = !!oDetail.getProperty("/__canAddRow");
+        if (!bCanAdd) {
+          MessageToast.show("Non hai permessi per aggiungere righe su questo record");
+          return;
+        }
 
-    // Se non ho righe base, non posso “ereditare”
-    if (!Array.isArray(aRowsAll) || aRowsAll.length === 0) {
-      MessageToast.show("Nessuna riga di base da copiare");
-      return;
-    }
+        var aRowsAll = oDetail.getProperty("/RowsAll") || [];
+        var aRows    = oDetail.getProperty("/Rows") || [];
 
-    // Se il record è readonly (almeno una riga Approved), blocco l’aggiunta
-    var bAnyReadOnly = (aRowsAll || []).some(function (r) { return !!(r && r.__readOnly); });
-    if (bAnyReadOnly) {
-      MessageToast.show("Record approvato: non è possibile aggiungere righe");
-      return;
-    }
+        // Se non ho righe base, non posso “ereditare”
+        if (!Array.isArray(aRowsAll) || aRowsAll.length === 0) {
+          MessageToast.show("Nessuna riga di base da copiare");
+          return;
+        }
 
-    var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
+        var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
 
-    // Base: prendo la prima riga del gruppo (guid+fibra). Se vuoi, puoi cambiare in last.
-    var oBase = aRowsAll[0];
+        // Base: prendo la prima riga del gruppo (guid+fibra). Se vuoi, puoi cambiare in last.
+        var oBase = aRowsAll[0];
 
-    // ✅ CLONE COMPLETO: così erediti anche 0 / 0.000 / valori già compilati
-    var oNew = deepClone(oBase) || {};
+        // ✅ CLONE COMPLETO: così erediti anche 0 / 0.000 / valori già compilati
+        var oNew = deepClone(oBase) || {};
 
-    // Pulizia “minima” + flags locali
-    delete oNew.__metadata;     // evita residui odata
-    oNew.__readOnly = false;
-    oNew.Approved = 0;
+        // Pulizia “minima” + flags locali
+        delete oNew.__metadata;     // evita residui odata
+        oNew.__readOnly = false;
 
-    // ID locale per distinguere righe aggiunte (non rompe nulla: è extra)
-    oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        // ✅ STATO: aggiunta/modifica -> CH
+        oNew.Stato = "CH";
+        oNew.Approved = 0;
+        oNew.Rejected = 0;
+        oNew.ToApprove = 1;
 
-    // ✅ MULTI: assicuro che i campi multiple rimangano array (copia vera)
-    (aCfg02 || []).forEach(function (f) {
-      if (!f || !f.ui || !f.multiple) return;
-      var k = String(f.ui).trim();
-      if (!k) return;
+        // ID locale per distinguere righe aggiunte (non rompe nulla: è extra)
+        oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
 
-      if (Array.isArray(oNew[k])) {
-        oNew[k] = oNew[k].slice();
-      } else {
-        // se per qualche motivo non è array, lo normalizzo
-        var s = String(oNew[k] || "").trim();
-        oNew[k] = s ? s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean) : [];
+        // ✅ MULTI: assicuro che i campi multiple rimangano array (copia vera)
+        (aCfg02 || []).forEach(function (f) {
+          if (!f || !f.ui || !f.multiple) return;
+          var k = String(f.ui).trim();
+          if (!k) return;
+
+          if (Array.isArray(oNew[k])) {
+            oNew[k] = oNew[k].slice();
+          } else {
+            var s = String(oNew[k] || "").trim();
+            oNew[k] = s ? s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean) : [];
+          }
+        });
+
+        // Aggiorno liste (clono array per triggerare il binding)
+        var aRowsAll2 = aRowsAll.slice();
+        var aRows2 = Array.isArray(aRows) ? aRows.slice() : [];
+
+        // ✅ il record diventa CH: per coerenza UI, setto CH su tutte le righe del gruppo
+        function applyCH(r) {
+          if (!r) return;
+          r.Stato = "CH";
+          r.Approved = 0;
+          r.Rejected = 0;
+          r.ToApprove = 1;
+          r.__readOnly = false;
+        }
+        aRowsAll2.forEach(applyCH);
+
+        aRowsAll2.push(oNew);
+        aRows2.push(oNew);
+
+        oDetail.setProperty("/RowsAll", aRowsAll2);
+        oDetail.setProperty("/Rows", aRows2);
+        oDetail.setProperty("/RowsCount", aRowsAll2.length);
+
+        // ✅ aggiorno flags record (coerente con la logica ruoli/stati)
+        oDetail.setProperty("/__status", "CH");
+        oDetail.setProperty("/__canEdit", true);
+        oDetail.setProperty("/__canAddRow", true);   // CH != AP
+        oDetail.setProperty("/__canApprove", false); // fornitore no
+        oDetail.setProperty("/__canReject", false);  // fornitore no
+
+        // ✅ dirty per abilitare il Salva in footer (tu ce l’hai bindato)
+        oDetail.setProperty("/__dirty", true);
+
+        // ✅ persistenza anche nella cache VM (così non la perdi tornando indietro)
+        var oVm = this._ensureVmCache();
+        var sKey = this._getCacheKeySafe();
+
+        var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+        if (!Array.isArray(aCacheAll)) aCacheAll = [];
+
+        var sGuidKeySel = this._toStableString(oDetail.getProperty("/guidKey"));
+        var sFibraSel   = this._toStableString(oDetail.getProperty("/Fibra"));
+
+        // patch: tutte le righe del gruppo in cache -> CH
+        aCacheAll.forEach(function (r) {
+          if (this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel) {
+            r.Stato = "CH";
+            r.Approved = 0;
+            r.Rejected = 0;
+            r.ToApprove = 1;
+          }
+        }.bind(this));
+
+        // salvo in cache una copia della nuova riga
+        var oNewCacheRow = deepClone(oNew);
+        oNewCacheRow.Stato = "CH";
+        oNewCacheRow.Approved = 0;
+        oNewCacheRow.Rejected = 0;
+        oNewCacheRow.ToApprove = 1;
+
+        aCacheAll = aCacheAll.slice();
+        aCacheAll.push(oNewCacheRow);
+
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
+
+        // Rebind table (MDC)
+        var oTbl = this.byId("mdcTable4");
+        if (oTbl && typeof oTbl.rebind === "function") {
+          oTbl.rebind();
+        }
+
+        this._log("onAddRow OK", {
+          cacheKey: sKey,
+          rowsAll: aRowsAll2.length,
+          guidKey: oDetail.getProperty("/guidKey"),
+          fibra: oDetail.getProperty("/Fibra"),
+          status: oDetail.getProperty("/__status"),
+          sampleKeep: {
+            FattEmissione: oNew.FattEmissione,
+            QtaFibra: oNew.QtaFibra
+          }
+        });
+
+        MessageToast.show("Riga aggiunta");
+
+      } catch (e) {
+        console.error("[S4] onAddRow ERROR", e);
+        MessageToast.show("Errore aggiunta riga");
       }
-    });
-
-    // Aggiorno liste (clono array per triggerare il binding)
-    var aRowsAll2 = aRowsAll.slice();
-    aRowsAll2.push(oNew);
-
-    var aRows2 = Array.isArray(aRows) ? aRows.slice() : [];
-    aRows2.push(oNew);
-
-    oDetail.setProperty("/RowsAll", aRowsAll2);
-    oDetail.setProperty("/Rows", aRows2);
-    oDetail.setProperty("/RowsCount", aRowsAll2.length);
-
-    // ✅ dirty per abilitare il Salva in footer (tu ce l’hai bindato)
-    oDetail.setProperty("/__dirty", true);
-
-    // ✅ persistenza anche nella cache VM (così non la perdi tornando indietro)
-    var oVm = this._ensureVmCache();
-    var sKey = this._getCacheKeySafe();
-
-    var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
-    if (!Array.isArray(aCacheAll)) aCacheAll = [];
-
-    // Nota: salvo in cache una copia (evito side-effect strani)
-    var oNewCacheRow = deepClone(oNew);
-    aCacheAll = aCacheAll.slice();
-    aCacheAll.push(oNewCacheRow);
-
-    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
-
-    // Rebind table (MDC)
-    var oTbl = this.byId("mdcTable4");
-    if (oTbl && typeof oTbl.rebind === "function") {
-      oTbl.rebind();
-    }
-
-    this._log("onAddRow OK", {
-      cacheKey: sKey,
-      rowsAll: aRowsAll2.length,
-      guidKey: oDetail.getProperty("/guidKey"),
-      fibra: oDetail.getProperty("/Fibra"),
-      sampleKeep: {
-        FattEmissione: oNew.FattEmissione,
-        QtaFibra: oNew.QtaFibra
-      }
-    });
-
-    MessageToast.show("Riga aggiunta");
-
-  } catch (e) {
-    console.error("[S4] onAddRow ERROR", e);
-    MessageToast.show("Errore aggiunta riga");
-  }
-},
-
+    },
 
     onNavBack: function () {
       var oHistory = History.getInstance();

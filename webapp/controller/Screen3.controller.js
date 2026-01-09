@@ -338,7 +338,7 @@ sap.ui.define([
     // =========================
     // ODATA
     // =========================
-    _reloadDataFromBackend: function (fnDone) {
+/*     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
       var oODataModel = this.getOwnerComponent().getModel();
@@ -383,7 +383,7 @@ sap.ui.define([
       oODataModel.read("/DataSet", {
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
-        success: function (oData) {
+        success: function (oData) { 
           debugger
           BusyIndicator.hide();
           done((oData && oData.results) || []);
@@ -395,7 +395,222 @@ sap.ui.define([
           done([]);
         }
       });
+    }, */
+
+    _reloadDataFromBackend: function (fnDone) {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var sForceStato = String(mock.forceStato || "").trim().toUpperCase(); // ST/AP/RJ/CH/""
+  var bMockS3 = !!mock.mockS3;
+
+  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+  var oODataModel = this.getOwnerComponent().getModel();
+
+  function norm(v) { return String(v || "").trim().toUpperCase(); }
+  function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
+
+  // =========================
+  // MOCK DATASET Screen3 (2 casi per ST/AP/RJ/CH) -> 16 righe (2 righe per record)
+  // =========================
+  if (bMockS3) {
+    var sVendor = String(this._sVendorId || "").trim();
+    if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
+
+    var sMat = norm(this._sMaterial);
+
+    // cat "esistente": prendo la prima categoria disponibile dal vm, altrimenti CF
+    var mmct = (oVm && oVm.getProperty("/mmctFieldsByCat")) || {};
+    var aCats = Object.keys(mmct || {});
+    var sCat = aCats[0] || "CF";
+
+    function mkBase() {
+      return {
+        CalcCarbonFoot: "",
+        CatMateriale: sCat,
+        CertMat: "",
+        CertProcess: "",
+        CertRic: "",
+        CodiceDenSempl: "",
+        Collezione: "",
+        Compost: "",
+        DataIns: null,
+        DataMod: null,
+        DescrPack: "",
+        DestPack: "",
+        DestUso: "",
+        EnteCert: "",
+        Esito: "",
+        Famiglia: "",
+        FattEmissione: "0.000",
+        Fibra: "",
+        FineVal: null,
+        Fornitore: sVendor,
+        GerProd: "CAL B1 BD",
+        GradoRic: "",
+        GruppoMerci: String(sMat || "IW2B0626SVS"),
+        Guid: "",
+        InizioVal: null,
+        Linea: "1R",
+        LocAllev: "",
+        LocConciaCrust: "",
+        LocConciaPf: "",
+        LocConfez: "",
+        LocFibra: "",
+        LocFilatura: "",
+        LocMacellazione: "",
+        LocPolimero: "",
+        LocTessitura: "",
+        LocTintura: "",
+        Materiale: String(sMat || "IW2B0626SVS"),
+        MaterialeFornitore: "",
+        MatnrMp: "",
+        Message: "",
+        MpFittizio: "",
+        NReport: "",
+        NoteCertMat: "",
+        NoteCertProcess: "",
+        NoteMateriale: "",
+        OtherAction: "",
+        PaeseAllev: "",
+        PaeseConciaCrust: "",
+        PaeseConciaPf: "",
+        PaeseConfez: "",
+        PaeseFibra: "",
+        PaeseFilatura: "",
+        PaeseMacellazione: "",
+        PaesePolimero: "",
+        PaesePrAgg: "",
+        PaesePrMont: "",
+        PaesePrRif: "",
+        PaeseTessitura: "",
+        PaeseTintura: "",
+        PartitaFornitore: "",
+        PercMatRicicl: "",
+        Perccomp: "",
+        PerccompFibra: "0.00",
+        PesoPack: "0.000",
+        Plant: "5110",
+        PresSost: "",
+        QtaFibra: "0.000",
+        RagSoc: "CITY MODELES",
+        RiciPack: "",
+        Stagione: "44",
+        Stato: "",
+        TipSost: "",
+        UdM: "PC",
+        UserID: sUserId,
+        UserIns: "",
+        UserMod: "",
+        Approved: 0,
+        ToApprove: 0,
+        Rejected: 0,
+        Open: "X"
+      };
+    }
+
+    function applyFlagsByStato(r, stato) {
+      r.Stato = stato;
+
+      // coerente con i tuoi campi backend
+      if (stato === "AP") { r.Approved = 1; r.ToApprove = 0; r.Rejected = 0; }
+      if (stato === "RJ") { r.Approved = 0; r.ToApprove = 0; r.Rejected = 1; }
+      if (stato === "ST") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
+      if (stato === "CH") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
+    }
+
+    function mkRecord2Rows(stato, idx) {
+      var guid = "GUID_" + stato + "_" + idx;
+      var fibra = "FIB_" + stato + "_" + idx;
+
+      var r1 = mkBase();
+      r1.Guid = guid;
+      r1.Fibra = fibra;
+      r1.Linea = "1R";
+      r1.FattEmissione = (idx * 0.111).toFixed(3);
+      r1.QtaFibra = (idx * 1.234).toFixed(3);
+      applyFlagsByStato(r1, stato);
+
+      var r2 = mkBase();
+      r2.Guid = guid;
+      r2.Fibra = fibra;
+      r2.Linea = "2R";
+      r2.FattEmissione = (idx * 0.222).toFixed(3);
+      r2.QtaFibra = (idx * 2.468).toFixed(3);
+      applyFlagsByStato(r2, stato);
+
+      return [r1, r2];
+    }
+
+    var aMock = []
+      .concat(mkRecord2Rows("ST", 1), mkRecord2Rows("ST", 2))
+      .concat(mkRecord2Rows("AP", 1), mkRecord2Rows("AP", 2))
+      .concat(mkRecord2Rows("RJ", 1), mkRecord2Rows("RJ", 2))
+      .concat(mkRecord2Rows("CH", 1), mkRecord2Rows("CH", 2));
+
+    // forza stato (se impostato in Screen0)
+    if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+      aMock.forEach(function (r) { r.Stato = sForceStato; });
+    }
+
+    console.log("[Screen3][MOCK] rows:", aMock.length, "forceStato:", sForceStato || "(none)");
+    done(aMock);
+    return;
+  }
+
+  // =========================
+  // BACKEND READ normale
+  // =========================
+  var sVendor = String(this._sVendorId || "").trim();
+  if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
+
+  var sRouteMat = norm(this._sMaterial);
+
+  function buildMaterialVariants(routeMat) {
+    var set = {};
+    function add(x) { x = norm(x); if (x) set[x] = true; }
+    add(routeMat);
+    if (routeMat && !routeMat.endsWith("S")) add(routeMat + "S");
+    if (routeMat && routeMat.endsWith("S")) add(routeMat.slice(0, -1));
+    return Object.keys(set);
+  }
+
+  var aMatVariants = buildMaterialVariants(sRouteMat);
+
+  var aFilters = [
+    new Filter("UserID", FilterOperator.EQ, sUserId),
+    new Filter("Fornitore", FilterOperator.EQ, sVendor)
+  ];
+
+  if (aMatVariants.length) {
+    var aMatFilters = aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); });
+    aFilters.push(new Filter({ filters: aMatFilters, and: false }));
+  }
+
+  BusyIndicator.show(0);
+  oODataModel.read("/DataSet", {
+    filters: aFilters,
+    urlParameters: { "sap-language": "IT" },
+    success: function (oData) {
+      BusyIndicator.hide();
+      var a = (oData && oData.results) || [];
+
+      // forza stato (se impostato in Screen0)
+      if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+        a.forEach(function (r) { r.Stato = sForceStato; });
+        console.log("[Screen3] forceStato =", sForceStato);
+      }
+
+      done(a);
     },
+    error: function (oError) {
+      BusyIndicator.hide();
+      console.error("Errore lettura DataSet", oError);
+      MessageToast.show("Errore nel caricamento dei dati");
+      done([]);
+    }
+  });
+},
+
 
     // =========================
     // RECORDS (Screen3)
@@ -411,6 +626,132 @@ sap.ui.define([
     },
 
     _buildRecords01: function (aAllRows) {
+  var oDetail = this.getView().getModel("detail");
+  var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
+  var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
+
+  // ✅ mappa campi multi
+  var mIsMulti = {};
+  (aCfg01 || []).forEach(function (f) {
+    if (f && f.ui && f.multiple) mIsMulti[f.ui] = true;
+  });
+
+  function toArray(v) {
+    if (Array.isArray(v)) return v;
+    var s = String(v || "").trim();
+    if (!s) return [];
+    return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+
+  // ruolo (I/E/S)
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var sRole = (oVm && oVm.getProperty("/userType")) || "";
+  sRole = String(sRole || "").trim().toUpperCase();
+
+  // forceStato (da Screen0)
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var sForce = String(mock.forceStato || "").trim().toUpperCase();
+
+  function normStato(r) {
+    if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
+
+    var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
+    if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
+
+    // fallback se backend lascia Stato vuoto
+    var ap = this._getApprovedFlag(r);
+    if (ap === 1) return "AP";
+
+    var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
+    if (rej > 0) return "RJ";
+
+    var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
+    if (pend > 0) return "ST";
+
+    return "ST";
+  }
+
+  function rank(st) {
+    if (st === "AP") return 4;
+    if (st === "CH") return 3;
+    if (st === "RJ") return 2;
+    return 1; // ST
+  }
+  function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
+
+  // permessi
+  function canEdit(role, status) {
+    if (role === "S") return false;
+    if (role === "I") return false;
+    if (role === "E") return status !== "AP"; // fornitore: edit NO solo AP
+    return false;
+  }
+  function canApprove(role, status) {
+    return role === "I" && (status === "ST" || status === "CH");
+  }
+  function canReject(role, status) {
+    return role === "I" && (status === "ST" || status === "CH");
+  }
+
+  this._log("_buildRecords01 role", sRole, "cols", aCols01.length);
+
+  var m = {};
+  var a = [];
+
+  (aAllRows || []).forEach(function (r) {
+    var sGuidKey = this._rowGuidKey(r);
+    var sFibra = this._rowFibra(r);
+    var sKey = sGuidKey + "||" + sFibra;
+
+    var stRow = normStato.call(this, r);
+
+    var oRec = m[sKey];
+
+    if (!oRec) {
+      oRec = {
+        idx: a.length,
+        guidKey: sGuidKey,
+        Fibra: sFibra,
+
+        Stato: stRow,
+        __status: stRow,
+
+        __canEdit: canEdit(sRole, stRow),
+        __canApprove: canApprove(sRole, stRow),
+        __canReject: canReject(sRole, stRow),
+
+        __readOnly: !canEdit(sRole, stRow)
+      };
+
+      aCols01.forEach(function (c) {
+        var v = (r && r[c] !== undefined) ? r[c] : "";
+        oRec[c] = mIsMulti[c] ? toArray(v) : v;
+      });
+
+      m[sKey] = oRec;
+      a.push(oRec);
+
+    } else {
+      var merged = mergeStatus(oRec.__status, stRow);
+      if (merged !== oRec.__status) {
+        oRec.__status = merged;
+        oRec.Stato = merged;
+
+        oRec.__canEdit = canEdit(sRole, merged);
+        oRec.__canApprove = canApprove(sRole, merged);
+        oRec.__canReject = canReject(sRole, merged);
+
+        oRec.__readOnly = !oRec.__canEdit;
+      }
+    }
+  }.bind(this));
+
+  this._log("_buildRecords01 built", a.length, "sample", a[0]);
+  return a;
+},
+
+
+/*     _buildRecords01: function (aAllRows) {
       var oDetail = this.getView().getModel("detail");
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
@@ -470,7 +811,7 @@ sap.ui.define([
 
       this._log("_buildRecords01 built", a.length, "sample", a[0]);
       return a;
-    },
+    }, */
 
     // =========================
     // NAV BUTTON (prima colonna)

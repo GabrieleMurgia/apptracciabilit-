@@ -1,3 +1,6 @@
+
+
+
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -51,130 +54,11 @@ sap.ui.define([
         RowsAll: [],
         Rows: [],
         RowsCount: 0,
-        _mmct: { cat: "", s02: [] },
-
-        // ✅ dirty flag per abilitare "Salva"
-        __dirty: false
+        _mmct: { cat: "", s02: [] }
       });
 
       this.getView().setModel(oDetail, "detail");
       this._snapshotRows = null;
-    },
-
-    // =========================
-    // ADD ROW (Screen4)
-    // =========================
-    _generateTempId: function () {
-      return "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 1e9);
-    },
-
-    _copyIfPresent: function (src, dst, keyCandidates, fallbackValue) {
-      for (var i = 0; i < keyCandidates.length; i++) {
-        var k = keyCandidates[i];
-        if (src && Object.prototype.hasOwnProperty.call(src, k)) {
-          dst[k] = src[k];
-          return;
-        }
-      }
-      if (fallbackValue !== undefined) dst[keyCandidates[0]] = fallbackValue;
-    },
-
-    _buildNewRowFromTemplate: function (oTemplateRow) {
-      var oDetail = this.getView().getModel("detail");
-      var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-
-      var oNew = {};
-
-      var sVendorId = oDetail.getProperty("/VendorId") || "";
-      var sMaterial = oDetail.getProperty("/Material") || "";
-      var sGuidKey  = oDetail.getProperty("/guidKey") || "";
-      var sFibra    = oDetail.getProperty("/Fibra") || "";
-
-      this._copyIfPresent(oTemplateRow, oNew, ["UserID", "UserId"], undefined);
-      this._copyIfPresent(oTemplateRow, oNew, ["Fornitore", "FORNITORE"], sVendorId);
-      this._copyIfPresent(oTemplateRow, oNew, ["Materiale", "MATERIALE"], sMaterial);
-
-      // Guid / Fibra (chiavi del gruppo)
-      this._copyIfPresent(oTemplateRow, oNew, ["Guid", "GUID", "ItmGuid", "ItemGuid", "GUID_ITM", "GUID_ITM2"], sGuidKey);
-      this._copyIfPresent(oTemplateRow, oNew, ["Fibra", "FIBRA", "Fiber", "FIBER"], sFibra);
-
-      this._copyIfPresent(oTemplateRow, oNew, ["CatMateriale", "CATMATERIALE"], oDetail.getProperty("/_mmct/cat") || "");
-
-      // ✅ nuovo record NON approvato / non readOnly
-      oNew.Stato = "";
-      oNew.Approved = 0;
-      oNew.__readOnly = false;
-
-      // flags interni
-      oNew.__new = true;
-      oNew.__tempId = this._generateTempId();
-
-      // inizializza campi di dettaglio
-      aCfg02.forEach(function (f) {
-        var k = String(f.ui || "").trim();
-        if (!k) return;
-
-        var tv = oTemplateRow ? oTemplateRow[k] : undefined;
-        if (Array.isArray(tv)) oNew[k] = [];
-        else oNew[k] = "";
-      });
-
-      return oNew;
-    },
-
-    onAddRow: function () {
-      var oDetail = this.getView().getModel("detail");
-
-      var aAll = oDetail.getProperty("/RowsAll") || [];
-      var aRows = oDetail.getProperty("/Rows") || [];
-
-      var oTemplate = (aAll && aAll[0]) || (aRows && aRows[0]) || null;
-      var oNew = this._buildNewRowFromTemplate(oTemplate);
-
-      // ✅ aggiungi SEMPRE su RowsAll (master)
-      var aAllNext = aAll.slice();
-      aAllNext.push(oNew);
-
-      oDetail.setProperty("/RowsAll", aAllNext);
-      oDetail.setProperty("/Rows", aAllNext);
-      oDetail.setProperty("/RowsCount", aAllNext.length);
-
-      // ✅ abilita Salva
-      oDetail.setProperty("/__dirty", true);
-
-      var oTbl = this.byId("mdcTable4");
-      if (oTbl && typeof oTbl.rebind === "function") {
-        oTbl.rebind();
-      }
-    },
-
-    // ✅ salva nel cache vm così quando esci/rientri le righe aggiunte restano
-    onSaveLocal: function () {
-      var oDetail = this.getView().getModel("detail");
-      var oVm = this._ensureVmCache();
-
-      var sKey = this._getCacheKeySafe();
-
-      var sGuidKey = String(oDetail.getProperty("/guidKey") || "");
-      var sFibra = String(oDetail.getProperty("/Fibra") || "");
-
-      var aGroupRows = oDetail.getProperty("/RowsAll") || [];
-
-      var aAllCached = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
-
-      // togli dal cache il gruppo corrente (GuidKey + Fibra)
-      var aKeep = aAllCached.filter(function (r) {
-        return !(this._rowGuidKey(r) === sGuidKey && this._rowFibra(r) === sFibra);
-      }.bind(this));
-
-      // reinserisci il gruppo aggiornato (incluse righe NEW)
-      var aNextAll = aKeep.concat(aGroupRows);
-
-      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aNextAll);
-      oVm.setProperty("/cache/recordsByKey/" + sKey, this._buildRecordsForCache(aNextAll));
-
-      oDetail.setProperty("/__dirty", false);
-      MessageToast.show("Dettaglio salvato");
     },
 
     // =========================
@@ -318,8 +202,7 @@ sap.ui.define([
         RowsAll: [],
         Rows: [],
         RowsCount: 0,
-        _mmct: { cat: "", s02: [] },
-        __dirty: false
+        _mmct: { cat: "", s02: [] }
       }, true);
 
       this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
@@ -492,7 +375,7 @@ sap.ui.define([
           return this._rowGuidKey(r) === sGuidKey && this._rowFibra(r) === sFibra;
         }.bind(this));
 
-        // __readOnly per riga: Approved === 1
+        // ✅ __readOnly per riga: Approved === 1
         (aSelected || []).forEach(function (r) {
           var ap = this._getApprovedFlag(r);
           r.Approved = ap;
@@ -585,7 +468,7 @@ sap.ui.define([
           visible: true,
           dataProperty: sKey,
           propertyKey: sKey,
-          template: this._createCellTemplate(sKey, f)
+          template: this._createCellTemplate(sKey, f) // ✅ Input/MultiComboBox + readOnly + required
         }));
       }.bind(this));
 
@@ -684,6 +567,7 @@ sap.ui.define([
         }, true);
       }
     }
-
   });
 });
+
+/* ok */

@@ -1,10 +1,3 @@
-/**
- * webapp/model/mockBackend.js
- * Mock “senza $metadata”: risponde alle oModel.read() usate nei tuoi controller.
- */
-
-/* eslint-disable @sap/ui5-jsdocs/no-jsdoc */
-
 sap.ui.define([
   "sap/ui/model/json/JSONModel"
 ], function (JSONModel) {
@@ -419,15 +412,12 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
   function cloneBase(r, guidDett, idx) {
     var rr = deepClone(r);
 
-    // metadata e guid
     rr.__metadata = md("ZVEND_TRACE_SRV.Data", "DataSet(binary'" + guidDett + "')");
-    rr.GuidPadre = r.Guid;                 // 🔗 link alla riga Screen3
-    rr.Guid = guidDett;                    // guid univoco per la riga di Screen4
+    rr.GuidPadre = r.Guid;                 
+    rr.Guid = guidDett;                    
 
-    // 🔥 CHIAVE: Stato dettagli = Stato padre (così qualunque filtro Stato non taglia a 1)
     rr.Stato = (r && r.Stato != null) ? String(r.Stato) : "";
 
-    // variazioni realistiche (schermata 02)
     var fibra = fibers[(idx + detCounter) % fibers.length];
     rr.Fibra = fibra;
     rr.FIBRA = fibra;
@@ -451,7 +441,6 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
   for (var i = 0; i < screen3Rows.length; i++) {
     var r = screen3Rows[i];
 
-    // 4 detail per ogni record di Screen3 (sempre 4, sempre filtrabili col medesimo Stato)
     out.push(cloneBase(r, mkDetGuid(detCounter++), 1));
     out.push(cloneBase(r, mkDetGuid(detCounter++), 2));
     out.push(cloneBase(r, mkDetGuid(detCounter++), 3));
@@ -548,7 +537,6 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
         });
       }
 
-      // -------- UserInfosSet('X') --------
       var m = String(sPath || "").match(/^\/UserInfosSet\('([^']+)'\)\s*$/);
       if (m) {
         var userId = decodeURIComponent(m[1] || "");
@@ -556,7 +544,6 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
         return ok(that._db.userInfos);
       }
 
-      // -------- VendorDataSet --------
       if (sPath === "/VendorDataSet") {
         var flatV = pickFilters(mParams.filters);
         var uidV = "";
@@ -570,7 +557,6 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
         return ok({ results: vendors });
       }
 
-      // -------- MaterialDataSet --------
       if (sPath === "/MaterialDataSet") {
         var flat = pickFilters(mParams.filters);
         var vendor = "";
@@ -590,8 +576,6 @@ function buildDataRowsScreen4(sUserId, screen3Rows) {
       }
       var urlParams = (mParams && mParams.urlParameters) || {};
 
-// se Screen4 usa ancora /DataSet e filtra per Guid della testata,
-// devo forzare la risposta “dettaglio”
 var flatPre = pickFilters(mParams.filters);
 var hasGuidEq = flatPre.some(function (f) {
   return (f.path === "Guid" || f.path === "GUID") && f.op === "EQ" && f.v1 != null && String(f.v1) !== "";
@@ -615,14 +599,12 @@ var forcedS4 =
             var mv = String(f.v1 || "");
             if (mv) matFiltersS4.push(mv);
           }
-          // se in screen4 filtri Guid, lo interpreto come “Guid padre” (testata)
           if ((f.path === "Guid" || f.path === "GUID") && f.op === "EQ") guidPadre = String(f.v1 || "");
           if (f.path === "GuidPadre" && f.op === "EQ") guidPadre = String(f.v1 || "");
         });
 
         if (!uidS4) uidS4 = that._db.userInfos.UserID;
 
-        // genero coerente e poi filtro
         var vendorsS4 = buildVendors(uidS4);
         var s3RowsAll = buildDataRows(uidS4, vendorsS4);
         var s4RowsAll = buildDataRowsScreen4(uidS4, s3RowsAll);
@@ -648,7 +630,6 @@ var forcedS4 =
         return ok({ results: rowsS4 });
       }
 
-      // -------- DataSet (Screen3) --------
       if (sPath === "/DataSet") {
         var flat2 = pickFilters(mParams.filters);
         var vendor2 = "";
@@ -683,7 +664,6 @@ var forcedS4 =
         return ok({ results: rows });
       }
 
-      // -------- DomainsSet(UserID='...',Domain='...') --------
       var mdDom = String(sPath || "").match(/^\/DomainsSet\(UserID='([^']+)',Domain='([^']+)'\)\s*$/);
       if (mdDom) {
         var uDom = decodeURIComponent(mdDom[1] || "");
@@ -693,7 +673,6 @@ var forcedS4 =
         return one ? ok(one) : fail(404, "DomainsSet non trovato: " + dDom);
       }
 
-      // -------- UserMMCTSet(UserID='...',CatMateriale='...') --------
       var mdMm = String(sPath || "").match(/^\/UserMMCTSet\(UserID='([^']+)',CatMateriale='([^']+)'\)\s*$/);
       if (mdMm) {
         var uMm = decodeURIComponent(mdMm[1] || "");

@@ -1,3 +1,4 @@
+// Screen3.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -10,6 +11,7 @@ sap.ui.define([
   "sap/ui/mdc/table/Column",
   "sap/m/HBox",
   "sap/m/Text",
+  "sap/m/ObjectStatus",
   "sap/m/Input",
   "sap/m/ComboBox",
   "sap/m/MultiComboBox",
@@ -27,6 +29,7 @@ sap.ui.define([
   MdcColumn,
   HBox,
   Text,
+  ObjectStatus,
   Input,
   ComboBox,
   MultiComboBox,
@@ -51,7 +54,10 @@ sap.ui.define([
         RecordsAll: [],
         Records: [],
         RecordsCount: 0,
-        _mmct: { cat: "", s01: [], s02: [] }
+        _mmct: { cat: "", s01: [], s02: [] },
+
+        __q: "",
+        __statusFilter: ""
       });
       this.getView().setModel(oDetail, "detail");
 
@@ -110,7 +116,10 @@ sap.ui.define([
         RecordsAll: [],
         Records: [],
         RecordsCount: 0,
-        _mmct: { cat: "", s01: [], s02: [] }
+        _mmct: { cat: "", s01: [], s02: [] },
+
+        __q: "",
+        __statusFilter: ""
       }, true);
 
       this._logTable("TABLE STATE @ before _loadDataOnce");
@@ -143,7 +152,7 @@ sap.ui.define([
       var s = String((c && (c.Impostazione ?? c.IMPOSTAZIONE)) || "").trim().toUpperCase();
       return {
         required: s === "O", // ✅ O = Obbligatorio
-        locked:   s === "B"  // ✅ B = Bloccato
+        locked: s === "B"    // ✅ B = Bloccato
       };
     },
 
@@ -164,7 +173,7 @@ sap.ui.define([
 
     _createCellTemplate: function (sKey, oMeta) {
       var bRequired = !!(oMeta && oMeta.required);
-      var bLocked   = !!(oMeta && oMeta.locked);
+      var bLocked = !!(oMeta && oMeta.locked);
       var bMultiple = !!(oMeta && oMeta.multiple);
 
       var sDomain = String((oMeta && oMeta.domain) || "").trim();
@@ -233,6 +242,31 @@ sap.ui.define([
 
       return new HBox({
         items: [oText, oEditCtrl]
+      });
+    },
+
+    _createStatusCellTemplate: function (sKey) {
+      // normalizzo: se arriva "STATO" uso comunque "Stato"
+      var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
+
+      var sStateExpr =
+        "{= ${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
+        "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
+        "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
+        "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))}";
+
+      return new HBox({
+        width: "100%",
+        justifyContent: "Center",
+        alignItems: "Center",
+        items: [
+          new ObjectStatus({
+            text: "", // solo cerchio
+            icon: "sap-icon://circle-task",
+            state: sStateExpr,
+            tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
+          })
+        ]
       });
     },
 
@@ -315,7 +349,7 @@ sap.ui.define([
 
           var flags = this._getSettingFlags(c);
           var required = !!flags.required; // ✅ O
-          var locked   = !!flags.locked;   // ✅ B
+          var locked = !!flags.locked;     // ✅ B
           var multiple = this._isMultipleField(c); // ✅ MultipleVal
 
           return { ui: ui, label: label, domain: domain, required: required, locked: locked, multiple: multiple };
@@ -338,15 +372,171 @@ sap.ui.define([
     // =========================
     // ODATA
     // =========================
-/*     _reloadDataFromBackend: function (fnDone) {
+    _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      var sForceStato = String(mock.forceStato || "").trim().toUpperCase(); // ST/AP/RJ/CH/""
+      var bMockS3 = !!mock.mockS3;
+
       var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
       var oODataModel = this.getOwnerComponent().getModel();
 
       function norm(v) { return String(v || "").trim().toUpperCase(); }
+      function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
 
-      var sVendor = String(this._sVendorId || "").trim();
-      if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
+      // =========================
+      // MOCK DATASET Screen3 (2 casi per ST/AP/RJ/CH) -> 16 righe (2 righe per record)
+      // =========================
+      if (bMockS3) {
+        var sVendor = String(this._sVendorId || "").trim();
+        if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
+
+        var sMat = norm(this._sMaterial);
+
+        // cat "esistente": prendo la prima categoria disponibile dal vm, altrimenti CF
+        var mmct = (oVm && oVm.getProperty("/mmctFieldsByCat")) || {};
+        var aCats = Object.keys(mmct || {});
+        var sCat = aCats[0] || "CF";
+
+        function mkBase() {
+          return {
+            CalcCarbonFoot: "",
+            CatMateriale: sCat,
+            CertMat: "",
+            CertProcess: "",
+            CertRic: "",
+            CodiceDenSempl: "",
+            Collezione: "",
+            Compost: "",
+            DataIns: null,
+            DataMod: null,
+            DescrPack: "",
+            DestPack: "",
+            DestUso: "",
+            EnteCert: "",
+            Esito: "",
+            Famiglia: "",
+            FattEmissione: "0.000",
+            Fibra: "",
+            FineVal: null,
+            Fornitore: sVendor,
+            GerProd: "CAL B1 BD",
+            GradoRic: "",
+            GruppoMerci: String(sMat || "IW2B0626SVS"),
+            Guid: "",
+            InizioVal: null,
+            Linea: "1R",
+            LocAllev: "",
+            LocConciaCrust: "",
+            LocConciaPf: "",
+            LocConfez: "",
+            LocFibra: "",
+            LocFilatura: "",
+            LocMacellazione: "",
+            LocPolimero: "",
+            LocTessitura: "",
+            LocTintura: "",
+            Materiale: String(sMat || "IW2B0626SVS"),
+            MaterialeFornitore: "",
+            MatnrMp: "",
+            Message: "",
+            MpFittizio: "",
+            NReport: "",
+            NoteCertMat: "",
+            NoteCertProcess: "",
+            NoteMateriale: "",
+            OtherAction: "",
+            PaeseAllev: "",
+            PaeseConciaCrust: "",
+            PaeseConciaPf: "",
+            PaeseConfez: "",
+            PaeseFibra: "",
+            PaeseFilatura: "",
+            PaeseMacellazione: "",
+            PaesePolimero: "",
+            PaesePrAgg: "",
+            PaesePrMont: "",
+            PaesePrRif: "",
+            PaeseTessitura: "",
+            PaeseTintura: "",
+            PartitaFornitore: "",
+            PercMatRicicl: "",
+            Perccomp: "",
+            PerccompFibra: "0.00",
+            PesoPack: "0.000",
+            Plant: "5110",
+            PresSost: "",
+            QtaFibra: "0.000",
+            RagSoc: "CITY MODELES",
+            RiciPack: "",
+            Stagione: "44",
+            Stato: "",
+            TipSost: "",
+            UdM: "PC",
+            UserID: sUserId,
+            UserIns: "",
+            UserMod: "",
+            Approved: 0,
+            ToApprove: 0,
+            Rejected: 0,
+            Open: "X"
+          };
+        }
+
+        function applyFlagsByStato(r, stato) {
+          r.Stato = stato;
+
+          // coerente con i tuoi campi backend
+          if (stato === "AP") { r.Approved = 1; r.ToApprove = 0; r.Rejected = 0; }
+          if (stato === "RJ") { r.Approved = 0; r.ToApprove = 0; r.Rejected = 1; }
+          if (stato === "ST") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
+          if (stato === "CH") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
+        }
+
+        function mkRecord2Rows(stato, idx) {
+          var guid = "GUID_" + stato + "_" + idx;
+          var fibra = "FIB_" + stato + "_" + idx;
+
+          var r1 = mkBase();
+          r1.Guid = guid;
+          r1.Fibra = fibra;
+          r1.Linea = "1R";
+          r1.FattEmissione = (idx * 0.111).toFixed(3);
+          r1.QtaFibra = (idx * 1.234).toFixed(3);
+          applyFlagsByStato(r1, stato);
+
+          var r2 = mkBase();
+          r2.Guid = guid;
+          r2.Fibra = fibra;
+          r2.Linea = "2R";
+          r2.FattEmissione = (idx * 0.222).toFixed(3);
+          r2.QtaFibra = (idx * 2.468).toFixed(3);
+          applyFlagsByStato(r2, stato);
+
+          return [r1, r2];
+        }
+
+        var aMock = []
+          .concat(mkRecord2Rows("ST", 1), mkRecord2Rows("ST", 2))
+          .concat(mkRecord2Rows("AP", 1), mkRecord2Rows("AP", 2))
+          .concat(mkRecord2Rows("RJ", 1), mkRecord2Rows("RJ", 2))
+          .concat(mkRecord2Rows("CH", 1), mkRecord2Rows("CH", 2));
+
+        // forza stato (se impostato in Screen0)
+        if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+          aMock.forEach(function (r) { r.Stato = sForceStato; });
+        }
+
+        console.log("[Screen3][MOCK] rows:", aMock.length, "forceStato:", sForceStato || "(none)");
+        done(aMock);
+        return;
+      }
+
+      // =========================
+      // BACKEND READ normale
+      // =========================
+      var sVendor2 = String(this._sVendorId || "").trim();
+      if (/^\d+$/.test(sVendor2) && sVendor2.length < 10) sVendor2 = sVendor2.padStart(10, "0");
 
       var sRouteMat = norm(this._sMaterial);
 
@@ -361,17 +551,9 @@ sap.ui.define([
 
       var aMatVariants = buildMaterialVariants(sRouteMat);
 
-      this._log("_reloadDataFromBackend READ /DataSet", {
-        userId: sUserId,
-        vendor: sVendor,
-        materialVariants: aMatVariants
-      });
-
-      function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
-
       var aFilters = [
         new Filter("UserID", FilterOperator.EQ, sUserId),
-        new Filter("Fornitore", FilterOperator.EQ, sVendor)
+        new Filter("Fornitore", FilterOperator.EQ, sVendor2)
       ];
 
       if (aMatVariants.length) {
@@ -383,10 +565,17 @@ sap.ui.define([
       oODataModel.read("/DataSet", {
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
-        success: function (oData) { 
-          debugger
+        success: function (oData) {
           BusyIndicator.hide();
-          done((oData && oData.results) || []);
+          var a = (oData && oData.results) || [];
+
+          // forza stato (se impostato in Screen0)
+          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+            a.forEach(function (r) { r.Stato = sForceStato; });
+            console.log("[Screen3] forceStato =", sForceStato);
+          }
+
+          done(a);
         },
         error: function (oError) {
           BusyIndicator.hide();
@@ -395,222 +584,7 @@ sap.ui.define([
           done([]);
         }
       });
-    }, */
-
-    _reloadDataFromBackend: function (fnDone) {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var sForceStato = String(mock.forceStato || "").trim().toUpperCase(); // ST/AP/RJ/CH/""
-  var bMockS3 = !!mock.mockS3;
-
-  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
-  var oODataModel = this.getOwnerComponent().getModel();
-
-  function norm(v) { return String(v || "").trim().toUpperCase(); }
-  function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
-
-  // =========================
-  // MOCK DATASET Screen3 (2 casi per ST/AP/RJ/CH) -> 16 righe (2 righe per record)
-  // =========================
-  if (bMockS3) {
-    var sVendor = String(this._sVendorId || "").trim();
-    if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
-
-    var sMat = norm(this._sMaterial);
-
-    // cat "esistente": prendo la prima categoria disponibile dal vm, altrimenti CF
-    var mmct = (oVm && oVm.getProperty("/mmctFieldsByCat")) || {};
-    var aCats = Object.keys(mmct || {});
-    var sCat = aCats[0] || "CF";
-
-    function mkBase() {
-      return {
-        CalcCarbonFoot: "",
-        CatMateriale: sCat,
-        CertMat: "",
-        CertProcess: "",
-        CertRic: "",
-        CodiceDenSempl: "",
-        Collezione: "",
-        Compost: "",
-        DataIns: null,
-        DataMod: null,
-        DescrPack: "",
-        DestPack: "",
-        DestUso: "",
-        EnteCert: "",
-        Esito: "",
-        Famiglia: "",
-        FattEmissione: "0.000",
-        Fibra: "",
-        FineVal: null,
-        Fornitore: sVendor,
-        GerProd: "CAL B1 BD",
-        GradoRic: "",
-        GruppoMerci: String(sMat || "IW2B0626SVS"),
-        Guid: "",
-        InizioVal: null,
-        Linea: "1R",
-        LocAllev: "",
-        LocConciaCrust: "",
-        LocConciaPf: "",
-        LocConfez: "",
-        LocFibra: "",
-        LocFilatura: "",
-        LocMacellazione: "",
-        LocPolimero: "",
-        LocTessitura: "",
-        LocTintura: "",
-        Materiale: String(sMat || "IW2B0626SVS"),
-        MaterialeFornitore: "",
-        MatnrMp: "",
-        Message: "",
-        MpFittizio: "",
-        NReport: "",
-        NoteCertMat: "",
-        NoteCertProcess: "",
-        NoteMateriale: "",
-        OtherAction: "",
-        PaeseAllev: "",
-        PaeseConciaCrust: "",
-        PaeseConciaPf: "",
-        PaeseConfez: "",
-        PaeseFibra: "",
-        PaeseFilatura: "",
-        PaeseMacellazione: "",
-        PaesePolimero: "",
-        PaesePrAgg: "",
-        PaesePrMont: "",
-        PaesePrRif: "",
-        PaeseTessitura: "",
-        PaeseTintura: "",
-        PartitaFornitore: "",
-        PercMatRicicl: "",
-        Perccomp: "",
-        PerccompFibra: "0.00",
-        PesoPack: "0.000",
-        Plant: "5110",
-        PresSost: "",
-        QtaFibra: "0.000",
-        RagSoc: "CITY MODELES",
-        RiciPack: "",
-        Stagione: "44",
-        Stato: "",
-        TipSost: "",
-        UdM: "PC",
-        UserID: sUserId,
-        UserIns: "",
-        UserMod: "",
-        Approved: 0,
-        ToApprove: 0,
-        Rejected: 0,
-        Open: "X"
-      };
-    }
-
-    function applyFlagsByStato(r, stato) {
-      r.Stato = stato;
-
-      // coerente con i tuoi campi backend
-      if (stato === "AP") { r.Approved = 1; r.ToApprove = 0; r.Rejected = 0; }
-      if (stato === "RJ") { r.Approved = 0; r.ToApprove = 0; r.Rejected = 1; }
-      if (stato === "ST") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-      if (stato === "CH") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-    }
-
-    function mkRecord2Rows(stato, idx) {
-      var guid = "GUID_" + stato + "_" + idx;
-      var fibra = "FIB_" + stato + "_" + idx;
-
-      var r1 = mkBase();
-      r1.Guid = guid;
-      r1.Fibra = fibra;
-      r1.Linea = "1R";
-      r1.FattEmissione = (idx * 0.111).toFixed(3);
-      r1.QtaFibra = (idx * 1.234).toFixed(3);
-      applyFlagsByStato(r1, stato);
-
-      var r2 = mkBase();
-      r2.Guid = guid;
-      r2.Fibra = fibra;
-      r2.Linea = "2R";
-      r2.FattEmissione = (idx * 0.222).toFixed(3);
-      r2.QtaFibra = (idx * 2.468).toFixed(3);
-      applyFlagsByStato(r2, stato);
-
-      return [r1, r2];
-    }
-
-    var aMock = []
-      .concat(mkRecord2Rows("ST", 1), mkRecord2Rows("ST", 2))
-      .concat(mkRecord2Rows("AP", 1), mkRecord2Rows("AP", 2))
-      .concat(mkRecord2Rows("RJ", 1), mkRecord2Rows("RJ", 2))
-      .concat(mkRecord2Rows("CH", 1), mkRecord2Rows("CH", 2));
-
-    // forza stato (se impostato in Screen0)
-    if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-      aMock.forEach(function (r) { r.Stato = sForceStato; });
-    }
-
-    console.log("[Screen3][MOCK] rows:", aMock.length, "forceStato:", sForceStato || "(none)");
-    done(aMock);
-    return;
-  }
-
-  // =========================
-  // BACKEND READ normale
-  // =========================
-  var sVendor = String(this._sVendorId || "").trim();
-  if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
-
-  var sRouteMat = norm(this._sMaterial);
-
-  function buildMaterialVariants(routeMat) {
-    var set = {};
-    function add(x) { x = norm(x); if (x) set[x] = true; }
-    add(routeMat);
-    if (routeMat && !routeMat.endsWith("S")) add(routeMat + "S");
-    if (routeMat && routeMat.endsWith("S")) add(routeMat.slice(0, -1));
-    return Object.keys(set);
-  }
-
-  var aMatVariants = buildMaterialVariants(sRouteMat);
-
-  var aFilters = [
-    new Filter("UserID", FilterOperator.EQ, sUserId),
-    new Filter("Fornitore", FilterOperator.EQ, sVendor)
-  ];
-
-  if (aMatVariants.length) {
-    var aMatFilters = aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); });
-    aFilters.push(new Filter({ filters: aMatFilters, and: false }));
-  }
-
-  BusyIndicator.show(0);
-  oODataModel.read("/DataSet", {
-    filters: aFilters,
-    urlParameters: { "sap-language": "IT" },
-    success: function (oData) {
-      BusyIndicator.hide();
-      var a = (oData && oData.results) || [];
-
-      // forza stato (se impostato in Screen0)
-      if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-        a.forEach(function (r) { r.Stato = sForceStato; });
-        console.log("[Screen3] forceStato =", sForceStato);
-      }
-
-      done(a);
     },
-    error: function (oError) {
-      BusyIndicator.hide();
-      console.error("Errore lettura DataSet", oError);
-      MessageToast.show("Errore nel caricamento dei dati");
-      done([]);
-    }
-  });
-},
-
 
     // =========================
     // RECORDS (Screen3)
@@ -626,132 +600,6 @@ sap.ui.define([
     },
 
     _buildRecords01: function (aAllRows) {
-  var oDetail = this.getView().getModel("detail");
-  var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-  var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
-
-  // ✅ mappa campi multi
-  var mIsMulti = {};
-  (aCfg01 || []).forEach(function (f) {
-    if (f && f.ui && f.multiple) mIsMulti[f.ui] = true;
-  });
-
-  function toArray(v) {
-    if (Array.isArray(v)) return v;
-    var s = String(v || "").trim();
-    if (!s) return [];
-    return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
-  }
-
-  // ruolo (I/E/S)
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var sRole = (oVm && oVm.getProperty("/userType")) || "";
-  sRole = String(sRole || "").trim().toUpperCase();
-
-  // forceStato (da Screen0)
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var sForce = String(mock.forceStato || "").trim().toUpperCase();
-
-  function normStato(r) {
-    if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
-
-    var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
-    if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
-
-    // fallback se backend lascia Stato vuoto
-    var ap = this._getApprovedFlag(r);
-    if (ap === 1) return "AP";
-
-    var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
-    if (rej > 0) return "RJ";
-
-    var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
-    if (pend > 0) return "ST";
-
-    return "ST";
-  }
-
-  function rank(st) {
-    if (st === "AP") return 4;
-    if (st === "CH") return 3;
-    if (st === "RJ") return 2;
-    return 1; // ST
-  }
-  function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
-
-  // permessi
-  function canEdit(role, status) {
-    if (role === "S") return false;
-    if (role === "I") return false;
-    if (role === "E") return status !== "AP"; // fornitore: edit NO solo AP
-    return false;
-  }
-  function canApprove(role, status) {
-    return role === "I" && (status === "ST" || status === "CH");
-  }
-  function canReject(role, status) {
-    return role === "I" && (status === "ST" || status === "CH");
-  }
-
-  this._log("_buildRecords01 role", sRole, "cols", aCols01.length);
-
-  var m = {};
-  var a = [];
-
-  (aAllRows || []).forEach(function (r) {
-    var sGuidKey = this._rowGuidKey(r);
-    var sFibra = this._rowFibra(r);
-    var sKey = sGuidKey + "||" + sFibra;
-
-    var stRow = normStato.call(this, r);
-
-    var oRec = m[sKey];
-
-    if (!oRec) {
-      oRec = {
-        idx: a.length,
-        guidKey: sGuidKey,
-        Fibra: sFibra,
-
-        Stato: stRow,
-        __status: stRow,
-
-        __canEdit: canEdit(sRole, stRow),
-        __canApprove: canApprove(sRole, stRow),
-        __canReject: canReject(sRole, stRow),
-
-        __readOnly: !canEdit(sRole, stRow)
-      };
-
-      aCols01.forEach(function (c) {
-        var v = (r && r[c] !== undefined) ? r[c] : "";
-        oRec[c] = mIsMulti[c] ? toArray(v) : v;
-      });
-
-      m[sKey] = oRec;
-      a.push(oRec);
-
-    } else {
-      var merged = mergeStatus(oRec.__status, stRow);
-      if (merged !== oRec.__status) {
-        oRec.__status = merged;
-        oRec.Stato = merged;
-
-        oRec.__canEdit = canEdit(sRole, merged);
-        oRec.__canApprove = canApprove(sRole, merged);
-        oRec.__canReject = canReject(sRole, merged);
-
-        oRec.__readOnly = !oRec.__canEdit;
-      }
-    }
-  }.bind(this));
-
-  this._log("_buildRecords01 built", a.length, "sample", a[0]);
-  return a;
-},
-
-
-/*     _buildRecords01: function (aAllRows) {
       var oDetail = this.getView().getModel("detail");
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
@@ -769,7 +617,57 @@ sap.ui.define([
         return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
       }
 
-      this._log("_buildRecords01 using columns", aCols01.length, aCols01);
+      // ruolo (I/E/S)
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sRole = (oVm && oVm.getProperty("/userType")) || "";
+      sRole = String(sRole || "").trim().toUpperCase();
+
+      // forceStato (da Screen0)
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      var sForce = String(mock.forceStato || "").trim().toUpperCase();
+
+      function normStato(r) {
+        if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
+
+        var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
+        if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
+
+        // fallback se backend lascia Stato vuoto
+        var ap = this._getApprovedFlag(r);
+        if (ap === 1) return "AP";
+
+        var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
+        if (rej > 0) return "RJ";
+
+        var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
+        if (pend > 0) return "ST";
+
+        return "ST";
+      }
+
+      function rank(st) {
+        if (st === "AP") return 4;
+        if (st === "CH") return 3;
+        if (st === "RJ") return 2;
+        return 1; // ST
+      }
+      function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
+
+      // permessi
+      function canEdit(role, status) {
+        if (role === "S") return false;
+        if (role === "I") return false;
+        if (role === "E") return status !== "AP"; // fornitore: edit NO solo AP
+        return false;
+      }
+      function canApprove(role, status) {
+        return role === "I" && (status === "ST" || status === "CH");
+      }
+      function canReject(role, status) {
+        return role === "I" && (status === "ST" || status === "CH");
+      }
+
+      this._log("_buildRecords01 role", sRole, "cols", aCols01.length);
 
       var m = {};
       var a = [];
@@ -779,19 +677,26 @@ sap.ui.define([
         var sFibra = this._rowFibra(r);
         var sKey = sGuidKey + "||" + sFibra;
 
+        var stRow = normStato.call(this, r);
+
         var oRec = m[sKey];
 
         if (!oRec) {
-          var approvedFlag = this._getApprovedFlag(r);
           oRec = {
             idx: a.length,
             guidKey: sGuidKey,
             Fibra: sFibra,
-            Approved: approvedFlag,
-            __readOnly: approvedFlag === 1
+
+            Stato: stRow,
+            __status: stRow,
+
+            __canEdit: canEdit(sRole, stRow),
+            __canApprove: canApprove(sRole, stRow),
+            __canReject: canReject(sRole, stRow),
+
+            __readOnly: !canEdit(sRole, stRow)
           };
 
-          // valorizza i campi dalla prima riga trovata
           aCols01.forEach(function (c) {
             var v = (r && r[c] !== undefined) ? r[c] : "";
             oRec[c] = mIsMulti[c] ? toArray(v) : v;
@@ -799,19 +704,25 @@ sap.ui.define([
 
           m[sKey] = oRec;
           a.push(oRec);
+
         } else {
-          // se in una riga del gruppo Approved=1, tutto il record diventa readonly
-          var ap2 = this._getApprovedFlag(r);
-          if (ap2 === 1) {
-            oRec.Approved = 1;
-            oRec.__readOnly = true;
+          var merged = mergeStatus(oRec.__status, stRow);
+          if (merged !== oRec.__status) {
+            oRec.__status = merged;
+            oRec.Stato = merged;
+
+            oRec.__canEdit = canEdit(sRole, merged);
+            oRec.__canApprove = canApprove(sRole, merged);
+            oRec.__canReject = canReject(sRole, merged);
+
+            oRec.__readOnly = !oRec.__canEdit;
           }
         }
       }.bind(this));
 
       this._log("_buildRecords01 built", a.length, "sample", a[0]);
       return a;
-    }, */
+    },
 
     // =========================
     // NAV BUTTON (prima colonna)
@@ -882,15 +793,35 @@ sap.ui.define([
 
     _ensureMdcCfgScreen3: function (aCfg01) {
       var oVm = this.getOwnerComponent().getModel("vm");
+
       var aProps = (aCfg01 || []).map(function (f) {
+        var name = f.ui;
+
+        // normalizzo eventuale "STATO" -> "Stato"
+        if (String(name || "").toUpperCase() === "STATO") name = "Stato";
+
         return {
-          name: f.ui,
-          label: f.label || f.ui,
+          name: name,
+          label: f.label || name,
           dataType: "String",
           domain: f.domain || "",
           required: !!f.required
         };
       });
+
+      // se manca, aggiungo la property "Stato" per p13n/sort ecc.
+      var hasStato = aProps.some(function (p) {
+        return String(p && p.name || "").toUpperCase() === "STATO";
+      });
+      if (!hasStato) {
+        aProps.unshift({
+          name: "Stato",
+          label: "Stato",
+          dataType: "String",
+          domain: "",
+          required: false
+        });
+      }
 
       oVm.setProperty("/mdcCfg/screen3", {
         modelName: "detail",
@@ -923,23 +854,105 @@ sap.ui.define([
         })
       }));
 
-      // 2) Colonne dinamiche MMCT
-      (aCfg01 || []).forEach(function (f) {
-        var sKey = String(f.ui || "").trim();
-        if (!sKey) return;
+      // 1.5) STATO fisso se non presente in MMCT
+      var hasStatoInCfg = (aCfg01 || []).some(function (f) {
+        return String(f && f.ui || "").toUpperCase() === "STATO" || String(f && f.ui || "") === "Stato";
+      });
+      if (!hasStatoInCfg) {
+        oTbl.addColumn(new MdcColumn({
+          header: "Stato",
+          visible: true,
+          dataProperty: "Stato",
+          propertyKey: "Stato",
+          template: this._createStatusCellTemplate("Stato")
+        }));
+      }
 
-        var sHeader = (f.label || sKey) + (f.required ? " *" : "");
+      // 2) Colonne dinamiche MMCT (con override STATO -> semaforo)
+      (aCfg01 || []).forEach(function (f) {
+        var sKeyRaw = String(f.ui || "").trim();
+        if (!sKeyRaw) return;
+
+        // normalizzo "STATO" -> "Stato"
+        var bIsStato = (sKeyRaw.toUpperCase() === "STATO");
+        var sKey = bIsStato ? "Stato" : sKeyRaw;
+
+        var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
 
         oTbl.addColumn(new MdcColumn({
           header: sHeader,
           visible: true,
           dataProperty: sKey,
           propertyKey: sKey,
-          template: this._createCellTemplate(sKey, f)
+          template: bIsStato ? this._createStatusCellTemplate(sKey) : this._createCellTemplate(sKey, f)
         }));
       }.bind(this));
 
       this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
+    },
+
+    // =========================
+    // FILTER STATUS + TEXT (client side)
+    // =========================
+    _getCustomDataValue: function (oCtrl, sKey) {
+      try {
+        var a = (oCtrl && oCtrl.getCustomData && oCtrl.getCustomData()) || [];
+        var cd = a.find(function (x) { return x && x.getKey && x.getKey() === sKey; });
+        return cd ? cd.getValue() : null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    _applyClientFilters: function () {
+      var oDetail = this.getView().getModel("detail");
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+
+      var q = String(oDetail.getProperty("/__q") || "").trim().toUpperCase();
+      var sStatus = String(oDetail.getProperty("/__statusFilter") || "").trim().toUpperCase();
+
+      var aFiltered = (aAll || []).filter(function (r) {
+        // filtro stato
+        if (sStatus) {
+          var st = String((r && (r.__status || r.Stato)) || "").trim().toUpperCase();
+          if (st !== sStatus) return false;
+        }
+
+        // filtro testo
+        if (q) {
+          var ok = Object.keys(r || {}).some(function (k) {
+            if (k === "__metadata" || k === "AllData") return false;
+            if (k.indexOf("__") === 0) return false;
+
+            var v = r[k];
+            if (v === null || v === undefined) return false;
+            if (Array.isArray(v)) v = v.join(", ");
+            return String(v).toUpperCase().indexOf(q) >= 0;
+          });
+          if (!ok) return false;
+        }
+
+        return true;
+      });
+
+      oDetail.setProperty("/Records", aFiltered);
+      oDetail.setProperty("/RecordsCount", aFiltered.length);
+
+      var oTbl = this.byId("mdcTable3");
+      if (oTbl && oTbl.getModel && oTbl.getModel("detail") && typeof oTbl.rebind === "function") {
+        oTbl.rebind();
+      }
+    },
+
+    onStatusFilterPress: function (oEvt) {
+      var oSrc = oEvt.getSource();
+      var s = this._getCustomDataValue(oSrc, "status");
+      s = String(s || "").trim().toUpperCase(); // "" = tutti
+
+      var oDetail = this.getView().getModel("detail");
+      oDetail.setProperty("/__statusFilter", s);
+
+      this._applyClientFilters();
     },
 
     _bindRecords: async function (aRecords) {
@@ -961,6 +974,9 @@ sap.ui.define([
       if (oTbl && oTbl.initialized) await oTbl.initialized();
       if (oTbl) oTbl.setModel(oDetail, "detail");
 
+      // applico eventuali filtri (anche se vuoti -> mostra tutto)
+      this._applyClientFilters();
+
       if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();
 
       await this._forceP13nAllVisible(oTbl, "t0");
@@ -970,30 +986,13 @@ sap.ui.define([
     },
 
     // =========================
-    // Filter
+    // Filter (testuale)
     // =========================
     onGlobalFilter: function (oEvt) {
-      var q = String(oEvt.getParameter("value") || "").trim().toUpperCase();
+      var q = String(oEvt.getParameter("value") || "").trim();
       var oDetail = this.getView().getModel("detail");
-      var aAll = oDetail.getProperty("/RecordsAll") || [];
-
-      if (!q) {
-        oDetail.setProperty("/Records", aAll);
-        oDetail.setProperty("/RecordsCount", (aAll || []).length);
-        return;
-      }
-
-      var aFiltered = aAll.filter(function (r) {
-        return Object.keys(r || {}).some(function (k) {
-          if (k === "__metadata" || k === "AllData") return false;
-          var v = r[k];
-          if (v === null || v === undefined) return false;
-          return String(v).toUpperCase().indexOf(q) >= 0;
-        });
-      });
-
-      oDetail.setProperty("/Records", aFiltered);
-      oDetail.setProperty("/RecordsCount", (aFiltered || []).length);
+      oDetail.setProperty("/__q", q);
+      this._applyClientFilters();
     },
 
     // =========================

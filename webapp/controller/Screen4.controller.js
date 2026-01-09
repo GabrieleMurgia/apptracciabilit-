@@ -134,6 +134,70 @@ sap.ui.define([
       return Array.isArray(a) && a.length > 0;
     },
 
+    // =========================
+// DIRTY
+// =========================
+_markDirty: function () {
+  var oDetail = this.getView().getModel("detail");
+  if (oDetail) {
+    oDetail.setProperty("/__dirty", true);
+  }
+},
+
+_hookDirtyOnEdit: function (oCtrl) {
+  if (!oCtrl) return;
+
+  // evita doppio hook
+  try {
+    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+  } catch (e) { /* ignore */ }
+
+  var fn = this._markDirty.bind(this);
+
+  // Input / ComboBox
+  if (typeof oCtrl.attachChange === "function") {
+    oCtrl.attachChange(fn);
+  }
+
+  // ComboBox
+  if (typeof oCtrl.attachSelectionChange === "function") {
+    oCtrl.attachSelectionChange(fn);
+  }
+
+  // MultiComboBox
+  if (typeof oCtrl.attachSelectionFinish === "function") {
+    oCtrl.attachSelectionFinish(fn);
+  }
+},
+
+_applyGlobalFilterFromInput: function () {
+  var oInput = this.byId("inputFilter4");
+  var q = String((oInput && oInput.getValue && oInput.getValue()) || "").trim().toUpperCase();
+
+  var oDetail = this.getView().getModel("detail");
+  var aAll = oDetail.getProperty("/RowsAll") || [];
+
+  if (!q) {
+    oDetail.setProperty("/Rows", aAll);
+    oDetail.setProperty("/RowsCount", (aAll || []).length);
+    return;
+  }
+
+  var aFiltered = aAll.filter(function (r) {
+    return Object.keys(r || {}).some(function (k) {
+      if (k === "__metadata" || k === "AllData") return false;
+      var v = r[k];
+      if (v === null || v === undefined) return false;
+      return String(v).toUpperCase().indexOf(q) >= 0;
+    });
+  });
+
+  oDetail.setProperty("/Rows", aFiltered);
+  oDetail.setProperty("/RowsCount", (aFiltered || []).length);
+},
+
+
     _createCellTemplate: function (sKey, oMeta) {
       var bRequired = !!(oMeta && oMeta.required);
       var bLocked   = !!(oMeta && oMeta.locked);
@@ -199,7 +263,7 @@ sap.ui.define([
           valueStateText: sValueStateText
         });
       }
-
+      this._hookDirtyOnEdit(oEditCtrl);
       return new HBox({ items: [oText, oEditCtrl] });
     },
 
@@ -218,17 +282,19 @@ sap.ui.define([
       this._snapshotRows = null;
 
       var oDetail = this.getView().getModel("detail");
-      oDetail.setData({
-        VendorId: this._sVendorId,
-        Material: this._sMaterial,
-        recordKey: this._sRecordKey,
-        guidKey: "",
-        Fibra: "",
-        RowsAll: [],
-        Rows: [],
-        RowsCount: 0,
-        _mmct: { cat: "", s02: [] }
-      }, true);
+oDetail.setData({
+  VendorId: this._sVendorId,
+  Material: this._sMaterial,
+  recordKey: this._sRecordKey,
+  guidKey: "",
+  Fibra: "",
+  RowsAll: [],
+  Rows: [],
+  RowsCount: 0,
+  _mmct: { cat: "", s02: [] },
+  __dirty: false
+}, true);
+
 
       this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
 
@@ -595,6 +661,85 @@ sap.ui.define([
       oDetail.setProperty("/Rows", aFiltered);
       oDetail.setProperty("/RowsCount", (aFiltered || []).length);
     },
+
+    // =========================
+// ADD ROW (Screen4)
+// =========================
+onAddRow: function () {
+  try {
+    var oDetail = this.getView().getModel("detail");
+    var aAll = oDetail.getProperty("/RowsAll") || [];
+
+    if (!Array.isArray(aAll) || aAll.length === 0) {
+      MessageToast.show("Nessuna riga disponibile come base per la nuova riga");
+      return;
+    }
+
+    // base = prima riga del gruppo selezionato (contiene guid/fibra + campi comuni)
+    var oBase = aAll[0];
+    var oNew = deepClone(oBase) || {};
+
+    // housekeeping
+    try { delete oNew.__metadata; } catch (e) { /* ignore */ }
+
+    oNew.Approved = 0;
+    oNew.__readOnly = false;
+    oNew.__isNew = true;
+    oNew.__localId = "NEW_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+
+    // svuota SOLO i campi Screen02 non locked (e rispetta multi)
+    var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
+
+    // proteggi chiavi “di contesto” (non vogliamo svuotarle mai)
+    var mProtect = {
+      Guid: true, GUID: true, ItmGuid: true, ItemGuid: true, GUID_ITM: true, GUID_ITM2: true,
+      Fibra: true, FIBRA: true, Fiber: true, FIBER: true
+    };
+
+    (aCfg02 || []).forEach(function (f) {
+      var k = String(f && f.ui || "").trim();
+      if (!k) return;
+
+      if (mProtect[k]) return;       // non toccare chiavi
+      if (f.locked) return;          // locked => eredita
+      oNew[k] = f.multiple ? [] : ""; // editable => vuoto
+    });
+
+    // 1) salva nella cache VM (così persiste anche tornando indietro e rientrando)
+    var oVm = this._ensureVmCache();
+    var sKey = this._getCacheKeySafe();
+    var aCache = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+    aCache = Array.isArray(aCache) ? aCache.slice() : [];
+    aCache.unshift(oNew);
+    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCache);
+
+    // 2) salva nel model detail (RowsAll / Rows)
+    aAll = aAll.slice();
+    aAll.unshift(oNew);
+    oDetail.setProperty("/RowsAll", aAll);
+
+    // riapplica filtro corrente (se c’è)
+    this._applyGlobalFilterFromInput();
+
+    // marca dirty (abilita “Salva”)
+    this._markDirty();
+
+    // refresh tabella
+    var oTbl = this.byId("mdcTable4");
+    if (oTbl && typeof oTbl.rebind === "function") {
+      oTbl.rebind();
+    } else {
+      oDetail.refresh(true);
+    }
+
+    this._log("onAddRow DONE", { rowsAll: aAll.length });
+    MessageToast.show("Riga aggiunta");
+  } catch (e) {
+    console.error("[S4] onAddRow ERROR", e);
+    MessageToast.show("Errore durante aggiunta riga");
+  }
+},
+
 
     onNavBack: function () {
       var oHistory = History.getInstance();

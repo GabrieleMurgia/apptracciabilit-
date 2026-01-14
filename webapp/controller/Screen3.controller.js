@@ -1,4 +1,4 @@
-// Screen3.controller.js
+// webapp/controller/Screen3.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -16,7 +16,8 @@ sap.ui.define([
   "sap/m/ComboBox",
   "sap/m/MultiComboBox",
   "sap/ui/core/Item",
-  "sap/ui/mdc/p13n/StateUtil"
+  "sap/ui/mdc/p13n/StateUtil",
+  "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
   Controller,
   History,
@@ -34,7 +35,8 @@ sap.ui.define([
   ComboBox,
   MultiComboBox,
   Item,
-  StateUtil
+  StateUtil,
+  MockData
 ) {
   "use strict";
 
@@ -370,7 +372,7 @@ sap.ui.define([
     },
 
     // =========================
-    // ODATA
+    // ODATA / MOCK
     // =========================
     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
@@ -385,149 +387,32 @@ sap.ui.define([
       function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
 
       // =========================
-      // MOCK DATASET Screen3 (2 casi per ST/AP/RJ/CH) -> 16 righe (2 righe per record)
+      // ✅ MOCK via util/mockData.js
       // =========================
       if (bMockS3) {
-        var sVendor = String(this._sVendorId || "").trim();
-        if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
+        var sVendorName = "CITY MODELES";
+        try {
+          var aVend = (oVm && (oVm.getProperty("/userVendors") || oVm.getProperty("/UserInfosVend"))) || [];
+          var vId = String(this._sVendorId || "").trim();
+          var oV = aVend.find(function (x) { return String(x && x.Fornitore) === vId; });
+          if (oV && oV.ReagSoc) sVendorName = oV.ReagSoc;
+        } catch (e0) { /* ignore */ }
 
-        var sMat = norm(this._sMaterial);
-
-        // cat "esistente": prendo la prima categoria disponibile dal vm, altrimenti CF
+        // cat: prima disponibile da mmctFieldsByCat, altrimenti CF
         var mmct = (oVm && oVm.getProperty("/mmctFieldsByCat")) || {};
         var aCats = Object.keys(mmct || {});
         var sCat = aCats[0] || "CF";
 
-        function mkBase() {
-          return {
-            CalcCarbonFoot: "",
-            CatMateriale: sCat,
-            CertMat: "",
-            CertProcess: "",
-            CertRic: "",
-            CodiceDenSempl: "",
-            Collezione: "",
-            Compost: "",
-            DataIns: null,
-            DataMod: null,
-            DescrPack: "",
-            DestPack: "",
-            DestUso: "",
-            EnteCert: "",
-            Esito: "",
-            Famiglia: "",
-            FattEmissione: "0.000",
-            Fibra: "",
-            FineVal: null,
-            Fornitore: sVendor,
-            GerProd: "CAL B1 BD",
-            GradoRic: "",
-            GruppoMerci: String(sMat || "IW2B0626SVS"),
-            Guid: "",
-            InizioVal: null,
-            Linea: "1R",
-            LocAllev: "",
-            LocConciaCrust: "",
-            LocConciaPf: "",
-            LocConfez: "",
-            LocFibra: "",
-            LocFilatura: "",
-            LocMacellazione: "",
-            LocPolimero: "",
-            LocTessitura: "",
-            LocTintura: "",
-            Materiale: String(sMat || "IW2B0626SVS"),
-            MaterialeFornitore: "",
-            MatnrMp: "",
-            Message: "",
-            MpFittizio: "",
-            NReport: "",
-            NoteCertMat: "",
-            NoteCertProcess: "",
-            NoteMateriale: "",
-            OtherAction: "",
-            PaeseAllev: "",
-            PaeseConciaCrust: "",
-            PaeseConciaPf: "",
-            PaeseConfez: "",
-            PaeseFibra: "",
-            PaeseFilatura: "",
-            PaeseMacellazione: "",
-            PaesePolimero: "",
-            PaesePrAgg: "",
-            PaesePrMont: "",
-            PaesePrRif: "",
-            PaeseTessitura: "",
-            PaeseTintura: "",
-            PartitaFornitore: "",
-            PercMatRicicl: "",
-            Perccomp: "",
-            PerccompFibra: "0.00",
-            PesoPack: "0.000",
-            Plant: "5110",
-            PresSost: "",
-            QtaFibra: "0.000",
-            RagSoc: "CITY MODELES",
-            RiciPack: "",
-            Stagione: "44",
-            Stato: "",
-            TipSost: "",
-            UdM: "PC",
-            UserID: sUserId,
-            UserIns: "",
-            UserMod: "",
-            Approved: 0,
-            ToApprove: 0,
-            Rejected: 0,
-            Open: "X"
-          };
-        }
+        var aMock = MockData.buildDataSetRows({
+          vendorId: this._sVendorId,
+          vendorName: sVendorName,
+          material: this._sMaterial,
+          userId: sUserId,
+          forceStato: sForceStato,
+          cat: sCat
+        }) || [];
 
-        function applyFlagsByStato(r, stato) {
-          r.Stato = stato;
-
-          // coerente con i tuoi campi backend
-          if (stato === "AP") { r.Approved = 1; r.ToApprove = 0; r.Rejected = 0; }
-          if (stato === "RJ") { r.Approved = 0; r.ToApprove = 0; r.Rejected = 1; }
-          if (stato === "ST") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-          if (stato === "CH") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-        }
-
-        function mkRecord2Rows(stato, idx) {
-          var guid = "GUID_" + stato + "_" + idx;
-          var fibra = "FIB_" + stato + "_" + idx;
-
-          var r1 = mkBase();
-          r1.Guid = guid;
-          r1.Fibra = fibra;
-          r1.Linea = "1R";
-          r1.FattEmissione = (idx * 0.111).toFixed(3);
-          r1.QtaFibra = (idx * 1.234).toFixed(3);
-          applyFlagsByStato(r1, stato);
-
-          var r2 = mkBase();
-          r2.Guid = guid;
-          r2.Fibra = fibra;
-          r2.Linea = "2R";
-          r2.FattEmissione = (idx * 0.222).toFixed(3);
-          r2.QtaFibra = (idx * 2.468).toFixed(3);
-          applyFlagsByStato(r2, stato);
-
-          return [r1, r2];
-        }
-
-        var aMock = []
-          .concat(mkRecord2Rows("ST", 1), mkRecord2Rows("ST", 2))
-          .concat(mkRecord2Rows("AP", 1), mkRecord2Rows("AP", 2))
-          .concat(mkRecord2Rows("RJ", 1), mkRecord2Rows("RJ", 2))
-          .concat(mkRecord2Rows("CH", 1), mkRecord2Rows("CH", 2));
-
-        // forza stato (se impostato in Screen0)
-        if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-          aMock.forEach(function (r) { r.Stato = sForceStato; });
-        }
-
-        console.log("[Screen3][MOCK] rows:", aMock.length, "forceStato:", sForceStato || "(none)");
+        this._log("[MOCK] buildDataSetRows", { rows: aMock.length, forceStato: sForceStato || "(none)", cat: sCat });
         done(aMock);
         return;
       }
@@ -649,7 +534,7 @@ sap.ui.define([
         if (st === "AP") return 4;
         if (st === "CH") return 3;
         if (st === "RJ") return 2;
-        return 1; // ST
+        return 1;
       }
       function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
 
@@ -657,7 +542,7 @@ sap.ui.define([
       function canEdit(role, status) {
         if (role === "S") return false;
         if (role === "I") return false;
-        if (role === "E") return status !== "AP"; // fornitore: edit NO solo AP
+        if (role === "E") return status !== "AP";
         return false;
       }
       function canApprove(role, status) {
@@ -947,7 +832,7 @@ sap.ui.define([
     onStatusFilterPress: function (oEvt) {
       var oSrc = oEvt.getSource();
       var s = this._getCustomDataValue(oSrc, "status");
-      s = String(s || "").trim().toUpperCase(); // "" = tutti
+      s = String(s || "").trim().toUpperCase();
 
       var oDetail = this.getView().getModel("detail");
       oDetail.setProperty("/__statusFilter", s);
@@ -974,7 +859,6 @@ sap.ui.define([
       if (oTbl && oTbl.initialized) await oTbl.initialized();
       if (oTbl) oTbl.setModel(oDetail, "detail");
 
-      // applico eventuali filtri (anche se vuoti -> mostra tutto)
       this._applyClientFilters();
 
       if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();

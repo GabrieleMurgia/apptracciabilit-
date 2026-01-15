@@ -7,7 +7,7 @@
   xmlns:mdc="sap.ui.mdc"
   xmlns:mdctable="sap.ui.mdc.table">
 
-  <Page id="page4" title="Tracciabilità - Schermata 02">
+  <Page id="page4" title="Tracciabilità">
 
     <customHeader>
       <Toolbar id="toolbar4">
@@ -21,7 +21,7 @@
           </contentLeft>
 
           <contentMiddle>
-            <Title id="title4" text="Tracciabilità (Schermata 02)" />
+            <Title id="title4" text="Tracciabilità" />
           </contentMiddle>
 
           <contentRight>
@@ -53,7 +53,7 @@
 
           <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblSearch4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
-            <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 02"/>
+            <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi"/>
           </HBox>
 
           <HBox id="hboxFilter4dx">
@@ -69,7 +69,7 @@
           id="mdcTable4"
           type="Table"
           width="100%"
-          header="Schermata 02"
+          
           selectionMode="Multi"
           p13nMode="Column,Sort,Group"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen4"}}'>

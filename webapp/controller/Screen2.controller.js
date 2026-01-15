@@ -60,7 +60,7 @@ sap.ui.define([
       var bMockS2 = !!mock.mockS2;
 
       // =========================
-      // ✅ MOCK Screen2
+      // MOCK Screen2
       // =========================
       if (bMockS2) {
         BusyIndicator.show(0);
@@ -83,7 +83,7 @@ sap.ui.define([
       }
 
       // =========================
-      // ✅ BACKEND read MaterialDataSet
+      // BACKEND read MaterialDataSet
       // =========================
       var oODataModel = this.getOwnerComponent().getModel(); // ZVEND_TRACE_SRV
       var that = this;

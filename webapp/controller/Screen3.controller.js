@@ -153,14 +153,14 @@ sap.ui.define([
     _getSettingFlags: function (c) {
       var s = String((c && (c.Impostazione ?? c.IMPOSTAZIONE)) || "").trim().toUpperCase();
       return {
-        required: s === "O", // ✅ O = Obbligatorio
-        locked: s === "B"    // ✅ B = Bloccato
+        required: s === "O", // O = Obbligatorio
+        locked: s === "B"    // B = Bloccato
       };
     },
 
     _isMultipleField: function (c) {
       var s = String((c && (c.MultipleVal ?? c.MULTIPLEVAL)) || "").trim().toUpperCase();
-      return s === "X"; // ✅ X = multi valori
+      return s === "X"; // X = multi valori
     },
 
     // =========================
@@ -202,12 +202,12 @@ sap.ui.define([
       if (bUseCombo) {
 
         if (bMultiple) {
-          // ✅ MULTI + Dominio -> MultiComboBox (solo valori di dominio)
+          // MULTI + Dominio -> MultiComboBox (solo valori di dominio)
           oEditCtrl = new MultiComboBox({
             visible: "{= !" + sReadOnlyExpr + " }",
             enabled: !bLocked,
             allowCustomValues: false,
-            selectedKeys: sValueBind, // ✅ array
+            selectedKeys: sValueBind, // array
             valueState: sValueState,
             valueStateText: sValueStateText,
             items: {
@@ -216,12 +216,12 @@ sap.ui.define([
             }
           });
         } else {
-          // ✅ SINGLE + Dominio -> ComboBox
+          // SINGLE + Dominio -> ComboBox
           oEditCtrl = new ComboBox({
             visible: "{= !" + sReadOnlyExpr + " }",
             enabled: !bLocked,
             allowCustomValues: false,
-            selectedKey: sValueBind, // ✅ string
+            selectedKey: sValueBind, // string
             valueState: sValueState,
             valueStateText: sValueStateText,
             items: {
@@ -232,7 +232,7 @@ sap.ui.define([
         }
 
       } else {
-        // ✅ NO Dominio -> Input libero
+        // NO Dominio -> Input libero
         oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
           editable: !bLocked,
@@ -350,9 +350,9 @@ sap.ui.define([
           var domain = String(c.Dominio ?? c.DOMINIO ?? c.Domain ?? c.DOMAIN ?? "").trim();
 
           var flags = this._getSettingFlags(c);
-          var required = !!flags.required; // ✅ O
-          var locked = !!flags.locked;     // ✅ B
-          var multiple = this._isMultipleField(c); // ✅ MultipleVal
+          var required = !!flags.required; // O
+          var locked = !!flags.locked;     // B
+          var multiple = this._isMultipleField(c); // MultipleVal
 
           return { ui: ui, label: label, domain: domain, required: required, locked: locked, multiple: multiple };
         }.bind(this))
@@ -387,7 +387,7 @@ sap.ui.define([
       function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
 
       // =========================
-      // ✅ MOCK via util/mockData.js
+      // MOCK via util/mockData.js
       // =========================
       if (bMockS3) {
         var sVendorName = "CITY MODELES";
@@ -489,7 +489,7 @@ sap.ui.define([
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCols01 = aCfg01.map(function (x) { return x.ui; }).filter(Boolean);
 
-      // ✅ mappa campi multi
+      // mappa campi multi
       var mIsMulti = {};
       (aCfg01 || []).forEach(function (f) {
         if (f && f.ui && f.multiple) mIsMulti[f.ui] = true;
@@ -717,7 +717,7 @@ sap.ui.define([
       this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
     },
 
-    _rebuildColumnsHard: async function (oTbl, aCfg01) {
+/*     _rebuildColumnsHard: async function (oTbl, aCfg01) {
       if (!oTbl) return;
       if (oTbl.initialized) await oTbl.initialized();
 
@@ -729,10 +729,11 @@ sap.ui.define([
 
       // 1) NAV colonna
       oTbl.addColumn(new MdcColumn({
-        header: "",
+        header: "Dettaglio",
         visible: true,
+        width:"100px",
         template: new Button({
-          icon: "sap-icon://navigation-right-arrow",
+          icon: "sap-icon://enter-more",
           type: "Transparent",
           tooltip: "Apri dettagli",
           press: this.onGoToScreen4FromRow.bind(this)
@@ -745,6 +746,7 @@ sap.ui.define([
       });
       if (!hasStatoInCfg) {
         oTbl.addColumn(new MdcColumn({
+          width:"60px",
           header: "Stato",
           visible: true,
           dataProperty: "Stato",
@@ -764,17 +766,105 @@ sap.ui.define([
 
         var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
 
-        oTbl.addColumn(new MdcColumn({
+        var sH = String(sHeader || "").trim().toUpperCase();
+        var sK = String(sKey || "").trim().toUpperCase(); // sKey è già normalizzato (Stato ecc.)
+
+        if (sH === "GUID" || sH === "USERID" || sK === "GUID" || sK === "USERID") {
+        return; // salta solo la colonna
+        }
+        
+        if(sHeader == 'Stato'){
+          oTbl.addColumn(new MdcColumn({
+            width:"60px",
           header: sHeader,
           visible: true,
           dataProperty: sKey,
           propertyKey: sKey,
           template: bIsStato ? this._createStatusCellTemplate(sKey) : this._createCellTemplate(sKey, f)
         }));
+        }else{
+          oTbl.addColumn(new MdcColumn({
+          header: sHeader,
+          visible: true,
+          dataProperty: sKey,
+          propertyKey: sKey,
+          template: bIsStato ? this._createStatusCellTemplate(sKey) : this._createCellTemplate(sKey, f)
+        }));
+        }
+
       }.bind(this));
 
       this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
-    },
+    }, */
+
+    _rebuildColumnsHard: async function (oTbl, aCfg01) {
+  if (!oTbl) return;
+  if (oTbl.initialized) await oTbl.initialized();
+
+  var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+  aOld.slice().forEach(function (c) {
+    oTbl.removeColumn(c);
+    c.destroy();
+  });
+
+  // 1) NAV colonna (sempre prima)
+  oTbl.addColumn(new MdcColumn({
+    header: "Dettaglio",
+    visible: true,
+    width: "100px",
+    template: new Button({
+      icon: "sap-icon://enter-more",
+      type: "Transparent",
+      tooltip: "Apri dettagli",
+      press: this.onGoToScreen4FromRow.bind(this)
+    })
+  }));
+
+  // 2) STATO (sempre seconda)
+  this._colStatoS3 = new MdcColumn({
+    width: "60px",
+    header: "Stato",
+    visible: true,
+    dataProperty: "Stato",
+    propertyKey: "Stato",
+    template: this._createStatusCellTemplate("Stato")
+  });
+  oTbl.addColumn(this._colStatoS3);
+
+  // 3) Colonne dinamiche MMCT
+  (aCfg01 || []).forEach(function (f) {
+    var sKeyRaw = String(f.ui || "").trim();
+    if (!sKeyRaw) return;
+
+    var bIsStato = (sKeyRaw.toUpperCase() === "STATO");
+    var sKey = bIsStato ? "Stato" : sKeyRaw;
+
+    var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
+
+    var sH = String(sHeader || "").trim().toUpperCase();
+    var sK = String(sKey || "").trim().toUpperCase();
+
+    // skip Guid/UserId (solo colonna)
+    if (sH === "GUID" || sH === "USERID" || sK === "GUID" || sK === "USERID") return;
+
+    // se MMCT contiene STATO: aggiorno solo l'header della colonna Stato (2ª) e non la ricreo
+    if (sK === "STATO") {
+      if (this._colStatoS3) this._colStatoS3.setHeader(sHeader);
+      return;
+    }
+
+    oTbl.addColumn(new MdcColumn({
+      header: sHeader,
+      visible: true,
+      dataProperty: sKey,
+      propertyKey: sKey,
+      template: this._createCellTemplate(sKey, f)
+    }));
+
+  }.bind(this));
+
+  this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
+},
 
     // =========================
     // FILTER STATUS + TEXT (client side)

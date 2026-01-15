@@ -10,8 +10,13 @@
 
 .left20{
     position: relative;
-    left: 100px;
+    /* left: 50px; */
 }
+
+.left20-f{
+    margin-left: 30px;
+}
+
 
 .alignTableButton .sapMTBStandard{
     border-bottom: none!important;

@@ -1,4 +1,3 @@
-// webapp/controller/Screen4.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -494,7 +493,7 @@ sap.ui.define([
       function norm(v) { return String(v || "").trim().toUpperCase(); }
 
       // =========================
-      // ✅ MOCK Screen4 (come Screen3)
+      // MOCK Screen4 (come Screen3)
       // =========================
       if (bMockS4) {
         var sVendorName = "CITY MODELES";
@@ -529,7 +528,7 @@ sap.ui.define([
       }
 
       // =========================
-      // ✅ BACKEND read DataSet
+      // BACKEND read DataSet
       // =========================
       var sVendor = String(this._sVendorId || "").trim();
       if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
@@ -729,7 +728,7 @@ sap.ui.define([
         var sCat = String(r0.CatMateriale || "").trim();
         var aCfg02 = sCat ? this._cfgForScreen02(sCat) : [];
 
-        // ✅ MULTI: garantisci array per i campi multiple
+        // MULTI: garantisci array per i campi multiple
         function toArray(v) {
           if (Array.isArray(v)) return v;
           var s = String(v || "").trim();
@@ -991,7 +990,7 @@ sap.ui.define([
         oDetail.setProperty("/__canReject", false);
         oDetail.setProperty("/__dirty", true);
 
-        // ✅ persistenza in cache VM (usa la STESSA reference oNew, così le modifiche successive non si perdono)
+        // persistenza in cache VM (usa la STESSA reference oNew, così le modifiche successive non si perdono)
         var oVm = this._ensureVmCache();
         var sKey = this._getCacheKeySafe();
 
@@ -1012,7 +1011,7 @@ sap.ui.define([
         }.bind(this));
 
         aCacheAll = aCacheAll.slice();
-        aCacheAll.push(oNew); // ✅ stessa ref
+        aCacheAll.push(oNew); // stessa ref
 
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 

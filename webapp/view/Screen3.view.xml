@@ -1,4 +1,3 @@
-<!-- Screen3.view.xml (1:1 + implementazioni: semaforo stato + bottoni filtro stato) -->
 <mvc:View
   id="screen3View"
   controllerName="apptracciabilita.apptracciabilita.controller.Screen3"
@@ -8,7 +7,7 @@
   xmlns:mdc="sap.ui.mdc"
   xmlns:mdctable="sap.ui.mdc.table">
 
-  <Page id="page3" title="Tracciabilità - Schermata 01">
+  <Page id="page3" title="Tracciabilità">
 
     <customHeader>
       <Toolbar id="toolbar3">
@@ -22,7 +21,7 @@
           </contentLeft>
 
           <contentMiddle>
-            <Title id="title3" text="Tracciabilità (Schermata 01)" />
+            <Title id="title3" text="Tracciabilità" />
           </contentMiddle>
 
           <contentRight>
@@ -53,6 +52,7 @@
         <!-- Toolbar stile "Pelletterie": filtro + bottoni + FILTRI STATO -->
         <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
 
+          <HBox id="hboxToolbarTable3-1" class="left20">
           <!-- FILTRI STATO (TUTTI / ST / AP / RJ / CH) -->
           <HBox id="hboxStatusFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd"/>
@@ -123,9 +123,10 @@
           </HBox>
 
           <!-- FILTRO TESTUALE -->
-          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
+          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
             <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
-            <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su Schermata 01"/>
+            <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi"/>
+          </HBox>
           </HBox>
 
           <!-- BOTTONI -->
@@ -140,7 +141,7 @@
           id="mdcTable3"
           type="Table"
           width="100%"
-          header="Schermata 01"
+          
           selectionMode="Multi"
           p13nMode="Column,Sort,Group"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>

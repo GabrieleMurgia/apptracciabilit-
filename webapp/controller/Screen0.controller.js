@@ -12,7 +12,7 @@ sap.ui.define([
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen0", {
 
     // =========================================================
-    // ✅ HANDLER CENTRALIZZATO "BACKEND DOWN"
+    // HANDLER CENTRALIZZATO "BACKEND DOWN"
     // =========================================================
     _handleBackendDown: function (info) {
       try {
@@ -32,7 +32,7 @@ sap.ui.define([
     },
 
     // =========================================================
-    // ✅ INSTALLA GUARD SU ODATA (metadataFailed / requestFailed / metadataLoaded.catch)
+    // INSTALLA GUARD SU ODATA (metadataFailed / requestFailed / metadataLoaded.catch)
     // =========================================================
     _installODataGuards: function () {
       var oComponent = this.getOwnerComponent();
@@ -102,7 +102,7 @@ sap.ui.define([
     },
 
     // =========================================================
-    // ✅ FALLBACK AUTOMATICO A MOCK SE BACKEND DOWN
+    // FALLBACK AUTOMATICO A MOCK SE BACKEND DOWN
     // =========================================================
     _applyMockFallbackNow: function (oVm, opts) {
       try {
@@ -131,7 +131,7 @@ sap.ui.define([
 
       var oComponent = this.getOwnerComponent();
 
-      // ✅ 1) Intercetta subito errori $metadata / requestFailed
+      // 1) Intercetta subito errori $metadata / requestFailed
       this._installODataGuards();
 
       var oVm = new JSONModel({
@@ -194,26 +194,26 @@ sap.ui.define([
       }
 
       // =========================================================
-      // ✅ MOCK SWITCHES (EDITA QUI, SOLO QUI)
+      // MOCK SWITCHES (EDITA QUI, SOLO QUI)
       // =========================================================
       var sUserId = "E_ZEMAF";
 
-      var bMockS0 = true; // se true: non chiama UserInfosSet, usa MockData.applyVm()
-      var bMockS1 = true; // Screen1 non chiama backend, ma lo teniamo per coerenza
-      var bMockS2 = true;  // Screen2: materials mock
-      var bMockS3 = true;  // Screen3: dataset mock
-      var bMockS4 = true;  // Screen4: dataset mock (fallback quando cache assente)
+      var bMockS0 = false; 
+      var bMockS1 = false; 
+      var bMockS2 = false;  
+      var bMockS3 = false;  
+      var bMockS4 = false;  
 
-      var iVendorIdx = 0;   // per skip Screen1 (se E)
-      var sForceStato = ""; // "ST" / "AP" / "RJ" / "CH" / ""
+      var iVendorIdx = 0;   
+      var sForceStato = "";
 
       // solo se fai mock S0: tipo utente mock
-      var sMockUserType = "I"; // "E" / "I" / "S"
+      var sMockUserType = "E"; // "E" / "I" / "S"
 
       // opzionale: override userType anche quando NON mockS0 (lascia "" per non forzare)
-      var sOverrideUserTypeWhenReal = ""; // es: "E"
+      var sOverrideUserTypeWhenReal = "E"; // es: "E"
 
-      // ✅ se backend giù, fai fallback automatico su mock (consigliato)
+      // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
 
       // pubblica sempre in vm (tutti i controller leggono da qui)
@@ -228,7 +228,7 @@ sap.ui.define([
       });
 
       // =========================================================
-      // ✅ MOCK S0: VM completo senza OData
+      // MOCK S0: VM completo senza OData
       // =========================================================
       if (bMockS0) {
         MockData.applyVm(oVm, { userId: sUserId, userType: sMockUserType });
@@ -253,11 +253,11 @@ sap.ui.define([
       }
 
       // =========================================================
-      // ✅ PATH NORMALE: OData read UserInfosSet(...)
+      // PATH NORMALE: OData read UserInfosSet(...)
       // =========================================================
       var oModel = oComponent.getModel();
 
-      // ✅ se il model non esiste / non è pronto, intercetto + fallback mock
+      // se il model non esiste / non è pronto, intercetto + fallback mock
       if (!oModel || typeof oModel.read !== "function") {
         this._handleBackendDown({ where: "onInit", message: "ODataModel non disponibile (probabile metadata KO)" });
         if (bAutoFallbackToMockWhenBackendDown) {
@@ -266,7 +266,7 @@ sap.ui.define([
         return;
       }
 
-      // ✅ Intercetta proprio il tuo caso: metadata 503
+      // Intercetta proprio il tuo caso: metadata 503
       if (typeof oModel.metadataLoaded === "function") {
         BusyIndicator.show(0);
 
@@ -464,7 +464,7 @@ sap.ui.define([
             error: function (oError) {
               BusyIndicator.hide();
 
-              // ✅ qui intercetti anche le chiamate normali se backend torna giù
+              // qui intercetti anche le chiamate normali se backend torna giù
               this._handleBackendDown({
                 where: "UserInfosSet.read error",
                 statusCode: oError && oError.statusCode,
@@ -478,7 +478,7 @@ sap.ui.define([
           });
 
         }.bind(this)).catch(function (err) {
-          // ✅ METADATA KO (il tuo caso): hide busy + toast
+          // METADATA KO (il tuo caso): hide busy + toast
           BusyIndicator.hide();
           this._handleBackendDown({
             where: "metadataLoaded().catch in onInit",
@@ -486,7 +486,7 @@ sap.ui.define([
             message: (err && err.message) || String(err || "")
           });
 
-          // ✅ fallback a mock, così l'app resta usabile
+          // fallback a mock, così l'app resta usabile
           if (bAutoFallbackToMockWhenBackendDown) {
             this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
           }

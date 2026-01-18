@@ -1,3 +1,4 @@
+<!-- webapp/view/Screen3.view.xml -->
 <mvc:View
   id="screen3View"
   controllerName="apptracciabilita.apptracciabilita.controller.Screen3"
@@ -25,7 +26,30 @@
           </contentMiddle>
 
           <contentRight>
-            <HBox id="hbox4" width="200px"/>
+            <!-- ✅ 3 bottoni in header (come Screen4) -->
+            <HBox id="hbox4" width="260px" justifyContent="End" alignItems="Center">
+
+              <Button
+                id="tbToggleHeaderFilters3"
+                icon="sap-icon://filter"
+                tooltip="Mostra/Nascondi filtri colonna"
+                press=".onToggleHeaderFilters" />
+
+              <Button
+                id="tbToggleHeaderSort3"
+                icon="sap-icon://sort"
+                tooltip="Mostra/Nascondi sort per colonna"
+                press=".onToggleHeaderSort"
+                class="sapUiTinyMarginBegin" />
+
+              <Button
+                id="tbResetFS3"
+                icon="sap-icon://reset"
+                tooltip="Reset filtri e ordinamento (header)"
+                press=".onResetFiltersAndSort"
+                class="sapUiTinyMarginBegin" />
+
+            </HBox>
           </contentRight>
         </Bar>
       </Toolbar>
@@ -49,88 +73,116 @@
     <content>
       <VBox id="box3" width="100%">
 
-        <!-- Toolbar stile "Pelletterie": filtro + bottoni + FILTRI STATO -->
-        <HBox id="hboxToolbarTable3" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
+        <!-- Toolbar: filtri stato + filtro testuale + bottoni -->
+        <HBox id="hboxToolbarTable3"
+              width="100%"
+              justifyContent="End"
+              alignItems="Center"
+              class="sapUiTinyMargin alignTableButton">
 
           <HBox id="hboxToolbarTable3-1" class="left20">
-          <!-- FILTRI STATO (TUTTI / ST / AP / RJ / CH) -->
-          <HBox id="hboxStatusFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
-            <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd"/>
 
-            <ObjectStatus
-              id="stAll3"
-              text="TUTTI"
-              icon="sap-icon://filter"
-              state="None"
-              active="true"
-              press=".onStatusFilterPress"
-              class="sapUiTinyMarginEnd">
-              <customData>
-                <core:CustomData key="status" value=""/>
-              </customData>
-            </ObjectStatus>
+            <!-- FILTRI STATO (TUTTI / ST / AP / RJ / CH) -->
+            <HBox id="hboxStatusFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
+              <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd"/>
 
-            <ObjectStatus
-              id="stST3"
-              text="ST"
-              icon="sap-icon://circle-task"
-              state="Warning"
-              active="true"
-              press=".onStatusFilterPress"
-              class="sapUiTinyMarginEnd">
-              <customData>
-                <core:CustomData key="status" value="ST"/>
-              </customData>
-            </ObjectStatus>
+              <ObjectStatus
+                id="stAll3"
+                text="TUTTI"
+                icon="sap-icon://filter"
+                state="None"
+                active="true"
+                press=".onStatusFilterPress"
+                class="sapUiTinyMarginEnd">
+                <customData>
+                  <core:CustomData key="status" value=""/>
+                </customData>
+              </ObjectStatus>
 
-            <ObjectStatus
-              id="stAP3"
-              text="AP"
-              icon="sap-icon://circle-task"
-              state="Success"
-              active="true"
-              press=".onStatusFilterPress"
-              class="sapUiTinyMarginEnd">
-              <customData>
-                <core:CustomData key="status" value="AP"/>
-              </customData>
-            </ObjectStatus>
+              <ObjectStatus
+                id="stST3"
+                text="ST"
+                icon="sap-icon://circle-task"
+                state="Warning"
+                active="true"
+                press=".onStatusFilterPress"
+                class="sapUiTinyMarginEnd">
+                <customData>
+                  <core:CustomData key="status" value="ST"/>
+                </customData>
+              </ObjectStatus>
 
-            <ObjectStatus
-              id="stRJ3"
-              text="RJ"
-              icon="sap-icon://circle-task"
-              state="Error"
-              active="true"
-              press=".onStatusFilterPress"
-              class="sapUiTinyMarginEnd">
-              <customData>
-                <core:CustomData key="status" value="RJ"/>
-              </customData>
-            </ObjectStatus>
+              <ObjectStatus
+                id="stAP3"
+                text="AP"
+                icon="sap-icon://circle-task"
+                state="Success"
+                active="true"
+                press=".onStatusFilterPress"
+                class="sapUiTinyMarginEnd">
+                <customData>
+                  <core:CustomData key="status" value="AP"/>
+                </customData>
+              </ObjectStatus>
 
-            <ObjectStatus
-              id="stCH3"
-              text="CH"
-              icon="sap-icon://circle-task"
-              state="Information"
-              active="true"
-              press=".onStatusFilterPress">
-              <customData>
-                <core:CustomData key="status" value="CH"/>
-              </customData>
-            </ObjectStatus>
+              <ObjectStatus
+                id="stRJ3"
+                text="RJ"
+                icon="sap-icon://circle-task"
+                state="Error"
+                active="true"
+                press=".onStatusFilterPress"
+                class="sapUiTinyMarginEnd">
+                <customData>
+                  <core:CustomData key="status" value="RJ"/>
+                </customData>
+              </ObjectStatus>
+
+              <ObjectStatus
+                id="stCH3"
+                text="CH"
+                icon="sap-icon://circle-task"
+                state="Information"
+                active="true"
+                press=".onStatusFilterPress">
+                <customData>
+                  <core:CustomData key="status" value="CH"/>
+                </customData>
+              </ObjectStatus>
+            </HBox>
+
+            <!-- FILTRO TESTUALE -->
+            <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
+              <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
+              <Input id="inputFilter3"
+                     width="22rem"
+                     liveChange=".onGlobalFilter"
+                     placeholder="Filtro testuale su tutti i campi"/>
+
+              <Button
+                id="btnColFilters5"
+                icon="sap-icon://filter"
+                tooltip="Filtri per colonna"
+                press=".onOpenColumnFilters" />
+
+              <Button
+                id="btnSort5"
+                icon="sap-icon://sort"
+                tooltip="Ordinamento"
+                press=".onOpenSort" />
+
+              <Button
+                id="btnResetFS5"
+                icon="sap-icon://reset"
+                tooltip="Reset filtri/ordinamento"
+                press=".onResetFiltersAndSort" />
+            </HBox>
+
           </HBox>
 
-          <!-- FILTRO TESTUALE -->
-          <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
-            <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
-            <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi"/>
-          </HBox>
-          </HBox>
-
-          <!-- BOTTONI -->
+          <!-- BOTTONI: print/excel (NO dialog) -->
           <Toolbar id="tblToolbar3" design="Transparent">
+            <ToolbarSpacer id="footerToolbar532"/>
             <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
             <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
           </Toolbar>
@@ -141,9 +193,8 @@
           id="mdcTable3"
           type="Table"
           width="100%"
-          
           selectionMode="Multi"
-          p13nMode="Column,Sort,Group"
+          p13nMode="Column"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>

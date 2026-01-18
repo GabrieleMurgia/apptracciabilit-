@@ -53,25 +53,62 @@
 
           <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20" alignItems="Center">
             <Label id="lblSearch4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
-            <Input id="inputFilter4" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi"/>
+            <Input
+              id="inputFilter4"
+              width="22rem"
+              liveChange=".onGlobalFilter"
+              placeholder="Filtro testuale su tutti i campi"/>
+
+            <Button
+              id="btnColFilters4"
+              icon="sap-icon://filter"
+              tooltip="Filtri per colonna"
+              press=".onOpenColumnFilters" />
+
+            <Button
+              id="btnSort4"
+              icon="sap-icon://sort"
+              tooltip="Ordinamento"
+              press=".onOpenSort" />
+
+            <Button
+              id="btnResetFS4"
+              icon="sap-icon://reset"
+              tooltip="Reset filtri/ordinamento"
+              press=".onResetFiltersAndSort" />
           </HBox>
 
           <HBox id="hboxFilter4dx">
             <Toolbar id="tblToolbar4" design="Transparent">
-              <Button id="btnAddRow" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" press=".onAddRow" />
-              <Button id="tbPrint4"     icon="sap-icon://print"             tooltip="Stampa" press=".onPrint"/>
-              <Button id="tbExcel4"     icon="sap-icon://excel-attachment"  tooltip="Excel"  press=".onExportExcel"/>
+              <Button
+                id="btnAddRow"
+                text="Aggiungi riga"
+                type="Emphasized"
+                icon="sap-icon://add"
+                enabled="{detail>/__canAddRow}"
+                press=".onAddRow" />
+
+              <Button
+                id="btnDeleteRows"
+                text="Elimina righe"
+                type="Negative"
+                icon="sap-icon://delete"
+                enabled="{detail>/__canAddRow}"
+                press=".onDeleteRows" />
+
+              <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
+              <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
             </Toolbar>
           </HBox>
         </HBox>
 
+        <!-- IMPORTANT: type resta TABLE -->
         <mdc:Table
           id="mdcTable4"
           type="Table"
           width="100%"
-          
           selectionMode="Multi"
-          p13nMode="Column,Sort,Group"
+          p13nMode="Column,Group"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen4"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>

@@ -136,9 +136,9 @@
                                 id="textMaterialDescription2"
                                 text="{MaterialDescription}" />
 
-                            <ObjectNumber
-                                id="objectNumberOpenPo2"
-                                number="{OpenPo}" />
+                            <core:Icon
+    id="iconOpenPo2"
+    src="{= ${Open} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }" color="{= ${Open} === 'X' ? 'green' : 'red' }" />
 
                             <ObjectNumber
                                 id="objectNumberRejected2"

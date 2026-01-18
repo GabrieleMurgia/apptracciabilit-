@@ -49,8 +49,8 @@
                     <!-- Flusso A: Dati aggregati -->
                     <GenericTile
                         id="tileFlowA"
-                        header="Dati aggregati"
-                        subheader="Innesca flusso A"
+                        header="Inserimento Tracciabilità Materiali"
+                        subheader="Innesca flusso Inserimento Tracciabilità Materiali"
                         press="onPressFlowA">
                         <tileContent>
                             <TileContent id="tileContentA">
@@ -67,8 +67,8 @@
                     <!-- Flusso B: Carica da Excel -->
                     <GenericTile
                         id="tileFlowB"
-                        header="Carica dati da Excel"
-                        subheader="Innesca flusso B"
+                        header="Caricamento Da excel Tracciabilità Materiali"
+                        subheader="Innesca flusso Caricamento Da excel"
                         press="onPressFlowB">
                         <tileContent>
                             <TileContent id="tileContentB">
@@ -86,8 +86,8 @@
                     <GenericTile
                         id="tileFlowC"
                         visible="{vm>/showAggregatedTile}"
-                        header="Dati in tabella"
-                        subheader="Innesca flusso C"
+                        header="Dati In Tabella Tracciabilità"
+                        subheader="Innesca Dati In Tabella Tracciabilità"
                         press="onPressFlowC">
                         <tileContent>
                             <TileContent id="tileContentC">

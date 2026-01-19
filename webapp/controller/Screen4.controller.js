@@ -383,7 +383,7 @@ sap.ui.define([
         var sKey = this._getCacheKeySafe();
         var sGuid = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibra = this._toStableString(oDetail.getProperty("/Fibra"));
-        this._updateVmRecordStatus(sKey, sGuid, sFibra, sRole, "CH");
+        /* this._updateVmRecordStatus(sKey, sGuid, sFibra, sRole, "CH"); */
       }
 
       this._applyUiPermissions();

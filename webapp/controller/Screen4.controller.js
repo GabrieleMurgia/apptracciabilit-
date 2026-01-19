@@ -1239,11 +1239,11 @@ sap.ui.define([
         if (this._hdrFilter && this._hdrFilter.boxesByKey) {
           Object.keys(this._hdrFilter.boxesByKey).forEach(function (k) {
             var p = this._hdrFilter.boxesByKey[k];
-            try { if (p && p.box) p.box.destroy(); } catch (e) { /* ignore */ }
+            try { if (p && p.box) p.box.destroy(); } catch (e) {  }
           }.bind(this));
         }
         this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     },
 
     // =========================
@@ -1532,7 +1532,7 @@ sap.ui.define([
       try {
         if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
         if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
 
       var fn = this._markDirty.bind(this);
 
@@ -2163,7 +2163,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
 
         if (oAdd && oAdd.setEnabled) oAdd.setEnabled(bAdd);
         if (oDel && oDel.setEnabled) oDel.setEnabled(bEdit);
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     },
 
     // =========================
@@ -2274,30 +2274,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
     // =========================
     // HEADER FILTERS (dentro intestazione colonna)
     // =========================
-/*     _getInnerTable: function (bLog) {
-      var oMdc = this.byId("mdcTable4");
-      if (!oMdc) {
-        if (bLog) this._dbg("_getInnerTable: mdcTable4 is null");
-        return null;
-      }
 
-      if (typeof oMdc.getTable !== "function") {
-        if (bLog) this._dbg("_getInnerTable: oMdc.getTable NOT a function", { typeofGetTable: typeof oMdc.getTable });
-        return null;
-      }
-
-      var oInner = null;
-      try { oInner = oMdc.getTable(); } catch (e) {  }
-
-      if (bLog) {
-        this._dbg("_getInnerTable:", oInner ? {
-          meta: oInner.getMetadata && oInner.getMetadata().getName(),
-          cols: oInner.getColumns ? oInner.getColumns().length : "(no getColumns)"
-        } : "NULL");
-      }
-
-      return oInner;
-    }, */
     _getInnerTable: function (bDebug) {
   var oMdc = this.byId("mdcTable4");
   if (!oMdc) {
@@ -2309,7 +2286,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
   var sMdcMeta = "";
   try {
     sMdcMeta = (oMdc.getMetadata && oMdc.getMetadata().getName && oMdc.getMetadata().getName()) || "";
-  } catch (eMeta) { /* ignore */ }
+  } catch (eMeta) {  }
 
   try {
     // 1) alcune versioni/contesti NON espongono getTable() sul MDC Table
@@ -2354,7 +2331,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oInner = oInner._oTable;
       }
     }
-  } catch (e2) { /* ignore */ }
+  } catch (e2) {  }
 
   if (bDebug) {
     this._dbg("_getInnerTable resolved", {
@@ -2377,7 +2354,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         } else {
           this._dbg("_setInnerHeaderHeight: setColumnHeaderHeight not available on inner");
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     },
 
     _getCfg02Map: function () {
@@ -2395,7 +2372,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
       try {
         if (oInnerCol && typeof oInnerCol.getFilterProperty === "function") k = oInnerCol.getFilterProperty() || "";
         if (!k && oInnerCol && typeof oInnerCol.getSortProperty === "function") k = oInnerCol.getSortProperty() || "";
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
 
       k = String(k || "").trim();
       if (k.indexOf(">") >= 0) k = k.split(">").pop();
@@ -2467,7 +2444,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
       }
 
       // comodo per sync/reset
-      try { oCtrl.data("hdrFilterKey", sKey); } catch (e) { /* ignore */ }
+      try { oCtrl.data("hdrFilterKey", sKey); } catch (e) {  }
       return oCtrl;
     },
 
@@ -2609,7 +2586,7 @@ if (!okKeys) {
         var boxes = (this._hdrFilter && this._hdrFilter.boxesByKey) || {};
         Object.keys(boxes).forEach(function (k) {
           if (!seen[k]) {
-            try { if (boxes[k] && boxes[k].box) boxes[k].box.destroy(); } catch (e) { /* ignore */ }
+            try { if (boxes[k] && boxes[k].box) boxes[k].box.destroy(); } catch (e) {  }
             delete boxes[k];
           }
         });
@@ -2665,7 +2642,7 @@ if (!okKeys) {
       if (oUi) oUi.setProperty("/showHeaderFilters", bNew);
 
       // assicurati che i controlli siano presenti e aggiorna altezza header
-      /* this._injectHeaderFilters("toggle"); */
+      
       var oMdc = this.byId("mdcTable4");
 var that = this;
 
@@ -2816,7 +2793,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         if (typeof oTbl.getSelectedContexts === "function") {
           aCtx = oTbl.getSelectedContexts() || [];
         }
-      } catch (e1) { /* ignore */ }
+      } catch (e1) {  }
 
       if ((!aCtx || !aCtx.length) && typeof oTbl.getTable === "function") {
         try {
@@ -2830,7 +2807,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
               return (x.getBindingContext && (x.getBindingContext("detail") || x.getBindingContext())) || null;
             }).filter(Boolean);
           }
-        } catch (e2) { /* ignore */ }
+        } catch (e2) {  }
       }
 
       return (aCtx || []).map(function (c) { return c && c.getObject ? c.getObject() : null; }).filter(Boolean);
@@ -3197,3 +3174,4 @@ if (oMdc && typeof oMdc.initialized === "function") {
 
   });
 });
+ 

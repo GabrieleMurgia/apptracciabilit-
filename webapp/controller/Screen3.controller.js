@@ -1082,8 +1082,8 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
       }
     }
   });
-});
- */
+}); */
+
 /* 
 // webapp/controller/Screen3.controller.js
 sap.ui.define([
@@ -2177,6 +2177,7 @@ _cfgForScreen: function (sCat, sScreen) {
 });
  */
 
+
 // webapp/controller/Screen3.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
@@ -2232,7 +2233,7 @@ sap.ui.define([
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.getRoute("Screen3").attachPatternMatched(this._onRouteMatched, this);
 
-      // ✅ UI MODEL (come Screen4): toggle filtri header + toggle sort header
+      //  UI MODEL (come Screen4): toggle filtri header + toggle sort header
       this.getView().setModel(new JSONModel({
         showHeaderFilters: false,
         showHeaderSort: true
@@ -2312,7 +2313,7 @@ sap.ui.define([
 
       this._snapshotRecords = null;
 
-      // ✅ reset toggles header (default come Screen4)
+      //  reset toggles header (default come Screen4)
       var oUi = this.getView().getModel("ui");
       if (oUi) {
         oUi.setProperty("/showHeaderFilters", false);
@@ -2351,7 +2352,7 @@ sap.ui.define([
     },
 
     // =========================
-    // ✅ BUTTONS HEADER (NO DIALOG)
+    //  BUTTONS HEADER (NO DIALOG)
     // =========================
     _setInnerHeaderHeight: function (oMdcTbl) {
       try {
@@ -2362,7 +2363,7 @@ sap.ui.define([
         if (oInner && typeof oInner.setColumnHeaderHeight === "function") {
           oInner.setColumnHeaderHeight(bShowFilters ? 64 : 32);
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     },
 
     onToggleHeaderFilters: function () {
@@ -2391,7 +2392,7 @@ sap.ui.define([
       this._applyInlineHeaderFilterSort(oTbl);
     },
 
-    // ✅ ALIAS per i bottoni “Filtri per colonna” / “Ordinamento” nella toolbar (stessa logica inline header)
+    //  ALIAS per i bottoni “Filtri per colonna” / “Ordinamento” nella toolbar (stessa logica inline header)
     onOpenColumnFilters: function () {
       this.onToggleHeaderFilters();
     },
@@ -2521,23 +2522,25 @@ sap.ui.define([
     _createStatusCellTemplate: function (sKey) {
       var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
 
-      var sStateExpr =
-        "{= ${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
-        "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
-        "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
-        "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))}";
+var sStateExpr =
+  "{= (${detail>" + sBindKey + "} === '' ? 'Warning' : " +
+  "(${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
+  "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
+  "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
+  "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))))}";
 
       return new HBox({
         width: "100%",
         justifyContent: "Center",
         alignItems: "Center",
         items: [
-          new ObjectStatus({
-            text: "{detail>" + sBindKey + "}",
-            icon: "sap-icon://circle-task",
-            state: sStateExpr,
-            tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
-          })
+new ObjectStatus({
+  text: "",
+  icon: "sap-icon://circle-task",
+  state: sStateExpr,
+  tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
+})
+
         ]
       });
     },
@@ -2732,6 +2735,7 @@ sap.ui.define([
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
 
@@ -2843,12 +2847,13 @@ sap.ui.define([
 
         if (!oRec) {
           oRec = {
-            idx: a.length,
-            guidKey: sGuidKey,
-            Fibra: sFibra,
+             idx: a.length,
+  guidKey: sGuidKey,
+  Fibra: sFibra,
 
-            Stato: stRow,
-            __status: stRow,
+  Stato: stRow,
+  StatoText: this._statusText(stRow),
+  __status: stRow,
 
             __canEdit: canEdit(sRole, stRow),
             __canApprove: canApprove(sRole, stRow),
@@ -2870,6 +2875,7 @@ sap.ui.define([
           if (merged !== oRec.__status) {
             oRec.__status = merged;
             oRec.Stato = merged;
+            oRec.StatoText = this._statusText(merged);
 
             oRec.__canEdit = canEdit(sRole, merged);
             oRec.__canApprove = canApprove(sRole, merged);
@@ -2889,6 +2895,7 @@ sap.ui.define([
     // =========================
     onGoToScreen4FromRow: function (oEvent) {
       try {
+        debugger
         var oBtn = oEvent.getSource();
         var oCtx = oBtn && oBtn.getBindingContext && (
           oBtn.getBindingContext("detail") || oBtn.getBindingContext()
@@ -3185,7 +3192,7 @@ _getInnerTableFromMdc: function (oMdcTbl) {
     if (!oInner && oMdcTbl && typeof oMdcTbl._getTable === "function") {
       oInner = oMdcTbl._getTable();
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {  }
 
   // Unwrap: a volte getTable/getContent restituiscono il TableType e non la tabella finale
   try {
@@ -3198,7 +3205,7 @@ _getInnerTableFromMdc: function (oMdcTbl) {
         oInner = oInner._oTable;
       }
     }
-  } catch (e2) { /* ignore */ }
+  } catch (e2) {  }
 
   return oInner || null;
 },
@@ -3273,7 +3280,7 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
     try {
       if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
       if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
 
     k = String(k || "").trim();
     if (k.indexOf(">") >= 0) k = k.split(">").pop(); // "detail>FIELD" -> "FIELD"
@@ -3396,7 +3403,7 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
     // assicuro che veda il model "ui"
     if (oUiModel) oV.setModel(oUiModel, "ui");
 
-    // ✅ QUI È LA DIFFERENZA CHIAVE:
+    //  QUI È LA DIFFERENZA CHIAVE:
     // GridTable (sap.ui.table.Column) -> setLabel
     // ResponsiveTable (sap.m.Column)  -> setHeader
     if (typeof innerCol.setLabel === "function") {
@@ -3482,6 +3489,325 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
     onExportExcel: function () { MessageToast.show("Export Excel: TODO"); },
     onSave: function () { MessageToast.show("Salva: TODO"); },
 
+    _statusText: function (sCode) {
+  var c = String(sCode || "").trim().toUpperCase();
+  var m = {
+    ST: "In attesa / Da approvare",
+    AP: "Approvato",
+    RJ: "Respinto",
+    CH: "Modificato"
+  };
+  return m[c] || c || "";
+},
+
+// =========================
+// ADD/DELETE ROWS (Screen3) - MDC Table (detail>/RecordsAll -> detail>/Records)
+// + legame Screen4: cache dettagli vuota per idx + selected parent in vm
+// =========================
+PARENT_TABLE_ID: "mdcTable3",
+
+onAddRow: function () {
+  var oDetail = this.getView().getModel("detail");
+  if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+
+  var aAll = oDetail.getProperty("/RecordsAll") || [];
+
+  // idx stabile (NON usare l'indice array)
+  var iMax = -1;
+  (aAll || []).forEach(function (r) {
+    var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
+    if (!isNaN(n) && n > iMax) iMax = n;
+  });
+  var iNewIdx = iMax + 1;
+
+  // GUID + "-new"
+  var sGuidNew = this._genGuidNew();
+
+  // record padre (Screen3)
+  var oNewRow = {
+    idx: iNewIdx,
+
+    // metto TUTTE e 3 per compatibilità con codice esistente
+    GUID: sGuidNew,
+    Guid: sGuidNew,
+    guidKey: sGuidNew,
+
+    Fibra: "",
+
+    Stato: "ST",
+    StatoText: this._statusText("ST"),
+    __status: "ST",
+
+    __canEdit: true,
+    __canApprove: false,
+    __canReject: false,
+    __readOnly: false,
+
+    __isNew: true,
+    __state: "NEW"
+  };
+
+  // inizializza campi dinamici MMCT (evita undefined, soprattutto per MultiCombo -> [])
+  var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
+  (aCfg01 || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = String(f.ui).trim();
+    if (!k) return;
+    if (k.toUpperCase() === "STATO") k = "Stato";
+    if (oNewRow[k] !== undefined) return;
+    oNewRow[k] = f.multiple ? [] : "";
+  });
+
+  // aggiungi in testa
+  aAll.unshift(oNewRow);
+  oDetail.setProperty("/RecordsAll", aAll);
+
+  // legame con Screen4: salva parent selezionato + crea bucket dettagli vuoto per questo idx
+  this._setSelectedParentForScreen4(oNewRow);
+  this._ensureScreen4CacheForParentIdx(iNewIdx, sGuidNew);
+
+  // aggiorna Records + rebind
+  this._applyClientFilters();
+
+  // selezione: prova a selezionare la prima riga visibile (best-effort)
+  setTimeout(function () {
+    this._selectFirstRowMdc();
+  }.bind(this), 0);
+
+  MessageToast.show("Riga aggiunta");
+},
+
+onDeleteRows: function () {
+  var oDetail = this.getView().getModel("detail");
+  if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+
+  var aSel = this._getSelectedParentObjectsFromMdc();
+  if (!aSel.length) return MessageToast.show("Seleziona almeno una riga da eliminare");
+
+  // idx da rimuovere
+  var aIdxToRemove = aSel
+    .map(function (r) { return parseInt(r && r.idx, 10); })
+    .filter(function (n) { return !isNaN(n) && n >= 0; });
+
+  if (!aIdxToRemove.length) return MessageToast.show("Nessun idx valido nelle righe selezionate");
+
+  // (opzionale) traccia delete backend (solo non-new)
+  var aDeletedParents = oDetail.getProperty("/__deletedParents") || [];
+  aSel.forEach(function (r) {
+    var g = (r && (r.GUID || r.Guid || r.guidKey)) || "";
+    if (g && String(g).indexOf("-new") < 0) aDeletedParents.push(r);
+  });
+  oDetail.setProperty("/__deletedParents", aDeletedParents);
+
+  // rimuovi da RecordsAll
+  var aAll = oDetail.getProperty("/RecordsAll") || [];
+  var aRemaining = (aAll || []).filter(function (r) {
+    var n = parseInt(r && r.idx, 10);
+    return aIdxToRemove.indexOf(n) < 0;
+  });
+  oDetail.setProperty("/RecordsAll", aRemaining);
+
+  // pulisci cache Screen4 per quei padri
+  this._purgeScreen4CacheByParentIdx(aIdxToRemove);
+
+  // se il selected parent è stato eliminato -> reset
+  var oSel = this._getSelectedParentForScreen4();
+  var iSelIdx = oSel ? parseInt(oSel.idx, 10) : NaN;
+  if (!isNaN(iSelIdx) && aIdxToRemove.indexOf(iSelIdx) >= 0) {
+    this._setSelectedParentForScreen4(null);
+  }
+
+  // aggiorna Records + rebind
+  this._applyClientFilters();
+
+  // clear selection
+  this._clearSelectionMdc();
+
+  MessageToast.show("Righe eliminate");
+},
+
+/* ===========================
+ * Helpers selezione MDC
+ * =========================== */
+_getSelectedParentObjectsFromMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+  var aObj = [];
+
+  // 1) MDC Table (se disponibile)
+  try {
+    if (oMdc && typeof oMdc.getSelectedContexts === "function") {
+      var aCtx = oMdc.getSelectedContexts() || [];
+      aCtx.forEach(function (c) {
+        var o = c && c.getObject && c.getObject();
+        if (o) aObj.push(o);
+      });
+      if (aObj.length) return aObj;
+    }
+  } catch (e) { }
+
+  // 2) Inner table fallback
+  var oInner = this._getInnerTableFromMdc(oMdc);
+
+  // sap.ui.table.Table
+  try {
+    if (oInner && typeof oInner.getSelectedIndices === "function" && typeof oInner.getContextByIndex === "function") {
+      var aIdx = oInner.getSelectedIndices() || [];
+      aIdx.forEach(function (i) {
+        var c = oInner.getContextByIndex(i);
+        var o = c && c.getObject && c.getObject();
+        if (o) aObj.push(o);
+      });
+      if (aObj.length) return aObj;
+    }
+  } catch (e2) { }
+
+  // sap.m.Table / ListBase
+  try {
+    if (oInner && typeof oInner.getSelectedItems === "function") {
+      var aItems = oInner.getSelectedItems() || [];
+      aItems.forEach(function (it) {
+        var c = it && it.getBindingContext && (it.getBindingContext("detail") || it.getBindingContext());
+        var o = c && c.getObject && c.getObject();
+        if (o) aObj.push(o);
+      });
+      if (aObj.length) return aObj;
+    }
+  } catch (e3) { }
+
+  // single selection fallback
+  try {
+    if (oInner && typeof oInner.getSelectedItem === "function") {
+      var it2 = oInner.getSelectedItem();
+      if (it2) {
+        var c2 = it2.getBindingContext && (it2.getBindingContext("detail") || it2.getBindingContext());
+        var o2 = c2 && c2.getObject && c2.getObject();
+        if (o2) aObj.push(o2);
+      }
+    }
+  } catch (e4) { }
+
+  return aObj;
+},
+
+_clearSelectionMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+
+  try {
+    if (oMdc && typeof oMdc.clearSelection === "function") {
+      oMdc.clearSelection();
+      return;
+    }
+  } catch (e) { }
+
+  var oInner = this._getInnerTableFromMdc(oMdc);
+
+  try {
+    if (oInner && typeof oInner.clearSelection === "function") {
+      oInner.clearSelection();
+      return;
+    }
+  } catch (e2) { }
+
+  try {
+    if (oInner && typeof oInner.removeSelections === "function") {
+      oInner.removeSelections(true);
+      return;
+    }
+  } catch (e3) { }
+},
+
+_selectFirstRowMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+  var oInner = this._getInnerTableFromMdc(oMdc);
+
+  // sap.ui.table.Table
+  try {
+    if (oInner && typeof oInner.setSelectedIndex === "function") {
+      oInner.setSelectedIndex(0);
+      return;
+    }
+  } catch (e) { }
+
+  // sap.m.Table / ListBase
+  try {
+    if (oInner && typeof oInner.getItems === "function" && typeof oInner.setSelectedItem === "function") {
+      var it = (oInner.getItems() || [])[0];
+      if (it) oInner.setSelectedItem(it, true);
+      return;
+    }
+  } catch (e2) { }
+},
+
+/* ===========================
+ * Legame Screen3 -> Screen4 (cache + selected parent)
+ * =========================== */
+_setSelectedParentForScreen4: function (oParentOrNull) {
+  var oVm = this._ensureVmCache();
+  oVm.setProperty("/selectedScreen3Record", oParentOrNull || null);
+  this.getOwnerComponent().setModel(oVm, "vm");
+},
+
+_getSelectedParentForScreen4: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  return oVm ? oVm.getProperty("/selectedScreen3Record") : null;
+},
+
+_ensureScreen4CacheForParentIdx: function (iIdx, sGuid) {
+  var oVm = this._ensureVmCache();
+  var sK = this._getCacheKeySafe(); // vendor||material (encoded)
+
+  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+  if (!mAll[sK]) mAll[sK] = {};
+  if (!mAll[sK][String(iIdx)]) mAll[sK][String(iIdx)] = []; // dettagli vuoti
+
+  oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+
+  // (opzionale) mappa parent guid per idx
+  var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+  if (!mP[sK]) mP[sK] = {};
+  mP[sK][String(iIdx)] = sGuid || "";
+  oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+},
+
+_purgeScreen4CacheByParentIdx: function (aIdx) {
+  var oVm = this._ensureVmCache();
+  var sK = this._getCacheKeySafe();
+
+  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+  if (mAll[sK]) {
+    (aIdx || []).forEach(function (n) { delete mAll[sK][String(n)]; });
+    oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+  }
+
+  var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+  if (mP[sK]) {
+    (aIdx || []).forEach(function (n) { delete mP[sK][String(n)]; });
+    oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+  }
+},
+
+/* ===========================
+ * GUID GENERATION + "-new"
+ * =========================== */
+_genGuidNew: function () {
+  var base = "";
+
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    base = crypto.randomUUID().replace(/-/g, "");
+  } else if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    var a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    base = Array.prototype.map.call(a, function (b) {
+      return b.toString(16).padStart(2, "0");
+    }).join("");
+  } else {
+    base = (Date.now().toString(16) + Math.random().toString(16).slice(2)).replace(/\./g, "");
+  }
+
+  return base + "-new";
+},
+
+
     // =========================
     // NavBack
     // =========================
@@ -3500,3 +3826,4 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
   });
 
 });
+ 

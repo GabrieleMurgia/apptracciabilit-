@@ -805,11 +805,11 @@ sap.ui.define([
       var sMockMaterialsFile = "mock/MaterialDataSet.json";
       var sMockDataSetFile = "mock/DataSet.json";
 
-      var bMockS0 = true;
-      var bMockS1 = true;
-      var bMockS2 = true;
-      var bMockS3 = true;
-      var bMockS4 = true;
+      var bMockS0 = false;
+      var bMockS1 = false;
+      var bMockS2 = false;
+      var bMockS3 = false;
+      var bMockS4 = false;
 
       var iVendorIdx = 0;
       var sForceStato = "";
@@ -818,7 +818,7 @@ sap.ui.define([
       var sMockUserType = "E"; // "E" / "I" / "S"
 
       // opzionale: override userType anche quando NON mockS0 (lascia "" per non forzare)
-      var sOverrideUserTypeWhenReal = ""; // es: "I"
+      var sOverrideUserTypeWhenReal = "E"; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
@@ -915,6 +915,8 @@ sap.ui.define([
             },
             success: function (oData) {
               BusyIndicator.hide();
+
+              debugger
 
               if (!oData) {
                 console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);

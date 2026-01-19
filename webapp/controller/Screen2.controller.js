@@ -361,7 +361,8 @@ sap.ui.define([
         new Filter("Fornitore", FilterOperator.EQ, sVendorId),
         new Filter("UserID", FilterOperator.EQ, sUserId2)
       ];
-
+      
+      debugger
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {

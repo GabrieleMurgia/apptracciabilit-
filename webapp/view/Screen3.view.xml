@@ -101,7 +101,7 @@
 
               <ObjectStatus
                 id="stST3"
-                text="ST"
+                text="In attesa"
                 icon="sap-icon://circle-task"
                 state="Warning"
                 active="true"
@@ -114,7 +114,7 @@
 
               <ObjectStatus
                 id="stAP3"
-                text="AP"
+                text="Approvato"
                 icon="sap-icon://circle-task"
                 state="Success"
                 active="true"
@@ -127,7 +127,7 @@
 
               <ObjectStatus
                 id="stRJ3"
-                text="RJ"
+                text="Respinto"
                 icon="sap-icon://circle-task"
                 state="Error"
                 active="true"
@@ -140,7 +140,7 @@
 
               <ObjectStatus
                 id="stCH3"
-                text="CH"
+                text="Modificato"
                 icon="sap-icon://circle-task"
                 state="Information"
                 active="true"
@@ -183,6 +183,21 @@
           <!-- BOTTONI: print/excel (NO dialog) -->
           <Toolbar id="tblToolbar3" design="Transparent">
             <ToolbarSpacer id="footerToolbar532"/>
+              <Button
+                id="btnAddRow01"
+                text="Aggiungi riga"
+                type="Emphasized"
+                icon="sap-icon://add"
+                enabled="{detail>/__canAddRow}"
+                press=".onAddRow" />
+
+              <Button
+                id="btnDeleteRows01"
+                text="Elimina righe"
+                type="Negative"
+                icon="sap-icon://delete"
+                enabled="{detail>/__canAddRow}"
+                press=".onDeleteRows" />
             <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
             <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
           </Toolbar>

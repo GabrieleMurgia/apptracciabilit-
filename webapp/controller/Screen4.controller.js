@@ -991,9 +991,61 @@ _loadSelectedRecordRows: function (fnDone) {
     oDetail.setProperty("/__canReject", this._canReject(sRole, groupStatus));
 
     // --- CAT + CFG02 ---
-    var r0 = aSelected[0] || {};
-    var sCat = pickCat(r0) || pickCat(oRec) || (oSel ? pickCat(oSel) : "") || "";
-    var aCfg02 = sCat ? this._cfgForScreen02(sCat) : [];
+// --- CAT + CFG02 (USA SEMPRE LE COLONNE DEL PRIMO RECORD DI SCREEN3) ---
+var r0 = aSelected[0] || {};
+
+// 0) prova col cat del record selezionato
+var sCat = pickCat(r0) || pickCat(oRec) || (oSel ? pickCat(oSel) : "") || "";
+
+// 1) se manca, prendilo dal "primo record" in cache (quello di Screen3)
+if (!sCat) {
+  // prima prova dalle RIGHE (backend/cache)
+  var oFirstRowWithCat = (aAllRows || []).find(function (r) { return !!pickCat(r); });
+  if (oFirstRowWithCat) sCat = pickCat(oFirstRowWithCat);
+
+  // poi prova dai RECORD (lista Screen3)
+  if (!sCat) {
+    var oFirstRecWithCat = (aRecords || []).find(function (r) { return !!pickCat(r); });
+    if (oFirstRecWithCat) sCat = pickCat(oFirstRecWithCat);
+  }
+}
+
+// 2) cfg02 = quella del primo record (quindi colonne uguali)
+var aCfg02 = sCat ? this._cfgForScreen02(sCat) : [];
+
+// 3) se hai trovato sCat ma cfg02 è ancora vuota, logga (vuol dire MMCT non caricato)
+if (sCat && !aCfg02.length) {
+  this._log("[S4][_loadSelectedRecordRows] WARN cfg02 EMPTY even with CatMateriale", {
+    cacheKey: sKey, cat: sCat, firstRecCat: (aRecords && aRecords[0]) ? pickCat(aRecords[0]) : ""
+  });
+}
+
+// 4) se proprio non hai cfg02 (caso estremo), fai fallback MA basato sul primo record/riga (non sul new)
+if (!aCfg02.length) {
+  var oBase = (aAllRows || [])[0] || (aRecords || [])[0] || r0 || oRec || {};
+  aCfg02 = buildCfgFallbackFromObject(oBase);
+  this._log("[S4][_loadSelectedRecordRows] CFG02 FALLBACK (base = first cache row/rec)", {
+    cacheKey: sKey, cfg02Len: aCfg02.length
+  });
+}
+
+// 5) IMPORTANTISSIMO: se ho dedotto sCat, “inietto” CatMateriale nel record/righe new
+if (sCat) {
+  if (r0 && !pickCat(r0)) r0.CatMateriale = sCat;
+  if (oRec && !pickCat(oRec)) oRec.CatMateriale = sCat;
+  if (oSel && !pickCat(oSel)) oSel.CatMateriale = sCat;
+}
+
+// 6) assicura campi presenti nella riga synthetic per evitare binding strani (multi = array)
+(aSelected || []).forEach(function (row) {
+  (aCfg02 || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = f.ui;
+    if (row[k] === undefined || row[k] === null) row[k] = f.multiple ? [] : "";
+    if (f.multiple && !Array.isArray(row[k])) row[k] = [];
+  });
+});
+
 
     // se MMCT non c’è -> fallback colonne da chiavi riga/record
     if (!aCfg02.length) {

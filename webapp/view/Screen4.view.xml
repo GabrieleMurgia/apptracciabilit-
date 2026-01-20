@@ -65,11 +65,7 @@
               tooltip="Filtri per colonna"
               press=".onOpenColumnFilters" />
 
-            <Button
-              id="btnSort4"
-              icon="sap-icon://sort"
-              tooltip="Ordinamento"
-              press=".onOpenSort" />
+            <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onToggleHeaderSort" />
 
             <Button
               id="btnResetFS4"

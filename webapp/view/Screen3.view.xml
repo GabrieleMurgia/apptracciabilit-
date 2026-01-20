@@ -26,30 +26,7 @@
           </contentMiddle>
 
           <contentRight>
-            <!-- ✅ 3 bottoni in header (come Screen4) -->
-            <HBox id="hbox4" width="260px" justifyContent="End" alignItems="Center">
 
-              <Button
-                id="tbToggleHeaderFilters3"
-                icon="sap-icon://filter"
-                tooltip="Mostra/Nascondi filtri colonna"
-                press=".onToggleHeaderFilters" />
-
-              <Button
-                id="tbToggleHeaderSort3"
-                icon="sap-icon://sort"
-                tooltip="Mostra/Nascondi sort per colonna"
-                press=".onToggleHeaderSort"
-                class="sapUiTinyMarginBegin" />
-
-              <Button
-                id="tbResetFS3"
-                icon="sap-icon://reset"
-                tooltip="Reset filtri e ordinamento (header)"
-                press=".onResetFiltersAndSort"
-                class="sapUiTinyMarginBegin" />
-
-            </HBox>
           </contentRight>
         </Bar>
       </Toolbar>

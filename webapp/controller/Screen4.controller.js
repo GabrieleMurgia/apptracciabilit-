@@ -51,9 +51,12 @@ sap.ui.define([
       oRouter.getRoute("Screen4").attachPatternMatched(this._onRouteMatched, this);
 
       // UI model per show/hide filtri dentro header
-      this.getView().setModel(new JSONModel({
-        showHeaderFilters: false
-      }), "ui");
+this.getView().setModel(new JSONModel({
+  showHeaderFilters: false,
+  showHeaderSort: true
+}), "ui");
+this._hdrSortBtns = {};   // { FIELD: Button }
+
 
       var oDetail = new JSONModel({
         VendorId: "",
@@ -93,6 +96,17 @@ sap.ui.define([
       // DEBUG HOOKS MDC/INNER TABLE
       this._setupDebugMdcHooks();
     },
+
+    onToggleHeaderSort: function () {
+  var oUi = this.getView().getModel("ui");
+  if (!oUi) return;
+  oUi.setProperty("/showHeaderSort", !oUi.getProperty("/showHeaderSort"));
+
+  // reinietta header (per sicurezza dopo rebind/p13n)
+  this._injectHeaderFilters("toggleSort");
+  this._refreshHeaderSortIcons();
+},
+
 
     onExit: function () {
       try {
@@ -1350,28 +1364,22 @@ if (oMdc && typeof oMdc.initialized === "function") {
       }
 
       // SORT
-      if (this._sortState && this._sortState.key) {
-        var sKeySort = this._sortState.key;
-        var bDesc = !!this._sortState.desc;
+if (this._sortState && this._sortState.key) {
+  var key = this._sortState.key;
+  var desc = !!this._sortState.desc;
 
-        a.sort(function (r1, r2) {
-          var v1 = r1 ? r1[sKeySort] : "";
-          var v2 = r2 ? r2[sKeySort] : "";
+  a.sort(function (x, y) {
+    var vx = (x && x[key] != null) ? x[key] : "";
+    var vy = (y && y[key] != null) ? y[key] : "";
+    if (Array.isArray(vx)) vx = vx.join(", ");
+    if (Array.isArray(vy)) vy = vy.join(", ");
+    vx = String(vx);
+    vy = String(vy);
 
-          var s1 = this._valToText(v1);
-          var s2 = this._valToText(v2);
-
-          var n1 = parseFloat(s1.replace(",", "."));
-          var n2 = parseFloat(s2.replace(",", "."));
-          var bothNum = !isNaN(n1) && !isNaN(n2);
-
-          var cmp;
-          if (bothNum) cmp = (n1 < n2 ? -1 : (n1 > n2 ? 1 : 0));
-          else cmp = s1.localeCompare(s2);
-
-          return bDesc ? -cmp : cmp;
-        }.bind(this));
-      }
+    var cmp = vx.localeCompare(vy, undefined, { numeric: true, sensitivity: "base" });
+    return desc ? -cmp : cmp;
+  });
+}
 
       oDetail.setProperty("/Rows", a);
       oDetail.setProperty("/RowsCount", a.length);
@@ -1559,7 +1567,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
       return oCtrl;
     },
 
-    _ensureHeaderBoxForKey: function (sKey, fMeta) {
+   /*  _ensureHeaderBoxForKey: function (sKey, fMeta) {
       if (!this._hdrFilter) this._hdrFilter = { boxesByKey: {}, seenLast: {} };
 
       var p = this._hdrFilter.boxesByKey[sKey];
@@ -1582,7 +1590,81 @@ if (oMdc && typeof oMdc.initialized === "function") {
       }
 
       return this._hdrFilter.boxesByKey[sKey];
-    },
+    }, */
+    _ensureHeaderBoxForKey: function (sKey, fMeta) {
+  if (!this._hdrFilter) this._hdrFilter = { boxesByKey: {}, seenLast: {} };
+
+  var p = this._hdrFilter.boxesByKey[sKey];
+  var sHeader = (fMeta && (fMeta.label || fMeta.ui)) ? String(fMeta.label || fMeta.ui) : String(sKey);
+  if (fMeta && fMeta.required) sHeader += " *";
+
+  if (!p || !p.box || p.box.bIsDestroyed) {
+    var oLbl = new Text({ text: sHeader, wrapping: true });
+
+    // --- SORT BUTTON (nuovo) ---
+    var oSortBtn = this._hdrSortBtns[sKey];
+    if (!oSortBtn) {
+      oSortBtn = new sap.m.Button({
+        type: "Transparent",
+        icon: "sap-icon://sort",
+        visible: "{ui>/showHeaderSort}",
+        press: this._onHeaderSortPress.bind(this)
+      });
+      oSortBtn.data("field", sKey);
+      this._hdrSortBtns[sKey] = oSortBtn;
+    } else {
+      // rebind visibility se serve
+      if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
+    }
+
+    var oTop = new sap.m.HBox({
+      justifyContent: "SpaceBetween",
+      alignItems: "Center",
+      items: [oLbl, oSortBtn]
+    });
+
+    var oCtrl = this._createHeaderFilterCtrl(sKey, fMeta); // già esistente
+
+    var oBox = new VBox({
+      width: "100%",
+      renderType: "Bare",
+      items: [oTop, oCtrl]
+    });
+
+    this._hdrFilter.boxesByKey[sKey] = { box: oBox, lbl: oLbl, ctrl: oCtrl, sortBtn: oSortBtn };
+  } else {
+    p.lbl.setText(sHeader);
+  }
+
+  return this._hdrFilter.boxesByKey[sKey];
+},
+_onHeaderSortPress: function (oEvt) {
+  var oBtn = oEvt.getSource();
+  var sField = oBtn && oBtn.data && oBtn.data("field");
+  if (!sField) return;
+
+  if (this._sortState && this._sortState.key === sField) {
+    this._sortState.desc = !this._sortState.desc;
+  } else {
+    this._sortState = { key: sField, desc: false };
+  }
+
+  this._refreshHeaderSortIcons();
+  this._applyFiltersAndSort();
+},_refreshHeaderSortIcons: function () {
+  var st = this._sortState || { key: "", desc: false };
+  var m = this._hdrSortBtns || {};
+  Object.keys(m).forEach(function (k) {
+    var b = m[k];
+    if (!b || !b.setIcon) return;
+
+    if (!st.key || st.key !== k) {
+      b.setIcon("sap-icon://sort");
+    } else {
+      b.setIcon(st.desc ? "sap-icon://sort-descending" : "sap-icon://sort-ascending");
+    }
+  });
+},
 
     _syncHeaderFilterCtrlsFromState: function (bClear) {
       var m = bClear ? {} : (this._colFilters || {});
@@ -1685,6 +1767,8 @@ aInnerCols.forEach(function (c, i) {
   } catch (e) {
     this._dbg("inject ERROR setLabel/setHeader", { key: sKey, msg: e && e.message });
   }
+  this._refreshHeaderSortIcons();
+
 }.bind(this));
 
 // se okKeys è 0, per te non è un "success" vero: forza retry
@@ -1875,6 +1959,8 @@ if (oMdc && typeof oMdc.initialized === "function") {
       this._globalQuery = "";
       this._colFilters = {};
       this._sortState = null;
+      this._refreshHeaderSortIcons();
+
 
       var oInp = this.byId("inputFilter4");
       if (oInp && oInp.setValue) oInp.setValue("");

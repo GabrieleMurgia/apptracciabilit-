@@ -4,107 +4,104 @@
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
-  xmlns:mdc="sap.ui.mdc"
-  xmlns:mdctable="sap.ui.mdc.table">
+  xmlns:mdc="sap.ui.mdc">
 
-  <Page id="page4" title="Tracciabilità">
+  <Page id="page4" title="Dettaglio">
 
     <customHeader>
       <Toolbar id="toolbar4">
         <Bar id="bar4">
           <contentLeft>
             <Image id="imageLogo4" src="IMG/Valentino.png" decorative="false" width="200px"/>
-            <Button
-              id="buttonBack4"
-              icon="sap-icon://nav-back"
-              press=".onNavBack" />
+            <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack"/>
           </contentLeft>
 
           <contentMiddle>
-            <Title id="title4" text="Tracciabilità" />
+            <Title id="title4" text="Dettaglio"/>
           </contentMiddle>
 
           <contentRight>
-            <HBox id="hbox5" width="200px"/>
+            <ToolbarSpacer id="bar4SpacerRight"/>
           </contentRight>
         </Bar>
       </Toolbar>
     </customHeader>
 
     <subHeader>
-      <Toolbar id="toolbarInfo4">
-        <Label id="lblVend4" text="Fornitore:" />
-        <Text id="txtVend4" text="{detail>/VendorId}" />
-        <ToolbarSpacer id="spVend4"/>
+      <!-- reso uguale a Screen3 per stile coerente -->
+      <OverflowToolbar id="toolbarInfo4" design="Transparent">
 
-        <Label id="lblMat4" text="Materiale:" />
-        <Text id="txtMat4" text="{detail>/Material}" />
-        <ToolbarSpacer id="spMat4"/>
+        <HBox
+          id="hdr4Dynamic"
+          width="100%"
+          fitContainer="true"
+          wrap="Wrap"
+          alignItems="Baseline"
+          visible="{= ${detail>/Header4Fields} &amp;&amp; ${detail>/Header4Fields}.length > 0 }"
+          items="{detail>/Header4Fields}">
 
-        <Label id="lblFib4" text="Fibra:" />
-        <Text id="txtFib4" text="{detail>/Fibra}" />
-      </Toolbar>
+          <items>
+            <HBox
+              id="hdr4PairTmpl"
+              class="hdrDynPair sapUiTinyMarginEnd sapUiTinyMarginBottom"
+              alignItems="Baseline">
+
+              <HBox
+                id="hdr4LblBoxTmpl"
+                width="9rem"
+                justifyContent="End"
+                class="sapUiTinyMarginEnd"
+                alignItems="Baseline">
+
+                <Label id="hdr4LblTmpl" text="{detail>label}:" design="Bold"/>
+              </HBox>
+
+              <Text id="hdr4ValTmpl" text="{detail>value}" class="hdrDynVal"/>
+            </HBox>
+          </items>
+
+        </HBox>
+
+      </OverflowToolbar>
     </subHeader>
 
     <content>
-      <VBox id="vboxContent4" width="100%">
+      <VBox id="box4" width="100%">
 
-        <HBox id="hboxToolbarTable4" width="100%" justifyContent="End" alignItems="Center" class="sapUiTinyMargin alignTableButton">
+        <HBox
+          id="hboxToolbarTable4"
+          width="100%"
+          justifyContent="End"
+          alignItems="Center"
+          class="sapUiTinyMargin alignTableButton">
 
-          <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20" alignItems="Center">
-            <Label id="lblSearch4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
+          <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
+            <Label id="lblFilter4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
             <Input
               id="inputFilter4"
               width="22rem"
               liveChange=".onGlobalFilter"
               placeholder="Filtro testuale su tutti i campi"/>
 
-            <Button
-              id="btnColFilters4"
-              icon="sap-icon://filter"
-              tooltip="Filtri per colonna"
-              press=".onOpenColumnFilters" />
-
-            <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onToggleHeaderSort" />
-
-            <Button
-              id="btnResetFS4"
-              icon="sap-icon://reset"
-              tooltip="Reset filtri/ordinamento"
-              press=".onResetFiltersAndSort" />
+            <Button id="btnColFilters4" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters"/>
+            <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort"/>
+            <Button id="btnResetFS4" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort"/>
           </HBox>
 
-          <HBox id="hboxFilter4dx">
-            <Toolbar id="tblToolbar4" design="Transparent">
-              <Button
-                id="btnAddRow"
-                text="Aggiungi riga"
-                type="Emphasized"
-                icon="sap-icon://add"
-                enabled="{detail>/__canAddRow}"
-                press=".onAddRow" />
+          <Toolbar id="tblToolbar4" design="Transparent">
+            <ToolbarSpacer id="footerToolbar4sp"/>
+            <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
+            <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
+          </Toolbar>
 
-              <Button
-                id="btnDeleteRows"
-                text="Elimina righe"
-                type="Negative"
-                icon="sap-icon://delete"
-                enabled="{detail>/__canAddRow}"
-                press=".onDeleteRows" />
-
-              <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
-              <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
-            </Toolbar>
-          </HBox>
         </HBox>
 
-        <!-- IMPORTANT: type resta TABLE -->
         <mdc:Table
           id="mdcTable4"
           type="Table"
           width="100%"
           selectionMode="Multi"
-          p13nMode="Column,Group"
+          p13nMode="Column"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen4"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>
@@ -115,13 +112,7 @@
     <footer>
       <OverflowToolbar id="footerToolbar4">
         <ToolbarSpacer id="footerSpacer4"/>
-        <Button
-          id="btnSaveLocal4"
-          text="Salva"
-          icon="sap-icon://save"
-          type="Emphasized"
-          enabled="{detail>/__dirty}"
-          press=".onSaveLocal"/>
+        <Button id="btnSaveLocal4" text="Salva" icon="sap-icon://save" type="Emphasized" press=".onSave"/>
       </OverflowToolbar>
     </footer>
 

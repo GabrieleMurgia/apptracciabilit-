@@ -21,3 +21,13 @@
 .alignTableButton .sapMTBStandard{
     border-bottom: none!important;
 }
+
+/* neutralizza eventuale bold ereditato (Screen3) */
+.hdrDynPair {
+  font-weight: normal;
+}
+
+/* extra safety: il valore non deve mai essere bold */
+.hdrDynVal {
+  font-weight: normal !important;
+}

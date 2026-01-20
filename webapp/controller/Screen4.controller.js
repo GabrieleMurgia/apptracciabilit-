@@ -1,4 +1,3 @@
-
 // webapp/controller/Screen4.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
@@ -60,6 +59,7 @@ this._hdrSortBtns = {};   // { FIELD: Button }
 
       var oDetail = new JSONModel({
         VendorId: "",
+        Header4Fields: [],
         Material: "",
         recordKey: "0",
         guidKey: "",
@@ -67,7 +67,7 @@ this._hdrSortBtns = {};   // { FIELD: Button }
         RowsAll: [],
         Rows: [],
         RowsCount: 0,
-        _mmct: { cat: "", s02: [] },
+        _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
         __dirty: false,
         __role: "",
@@ -75,7 +75,7 @@ this._hdrSortBtns = {};   // { FIELD: Button }
         __canEdit: false,
         __canAddRow: false,
         __canApprove: false,
-        __canReject: false
+        __canReject: false,
       });
 
       this.getView().setModel(oDetail, "detail");
@@ -509,6 +509,8 @@ this._hdrSortBtns = {};   // { FIELD: Button }
         Rows: [],
         RowsCount: 0,
         _mmct: { cat: "", s02: [] },
+        Header4Fields: [],
+_mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
         __dirty: false,
         __role: "",
@@ -559,6 +561,52 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       var aFields = (oCat && oCat.UserMMCTFields && oCat.UserMMCTFields.results) ? oCat.UserMMCTFields.results : [];
       return Array.isArray(aFields) ? aFields : [];
     },
+
+_isX: function (v) {
+  return String(v || "").trim().toUpperCase() === "X";
+},
+
+_parseOrder: function (c) {
+  var n = parseInt(String(c?.Ordinamento ?? c?.ORDINAMENTO ?? "").trim(), 10);
+  return isNaN(n) ? 9999 : n;
+},
+
+_cfgForScreen: function (sCat, sScreen) {
+  var a = this._getMmctCfgForCat(sCat) || [];
+  var sTarget = String(sScreen || "");
+  if (sTarget.length === 1) sTarget = "0" + sTarget;
+
+  var out = (a || [])
+    .filter(function (c) {
+      var lv = String(c.LivelloSchermata || "");
+      if (lv.length === 1) lv = "0" + lv;
+      return lv === sTarget;
+    })
+    .map(function (c) {
+      var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
+      if (!ui) return null;
+
+      var flags = this._getSettingFlags(c);
+      if (flags.hidden) return null;
+
+      return {
+        ui: ui,
+        label: (c.Descrizione || c.DESCRIZIONE || ui),
+        domain: String(c.Dominio ?? c.DOMINIO ?? c.Domain ?? c.DOMAIN ?? "").trim(),
+        required: !!flags.required,
+        locked: !!flags.locked,
+        multiple: this._isMultipleField(c),
+        order: this._parseOrder(c),
+        testata2: this._isX(c.Testata2 ?? c.TESTATA2)
+      };
+    }.bind(this))
+    .filter(Boolean);
+
+  out.sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); });
+  return out;
+},
+
+
 
     _cfgForScreen02: function (sCat) {
       var a = this._getMmctCfgForCat(sCat) || [];
@@ -1012,7 +1060,20 @@ if (!sCat) {
 }
 
 // 2) cfg02 = quella del primo record (quindi colonne uguali)
-var aCfg02 = sCat ? this._cfgForScreen02(sCat) : [];
+var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
+
+// ===== HEADER DINAMICA SCREEN4 (Livello 00 + Testata2) =====
+var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
+var aHdr4 = (a00All || []).filter(function (f) { return !!(f && f.testata2); });
+
+// salvo in detail
+oDetail.setProperty("/_mmct/s00", a00All);
+oDetail.setProperty("/_mmct/hdr4", aHdr4);
+
+// salvo anche il record selezionato come sorgente valori header
+// (usa oRec/oSel che hai già in scope)
+oDetail.setProperty("/_mmct/rec", oRec || oSel || {});
+
 
 // 3) se hai trovato sCat ma cfg02 è ancora vuota, logga (vuol dire MMCT non caricato)
 if (sCat && !aCfg02.length) {
@@ -1087,6 +1148,8 @@ if (sCat) {
     oDetail.setProperty("/RowsAll", aSelected);
     oDetail.setProperty("/Rows", aSelected);
     oDetail.setProperty("/RowsCount", aSelected.length);
+
+    this._refreshHeader4Fields();
 
     this._log("[S4][_loadSelectedRecordRows] DONE", {
       cacheKey: sKey,
@@ -2339,6 +2402,39 @@ if (oMdc && typeof oMdc.initialized === "function") {
         MessageToast.show("Errore aggiunta riga");
       }
     },
+    _refreshHeader4Fields: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aHdr = oDetail.getProperty("/_mmct/hdr4") || [];
+
+  // sorgente valori: record selezionato (Screen3) + fallback prima riga dettaglio
+  var oRec = oDetail.getProperty("/_mmct/rec") || {};
+  var r0 = (oDetail.getProperty("/RowsAll") || [])[0] || {};
+
+  function getVal(k){
+    if (oRec && oRec[k] != null && oRec[k] !== "") return oRec[k];
+    if (r0 && r0[k] != null && r0[k] !== "") return r0[k];
+    return "";
+  }
+
+  var a = (aHdr || [])
+    .slice()
+    .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
+    .map(function (f) {
+      var k = String(f.ui || "").trim();
+      return {
+        key: k,
+        label: f.label || k,
+        value: this._valToText(getVal(k))
+      };
+    }.bind(this));
+
+  // (opzionale) se NON vuoi Fornitore in testata:
+  a = a.filter(function(x){ return String(x.key).toUpperCase() !== "FORNITORE"; });
+
+  oDetail.setProperty("/Header4Fields", a);
+  this._log("_refreshHeader4Fields", { hdr4: aHdr.length, out: a.length });
+},
+
 
     // =========================
     // NavBack
@@ -2360,3 +2456,4 @@ if (oMdc && typeof oMdc.initialized === "function") {
   });
 });
  
+

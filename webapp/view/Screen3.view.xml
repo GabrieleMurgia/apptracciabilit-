@@ -1,4 +1,3 @@
-<!-- webapp/view/Screen3.view.xml -->
 <mvc:View
   id="screen3View"
   controllerName="apptracciabilita.apptracciabilita.controller.Screen3"
@@ -15,17 +14,15 @@
         <Bar id="bar3">
           <contentLeft>
             <Image id="imageLogo3" src="IMG/Valentino.png" decorative="false" width="200px"/>
-            <Button
-              id="buttonBack3"
-              icon="sap-icon://nav-back"
-              press=".onNavBack" />
+            <Button id="buttonBack3" icon="sap-icon://nav-back" press=".onNavBack"/>
           </contentLeft>
 
           <contentMiddle>
-            <Title id="title3" text="Tracciabilità" />
+            <Title id="title3" text="Tracciabilità"/>
           </contentMiddle>
 
           <contentRight>
+            <ToolbarSpacer id="bar3SpacerRight"/>
           </contentRight>
         </Bar>
       </Toolbar>
@@ -40,15 +37,30 @@
           width="100%"
           fitContainer="true"
           wrap="Wrap"
-          alignItems="Center"
+          alignItems="Baseline"
           visible="{= ${detail>/Header3Fields} &amp;&amp; ${detail>/Header3Fields}.length > 0 }"
           items="{detail>/Header3Fields}">
+
           <items>
-            <HBox id="hb" class="sapUiTinyMarginEnd" alignItems="Center">
-              <Label id="lab" text="{detail>label}:" class="sapUiTinyMarginEnd"/>
-              <Text id="tex" text="{detail>value}"/>
+            <HBox
+              id="hdr3PairTmpl"
+              class="hdrDynPair sapUiTinyMarginEnd sapUiTinyMarginBottom"
+              alignItems="Baseline">
+
+              <HBox
+                id="hdr3LblBoxTmpl"
+                width="9rem"
+                justifyContent="End"
+                class="sapUiTinyMarginEnd"
+                alignItems="Baseline">
+
+                <Label id="hdr3LblTmpl" text="{detail>label}:" design="Bold"/>
+              </HBox>
+
+              <Text id="hdr3ValTmpl" text="{detail>value}" class="hdrDynVal"/>
             </HBox>
           </items>
+
         </HBox>
 
       </OverflowToolbar>
@@ -58,11 +70,12 @@
       <VBox id="box3" width="100%">
 
         <!-- Toolbar: filtri stato + filtro testuale + bottoni -->
-        <HBox id="hboxToolbarTable3"
-              width="100%"
-              justifyContent="End"
-              alignItems="Center"
-              class="sapUiTinyMargin alignTableButton">
+        <HBox
+          id="hboxToolbarTable3"
+          width="100%"
+          justifyContent="End"
+          alignItems="Center"
+          class="sapUiTinyMargin alignTableButton">
 
           <HBox id="hboxToolbarTable3-1" class="left20">
 
@@ -79,7 +92,7 @@
                 press=".onStatusFilterPress"
                 class="sapUiTinyMarginEnd">
                 <customData>
-                  <core:CustomData key="status" value=""/>
+                  <core:CustomData id="cdStAll3" key="status" value=""/>
                 </customData>
               </ObjectStatus>
 
@@ -92,7 +105,7 @@
                 press=".onStatusFilterPress"
                 class="sapUiTinyMarginEnd">
                 <customData>
-                  <core:CustomData key="status" value="ST"/>
+                  <core:CustomData id="cdStST3" key="status" value="ST"/>
                 </customData>
               </ObjectStatus>
 
@@ -105,7 +118,7 @@
                 press=".onStatusFilterPress"
                 class="sapUiTinyMarginEnd">
                 <customData>
-                  <core:CustomData key="status" value="AP"/>
+                  <core:CustomData id="cdStAP3" key="status" value="AP"/>
                 </customData>
               </ObjectStatus>
 
@@ -118,7 +131,7 @@
                 press=".onStatusFilterPress"
                 class="sapUiTinyMarginEnd">
                 <customData>
-                  <core:CustomData key="status" value="RJ"/>
+                  <core:CustomData id="cdStRJ3" key="status" value="RJ"/>
                 </customData>
               </ObjectStatus>
 
@@ -130,7 +143,7 @@
                 active="true"
                 press=".onStatusFilterPress">
                 <customData>
-                  <core:CustomData key="status" value="CH"/>
+                  <core:CustomData id="cdStCH3" key="status" value="CH"/>
                 </customData>
               </ObjectStatus>
             </HBox>
@@ -138,28 +151,15 @@
             <!-- FILTRO TESTUALE -->
             <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
               <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
-              <Input id="inputFilter3"
-                     width="22rem"
-                     liveChange=".onGlobalFilter"
-                     placeholder="Filtro testuale su tutti i campi"/>
+              <Input
+                id="inputFilter3"
+                width="22rem"
+                liveChange=".onGlobalFilter"
+                placeholder="Filtro testuale su tutti i campi"/>
 
-              <Button
-                id="btnColFilters5"
-                icon="sap-icon://filter"
-                tooltip="Filtri per colonna"
-                press=".onOpenColumnFilters" />
-
-              <Button
-                id="btnSort5"
-                icon="sap-icon://sort"
-                tooltip="Ordinamento"
-                press=".onOpenSort" />
-
-              <Button
-                id="btnResetFS5"
-                icon="sap-icon://reset"
-                tooltip="Reset filtri/ordinamento"
-                press=".onResetFiltersAndSort" />
+              <Button id="btnColFilters5" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters"/>
+              <Button id="btnSort5" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort"/>
+              <Button id="btnResetFS5" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort"/>
             </HBox>
 
           </HBox>
@@ -167,13 +167,14 @@
           <!-- BOTTONI: print/excel (NO dialog) -->
           <Toolbar id="tblToolbar3" design="Transparent">
             <ToolbarSpacer id="footerToolbar532"/>
+
             <Button
               id="btnAddRow01"
               text="Aggiungi riga"
               type="Emphasized"
               icon="sap-icon://add"
               enabled="{detail>/__canAddRow}"
-              press=".onAddRow" />
+              press=".onAddRow"/>
 
             <Button
               id="btnDeleteRows01"
@@ -181,7 +182,7 @@
               type="Negative"
               icon="sap-icon://delete"
               enabled="{detail>/__canAddRow}"
-              press=".onDeleteRows" />
+              press=".onDeleteRows"/>
 
             <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
             <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
@@ -205,12 +206,7 @@
     <footer>
       <OverflowToolbar id="footerToolbar5">
         <ToolbarSpacer id="footerSpacer5"/>
-        <Button
-          id="btnSaveLocal5"
-          text="Salva"
-          icon="sap-icon://save"
-          type="Emphasized"
-          press=".onSave"/>
+        <Button id="btnSaveLocal5" text="Salva" icon="sap-icon://save" type="Emphasized" press=".onSave"/>
       </OverflowToolbar>
     </footer>
 

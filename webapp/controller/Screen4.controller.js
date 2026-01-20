@@ -386,9 +386,9 @@ this._hdrSortBtns = {};   // { FIELD: Button }
 
       if (sRole === "E" && sStatus !== "AP") {
         var aRowsAll = oDetail.getProperty("/RowsAll") || [];
-        this._applyGroupStatusToRows(aRowsAll, "CH", false);
+/*         this._applyGroupStatusToRows(aRowsAll, "CH", false);
 
-        oDetail.setProperty("/__status", "CH");
+        oDetail.setProperty("/__status", "CH"); */
         oDetail.setProperty("/__canEdit", true);
         oDetail.setProperty("/__canAddRow", true);
         oDetail.setProperty("/__canApprove", false);
@@ -932,7 +932,7 @@ _loadSelectedRecordRows: function (fnDone) {
       oSynth.Fibra = sF;
 
       // stato “editable” per fornitore
-      if (!oSynth.Stato) oSynth.Stato = "CH";
+      if (!oSynth.Stato){/* oSynth.Stato = "CH"; */}
       if (oSynth.Approved == null) oSynth.Approved = 0;
       if (oSynth.ToApprove == null) oSynth.ToApprove = 1;
       if (oSynth.Rejected == null) oSynth.Rejected = 0;
@@ -2052,8 +2052,8 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var sRole = String(oDetail.getProperty("/__role") || "").trim().toUpperCase();
         var sStatus = String(oDetail.getProperty("/__status") || "").trim().toUpperCase();
         if (sRole === "E" && sStatus !== "AP") {
-          this._applyGroupStatusToRows(aRemain, "CH", false);
-          oDetail.setProperty("/__status", "CH");
+          /* this._applyGroupStatusToRows(aRemain, "CH", false);
+          oDetail.setProperty("/__status", "CH"); */
           oDetail.setProperty("/__canEdit", true);
           oDetail.setProperty("/__canAddRow", true);
           oDetail.setProperty("/__canApprove", false);
@@ -2079,7 +2079,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 
         if (sRole === "E" && oDetail.getProperty("/__status") === "CH") {
-          this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH");
+        /*   this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH"); */
         }
 
         this._applyUiPermissions();
@@ -2269,7 +2269,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         delete oNew.__metadata;
         oNew.__readOnly = false;
 
-        oNew.Stato = "CH";
+       /*  oNew.Stato = "CH"; */
         oNew.Approved = 0;
         oNew.Rejected = 0;
         oNew.ToApprove = 1;
@@ -2292,13 +2292,13 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aRowsAll2 = aRowsAll.slice();
         var aRows2 = Array.isArray(aRows) ? aRows.slice() : [];
 
-        this._applyGroupStatusToRows(aRowsAll2, "CH", false);
+       /*  this._applyGroupStatusToRows(aRowsAll2, "CH", false); */
 
         aRowsAll2.push(oNew);
         aRows2.push(oNew);
 
         oDetail.setProperty("/RowsAll", aRowsAll2);
-        oDetail.setProperty("/__status", "CH");
+       /*  oDetail.setProperty("/__status", "CH"); */
         oDetail.setProperty("/__canEdit", true);
         oDetail.setProperty("/__canAddRow", true);
         oDetail.setProperty("/__canApprove", false);
@@ -2316,7 +2316,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
 
         aCacheAll.forEach(function (r) {
           if (this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel) {
-            r.Stato = "CH";
+            /* r.Stato = "CH"; */
             r.Approved = 0;
             r.Rejected = 0;
             r.ToApprove = 1;
@@ -2329,7 +2329,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 
         var sRole = String(oDetail.getProperty("/__role") || "").trim().toUpperCase();
-        this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH");
+       /*  this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH"); */
 
         this._applyUiPermissions();
         this._applyFiltersAndSort();

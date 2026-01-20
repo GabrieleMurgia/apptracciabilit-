@@ -97,15 +97,20 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       this._setupDebugMdcHooks();
     },
 
+    onOpenSort: function () {
+      this.onToggleHeaderSort();
+    },
     onToggleHeaderSort: function () {
-  var oUi = this.getView().getModel("ui");
-  if (!oUi) return;
-  oUi.setProperty("/showHeaderSort", !oUi.getProperty("/showHeaderSort"));
+      var oUi = this.getView().getModel("ui");
+      if (!oUi) return;
 
-  // reinietta header (per sicurezza dopo rebind/p13n)
-  this._injectHeaderFilters("toggleSort");
-  this._refreshHeaderSortIcons();
-},
+      var bNow = !!oUi.getProperty("/showHeaderSort");
+      oUi.setProperty("/showHeaderSort", !bNow);
+
+      
+      var oTbl = this.byId("mdcTable4");
+      this._applyInlineHeaderFilterSort(oTbl);
+    },
 
 
     onExit: function () {
@@ -1905,76 +1910,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
       MessageToast.show(bNew ? "Filtri colonna mostrati" : "Filtri colonna nascosti");
     },
 
-    // =========================
-    // Sort dialog (come prima)
-    // =========================
-    onOpenSort: function () {
-      var oDetail = this.getView().getModel("detail");
-      var aCfg02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
-      var that = this;
-
-      sap.ui.require(["sap/m/Dialog", "sap/m/Button", "sap/m/VBox", "sap/m/Label"], function (Dialog, Button, VBoxDlg, Label) {
-        try {
-          if (that._dlgSort) {
-            that._syncSortDialogFromState();
-            that._dlgSort.open();
-            return;
-          }
-
-          var vbox = new VBoxDlg({ width: "100%", renderType: "Bare" });
-
-          var cbField = new ComboBox({ width: "24rem", allowCustomValues: false, placeholder: "Campo..." });
-          (aCfg02 || []).forEach(function (f) {
-            if (!f || !f.ui) return;
-            cbField.addItem(new Item({ key: String(f.ui), text: String(f.label || f.ui) }));
-          });
-
-          var cbDir = new ComboBox({ width: "24rem", allowCustomValues: false });
-          cbDir.addItem(new Item({ key: "ASC", text: "Ascendente" }));
-          cbDir.addItem(new Item({ key: "DESC", text: "Discendente" }));
-
-          that._sortCtrls = { field: cbField, dir: cbDir };
-
-          vbox.addItem(new Label({ text: "Ordina per", width: "100%" }));
-          vbox.addItem(cbField);
-          vbox.addItem(new Label({ text: "Direzione", width: "100%", class: "sapUiTinyMarginTop" }));
-          vbox.addItem(cbDir);
-
-          var dlg = new Dialog({
-            title: "Ordinamento",
-            contentWidth: "30rem",
-            content: [vbox],
-            beginButton: new Button({
-              text: "Applica",
-              type: "Emphasized",
-              press: function () {
-                that._readSortDialogToState();
-                that._applyFiltersAndSort();
-                dlg.close();
-              }
-            }),
-            endButton: new Button({
-              text: "Reset",
-              press: function () {
-                that._sortState = null;
-                that._syncSortDialogFromState(true);
-                that._applyFiltersAndSort();
-              }
-            })
-          });
-
-          that.getView().addDependent(dlg);
-          that._dlgSort = dlg;
-
-          that._syncSortDialogFromState();
-          dlg.open();
-
-        } catch (e) {
-          console.error("[S4] onOpenSort ERROR", e);
-          MessageToast.show("Errore apertura ordinamento");
-        }
-      });
-    },
 
     _syncSortDialogFromState: function (bClear) {
       var s = bClear ? null : this._sortState;

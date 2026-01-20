@@ -43,15 +43,12 @@
           <items>
             <HBox
               id="hdr4PairTmpl"
-              class="hdrDynPair sapUiTinyMarginEnd sapUiTinyMarginBottom"
-              alignItems="Baseline">
+              class="hdrDynPair "
+              >
 
               <HBox
                 id="hdr4LblBoxTmpl"
-                width="9rem"
-                justifyContent="End"
-                class="sapUiTinyMarginEnd"
-                alignItems="Baseline">
+            >
 
                 <Label id="hdr4LblTmpl" text="{detail>label}:" design="Bold"/>
               </HBox>

@@ -1,5 +1,4 @@
 
-// webapp/controller/Screen2.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -19,7 +18,7 @@ sap.ui.define([
   function looksLikeMatCode(s) {
     s = safeStr(s).trim();
     if (!s) return false;
-    if (/\s/.test(s)) return false;              // no spazi
+    if (/\s/.test(s)) return false;             
     if (!/^[A-Za-z0-9._-]+$/.test(s)) return false;
     // tipico MATNR/custom code: abbastanza lungo
     return s.length >= 6;
@@ -38,7 +37,7 @@ sap.ui.define([
     // se desc non è un “codice”, non usarlo come key
     if (!looksLikeMatCode(desc)) return mat;
 
-    // se mat sembra un codice ma è diverso, spesso DataSet usa la variante (es. ...SVS)
+    // se mat sembra un codice ma è diverso, spesso DataSet usa la variante
     if (looksLikeMatCode(mat) && desc !== mat) return desc;
 
     return mat;
@@ -114,13 +113,8 @@ sap.ui.define([
         this._log("[MOCK FILE] loading MaterialDataSet.json", { userId: sUserId, vendorId: sVendorWanted });
 
         MockData.loadMaterialDataSetGeneric().then(function (aAll) {
-          debugger
           // filtro per UserID + Fornitore
-          var aFiltered = aAll /* (aAll || []).filter(function (r) {
-            var u = String((r && (r.UserID || r.UserId)) || "").trim();
-            var v = MockData.padVendor(r && (r.Fornitore || r.Vendor || r.Lifnr));
-            return u === sUserId && v === sVendorWanted;
-          }); */
+          var aFiltered = aAll
 
           var aMaterials = aFiltered.map(function (m) {
             var keyForDataSet = chooseMaterialKey(m);

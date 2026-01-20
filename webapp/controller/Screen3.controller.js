@@ -1,4 +1,3 @@
-// webapp/controller/Screen3.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -22,7 +21,7 @@ sap.ui.define([
   "sap/ui/export/Spreadsheet",
   "sap/ui/export/library",
 
-  // ===== UTIL (NUOVI) =====
+  // ===== UTIL =====
   "apptracciabilita/apptracciabilita/util/common",
   "apptracciabilita/apptracciabilita/util/vmCache",
   "apptracciabilita/apptracciabilita/util/domains",
@@ -54,7 +53,7 @@ sap.ui.define([
   Spreadsheet,
   exportLibrary,
 
-  // ===== UTIL (NUOVI) =====
+  // ===== UTIL =====
   Common,
   VmCache,
   Domains,
@@ -69,7 +68,6 @@ sap.ui.define([
 
   var EdmType = exportLibrary.EdmType;
 
-  // usa util
   var ts = Common.ts;
   var deepClone = Common.deepClone;
 
@@ -81,7 +79,6 @@ sap.ui.define([
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.getRoute("Screen3").attachPatternMatched(this._onRouteMatched, this);
 
-      //  UI MODEL (come Screen4): toggle filtri header + toggle sort header
       this.getView().setModel(new JSONModel({
         showHeaderFilters: false,
         showHeaderSort: true
@@ -103,12 +100,10 @@ sap.ui.define([
 
       this._snapshotRecords = null;
 
-      // Solo header filter/sort (NO dialog)
       this._inlineFS = {
         filters: {},
         sort: { key: "", desc: false },
 
-        // cache controlli header
         sortBtns: {},
         filterInputs: {},
         headerTitles: {},
@@ -162,7 +157,6 @@ sap.ui.define([
 
       this._snapshotRecords = null;
 
-      //  reset toggles header (default come Screen4)
       var oUi = this.getView().getModel("ui");
       if (oUi) {
         oUi.setProperty("/showHeaderFilters", false);
@@ -183,7 +177,6 @@ sap.ui.define([
         __statusFilter: ""
       }, true);
 
-      // reset totale FS header
       this._inlineFS = {
         filters: {},
         sort: { key: "", desc: false },
@@ -202,7 +195,7 @@ sap.ui.define([
     },
 
     // =========================
-    //  BUTTONS HEADER (NO DIALOG)
+    //  BUTTONS HEADER 
     // =========================
     _setInnerHeaderHeight: function (oMdcTbl) {
       try {
@@ -222,7 +215,6 @@ sap.ui.define([
       var oTbl = this.byId("mdcTable3");
       this._setInnerHeaderHeight(oTbl);
 
-      // re-apply per sicurezza (P13N / rebind)
       this._applyInlineHeaderFilterSort(oTbl);
     },
 
@@ -233,12 +225,10 @@ sap.ui.define([
       var bNow = !!oUi.getProperty("/showHeaderSort");
       oUi.setProperty("/showHeaderSort", !bNow);
 
-      // re-apply per sicurezza (P13N / rebind)
       var oTbl = this.byId("mdcTable3");
       this._applyInlineHeaderFilterSort(oTbl);
     },
 
-    //  ALIAS per i bottoni “Filtri per colonna” / “Ordinamento” nella toolbar (stessa logica inline header)
     onOpenColumnFilters: function () {
       this.onToggleHeaderFilters();
     },
@@ -367,7 +357,7 @@ sap.ui.define([
     _refreshHeader3Fields: function () {
       var oDetail = this.getView().getModel("detail");
       var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
-      var r0 = oDetail.getProperty("/_mmct/raw0") || {}; // <-- QUI
+      var r0 = oDetail.getProperty("/_mmct/raw0") || {}; 
 
       var a = (aHdr || [])
         .slice()
@@ -397,17 +387,17 @@ sap.ui.define([
       var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
       var aHdr3 = (a00All || [])
         .filter(function (f) { return !!(f && f.testata1); })
-        .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; }); // NO Fornitore
+        .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; }); 
 
       // 01 = TABELLA (Screen3)
       var a01All = sCat ? this._cfgForScreen(sCat, "01") : [];
       var a01Table = (a01All || [])
-        .filter(function (f) { return !(f && f.testata1); }); // se per caso arrivasse testata1 anche su 01
+        .filter(function (f) { return !(f && f.testata1); }); 
 
       // 02 = Screen4
       var a02All = sCat ? this._cfgForScreen(sCat, "02") : [];
 
-      // IMPORTANT: salvo anche raw0 per la testata (più stabile di RecordsAll[0])
+      
       oDetail.setProperty("/_mmct", {
         cat: sCat,
         raw0: r0,
@@ -701,7 +691,7 @@ sap.ui.define([
         c.destroy();
       });
 
-      // 1) NAV colonna (sempre prima)
+      // 1) NAV colonna 
       oTbl.addColumn(new MdcColumn({
         header: "Dettaglio",
         visible: true,
@@ -714,7 +704,7 @@ sap.ui.define([
         })
       }));
 
-      // 2) STATO (sempre seconda)
+      // 2) STATO 
       this._colStatoS3 = new MdcColumn({
         width: "70px",
         header: "Stato",
@@ -755,7 +745,7 @@ sap.ui.define([
     },
 
     // =========================
-    // FILTER STATUS + TEXT + per-colonna + sort (client side)
+    // FILTER STATUS + TEXT + per-colonna + sort 
     // =========================
     _getCustomDataValue: function (oCtrl, sKey) {
       try {
@@ -927,7 +917,6 @@ sap.ui.define([
       var aMdcCols = (oMdcTbl.getColumns && oMdcTbl.getColumns()) || [];
       var aInnerCols = oInner.getColumns() || [];
 
-      // helper: prova a capire la key vera di una inner column (GridTable/Responsive)
       function normInnerKey(col) {
         var k = "";
         try {
@@ -936,11 +925,10 @@ sap.ui.define([
         } catch (e) { }
 
         k = String(k || "").trim();
-        if (k.indexOf(">") >= 0) k = k.split(">").pop(); // "detail>FIELD" -> "FIELD"
+        if (k.indexOf(">") >= 0) k = k.split(">").pop(); 
         return String(k || "").trim();
       }
 
-      // mappa inner columns per key (molto più stabile dell’indice)
       var mInnerByKey = {};
       aInnerCols.forEach(function (c) {
         var k = normInnerKey(c);
@@ -960,13 +948,10 @@ sap.ui.define([
 
       var oUiModel = this.getView().getModel("ui");
 
-      // fallback “soft” per casi strani: se non troviamo per key, proviamo per indice
-      // ma SOLO se l’inner col supporta setLabel/setHeader
       function fallbackInnerByIndex(iMdc) {
         var col = aInnerCols[iMdc] || null;
         if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
 
-        // prova a shiftare di 1 se c’è una colonna extra (selezione/row actions)
         col = aInnerCols[iMdc + 1] || null;
         if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
 
@@ -983,11 +968,10 @@ sap.ui.define([
           )) || "";
 
         sField = String(sField || "").trim();
-        if (!sField) continue; // es. colonna "Dettaglio"
+        if (!sField) continue; 
 
         var sHeader = (typeof mdcCol.getHeader === "function" && mdcCol.getHeader()) || sField;
 
-        // trova inner col per key (preferito), altrimenti fallback per indice
         var innerCol = mInnerByKey[sField] || mInnerByKey[sField.toUpperCase()] || null;
         if (!innerCol) innerCol = fallbackInnerByIndex(i);
 
@@ -1008,7 +992,7 @@ sap.ui.define([
           if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
         }
 
-        // --- Filter Input (riuso) ---
+        // --- Filter Input ---
         var oInp = this._inlineFS.filterInputs[sField];
         if (!oInp) {
           oInp = new Input({
@@ -1023,11 +1007,10 @@ sap.ui.define([
           if (oInp.bindProperty) oInp.bindProperty("visible", "ui>/showHeaderFilters");
         }
 
-        // riallineo valore input allo stato filtri
         var wantedVal = String((this._inlineFS.filters && this._inlineFS.filters[sField]) || "");
         if (oInp.getValue && oInp.getValue() !== wantedVal) oInp.setValue(wantedVal);
 
-        // --- Title (riuso) ---
+        // --- Title ---
         var oTitle = this._inlineFS.headerTitles[sField];
         if (!oTitle) {
           oTitle = new Text({ text: (typeof sHeader === "string" ? sHeader : sField), wrapping: false });
@@ -1036,7 +1019,7 @@ sap.ui.define([
           oTitle.setText(typeof sHeader === "string" ? sHeader : sField);
         }
 
-        // --- Header row + box (riuso) ---
+        // --- Header row + box ---
         var oH = this._inlineFS.headerRows[sField];
         if (!oH) {
           oH = new HBox({
@@ -1123,7 +1106,6 @@ sap.ui.define([
       this._refreshInlineSortIcons();
       this._applyClientFilters();
 
-      // pulisce anche i valori input negli header
       var oTbl = this.byId("mdcTable3");
       this._applyInlineHeaderFilterSort(oTbl);
       this._setInnerHeaderHeight(oTbl);
@@ -1138,16 +1120,11 @@ sap.ui.define([
       BusyIndicator.show(0);
 
       try {
-        // ==========================================================
-        // 0) PRENDO LE DUE VARIABILI COME MI HAI DETTO TU
-        // ==========================================================
         let so = this.getOwnerComponent().getModel("vm");
 
-        // ⚠️ fragile per definizione (ordine Object.values non garantito)
         let recordsScreen4 = Object.values(so.getData().cache.dataRowsByKey)[1] || so.getProperty("/cache/dataRowsByKey/" + this._getExportCacheKey()) || [];
         let recordsScreen3 = this.getView().getModel("detail").getData().Records || [];
 
-        // normalizzo
         recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
         recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
@@ -1157,7 +1134,7 @@ sap.ui.define([
         }
 
         // ==========================================================
-        // 1) FUNZIONI UTILI: GUID + FIBRA  (chiave vera del tuo aggregato)
+        // 1) FUNZIONI UTILI: GUID + FIBRA
         // ==========================================================
         function norm(v) { return String(v == null ? "" : v).trim(); }
 
@@ -1192,10 +1169,9 @@ sap.ui.define([
 
         // ==========================================================
         // 3) MERGE: per OGNI riga di Screen4 -> aggiungo campi Screen3
-        //    Output righe = recordsScreen4.length  ✅
+        //    Output righe = recordsScreen4.length  
         // ==========================================================
         let mergedRows = recordsScreen4.map(function (r4) {
-          // copia shallow della row Screen4
           let out = Object.assign({}, r4);
 
           let k = keyOf(out);
@@ -1219,7 +1195,6 @@ sap.ui.define([
               }
             });
 
-            // Stato: Screen3 spesso ce l'ha in __status
             if (isEmpty(out.Stato)) {
               out.Stato = parent.__status || parent.Stato || out.Stato || "";
             }
@@ -1246,7 +1221,6 @@ sap.ui.define([
           return this._mapRawRowToExportObject(r, aColumns);
         }.bind(this));
 
-        // applichi filtri/sort della Screen3
         aData = this._applyExportClientFiltersAndSort(aData);
 
         if (!aData.length) {
@@ -1286,7 +1260,6 @@ sap.ui.define([
       var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
       var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
 
-      // base columns sempre presenti
       var aCols = [];
       var mSeen = {};
 
@@ -1310,13 +1283,12 @@ sap.ui.define([
       add("Stato", "Stato");
       add("Stato testo", "StatoText");
 
-      // prima Screen3 (01), poi Screen4 (02)
       var addFromCfg = function (arr) {
         (arr || []).forEach(function (f) {
           if (!f || !f.ui) return;
           var p = String(f.ui).trim();
           if (!p) return;
-          if (p.toUpperCase() === "STATO") p = "Stato"; // normalizzo
+          if (p.toUpperCase() === "STATO") p = "Stato"; 
           add(f.label || p, p);
         });
       };
@@ -1330,7 +1302,6 @@ sap.ui.define([
     _mapRawRowToExportObject: function (r, aColumns) {
       r = r || {};
 
-      // calcolo stato per singola riga RAW (coerente con la logica di Screen3)
       var sStato = this._deriveRowStatusForExport(r);
 
       var o = {};
@@ -1382,7 +1353,6 @@ sap.ui.define([
         });
       }
 
-      // global search
       if (q) {
         aData = aData.filter(function (r) {
           return Object.keys(r || {}).some(function (k) {
@@ -1393,7 +1363,6 @@ sap.ui.define([
         });
       }
 
-      // filtri per-colonna (header inline)
       var mCol = (this._inlineFS && this._inlineFS.filters) || {};
       var aKeys = Object.keys(mCol).filter(function (k) {
         return String(mCol[k] || "").trim() !== "";
@@ -1462,7 +1431,6 @@ sap.ui.define([
 
       var aAll = oDetail.getProperty("/RecordsAll") || [];
 
-      // idx stabile (NON usare l'indice array)
       var iMax = -1;
       (aAll || []).forEach(function (r) {
         var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
@@ -1477,7 +1445,6 @@ sap.ui.define([
       var oNewRow = {
         idx: iNewIdx,
 
-        // metto TUTTE e 3 per compatibilità con codice esistente
         GUID: sGuidNew,
         Guid: sGuidNew,
         guidKey: sGuidNew,
@@ -1497,7 +1464,6 @@ sap.ui.define([
         __state: "NEW"
       };
 
-      // inizializza campi dinamici MMCT (evita undefined, soprattutto per MultiCombo -> [])
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       (aCfg01 || []).forEach(function (f) {
         if (!f || !f.ui) return;
@@ -1508,7 +1474,6 @@ sap.ui.define([
         oNewRow[k] = f.multiple ? [] : "";
       });
 
-      // aggiungi in testa
       aAll.push(oNewRow);
       oDetail.setProperty("/RecordsAll", aAll);
 

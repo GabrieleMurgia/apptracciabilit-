@@ -1,4 +1,3 @@
-// webapp/controller/Screen4.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -63,12 +62,12 @@ sap.ui.define([
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.getRoute("Screen4").attachPatternMatched(this._onRouteMatched, this);
 
-      // UI model per show/hide filtri dentro header
-this.getView().setModel(new JSONModel({
-  showHeaderFilters: false,
-  showHeaderSort: true
-}), "ui");
-this._hdrSortBtns = {};   // { FIELD: Button }
+ 
+      this.getView().setModel(new JSONModel({
+      showHeaderFilters: false,
+      showHeaderSort: true
+      }), "ui");
+      this._hdrSortBtns = {};   
 
 
       var oDetail = new JSONModel({
@@ -97,17 +96,15 @@ this._hdrSortBtns = {};   // { FIELD: Button }
 
       // UI state (filters/sort)
       this._globalQuery = "";
-      this._colFilters = {};   // { FIELD: { type:"text"|"keys"|"key", value: ... } }
-      this._sortState = null;  // { key:"FIELD", desc:false }
+      this._colFilters = {};   
+      this._sortState = null;  
       this._sortCtrls = {};
 
-      // Header-filters infra (controlli inseriti dentro header colonne della inner table)
       this._hdrFilter = {
-        boxesByKey: {},   // { FIELD: { box, lbl, ctrl } }
+        boxesByKey: {},   
         seenLast: {}      // per cleanup
       };
 
-      // DEBUG HOOKS MDC/INNER TABLE
       this._setupDebugMdcHooks();
     },
 
@@ -131,7 +128,6 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       try {
         if (this._dlgSort) { this._dlgSort.destroy(); this._dlgSort = null; }
 
-        // distruggi header filter box/ctrl creati manualmente
         if (this._hdrFilter && this._hdrFilter.boxesByKey) {
           Object.keys(this._hdrFilter.boxesByKey).forEach(function (k) {
             var p = this._hdrFilter.boxesByKey[k];
@@ -185,7 +181,6 @@ _dbg: function () {
           this._dbg("attachBeforeRebindTable not available (ok if UI5 version differs)");
         }
 
-        // appena MDC è initialized prova a vedere la inner table e le colonne
         if (typeof oMdc.initialized === "function") {
           oMdc.initialized().then(function () {
             this._dbg("mdcTable4 initialized()");
@@ -197,7 +192,6 @@ _dbg: function () {
                 hasRowsUpdated: typeof oInner.attachRowsUpdated === "function"
               });
 
-              // logga aggiornamenti righe: indica che la table è “viva”
               if (typeof oInner.attachRowsUpdated === "function" && !oInner.__dbgRowsAttached) {
                 oInner.__dbgRowsAttached = true;
                 oInner.attachRowsUpdated(function () {
@@ -304,9 +298,6 @@ _dbg: function () {
 
       if (sRole === "E" && sStatus !== "AP") {
         var aRowsAll = oDetail.getProperty("/RowsAll") || [];
-/*         this._applyGroupStatusToRows(aRowsAll, "CH", false);
-
-        oDetail.setProperty("/__status", "CH"); */
         oDetail.setProperty("/__canEdit", true);
         oDetail.setProperty("/__canAddRow", true);
         oDetail.setProperty("/__canApprove", false);
@@ -315,7 +306,6 @@ _dbg: function () {
         var sKey = this._getCacheKeySafe();
         var sGuid = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibra = this._toStableString(oDetail.getProperty("/Fibra"));
-        /* this._updateVmRecordStatus(sKey, sGuid, sFibra, sRole, "CH"); */
       }
 
       this._applyUiPermissions();
@@ -756,9 +746,7 @@ _loadSelectedRecordRows: function (fnDone) {
       hasSel: !!oSel
     });
 
-    // --- 1) find rows for this guidKey (robusto) ---
     var aByGuid = aAllRows.filter(function (r) {
-      // usa il tuo helper + fallback su r.guidKey
       var g = this._toStableString(this._rowGuidKey(r)) || this._toStableString(r && r.guidKey);
       return this._toStableString(g) === this._toStableString(sGuidKey);
     }.bind(this));
@@ -773,7 +761,6 @@ _loadSelectedRecordRows: function (fnDone) {
     if (!aByGuid.length) {
       var oSynth = Common.deepClone(oSel || oRec) || {};
 
-      // forza campi guid per farti matchare sempre _rowGuidKey
       oSynth.guidKey = sGuidKey;
       oSynth.Guid = sGuidKey;
       oSynth.GUID = sGuidKey;
@@ -859,23 +846,18 @@ _loadSelectedRecordRows: function (fnDone) {
 // --- CAT + CFG02 (USA SEMPRE LE COLONNE DEL PRIMO RECORD DI SCREEN3) ---
 var r0 = aSelected[0] || {};
 
-// 0) prova col cat del record selezionato
 var sCat = pickCat(r0) || pickCat(oRec) || (oSel ? pickCat(oSel) : "") || "";
 
-// 1) se manca, prendilo dal "primo record" in cache (quello di Screen3)
 if (!sCat) {
-  // prima prova dalle RIGHE (backend/cache)
   var oFirstRowWithCat = (aAllRows || []).find(function (r) { return !!pickCat(r); });
   if (oFirstRowWithCat) sCat = pickCat(oFirstRowWithCat);
 
-  // poi prova dai RECORD (lista Screen3)
   if (!sCat) {
     var oFirstRecWithCat = (aRecords || []).find(function (r) { return !!pickCat(r); });
     if (oFirstRecWithCat) sCat = pickCat(oFirstRecWithCat);
   }
 }
 
-// 2) cfg02 = quella del primo record (quindi colonne uguali)
 var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
 
 // ===== HEADER DINAMICA SCREEN4 (Livello 00 + Testata2) =====
@@ -886,19 +868,16 @@ var aHdr4 = (a00All || []).filter(function (f) { return !!(f && f.testata2); });
 oDetail.setProperty("/_mmct/s00", a00All);
 oDetail.setProperty("/_mmct/hdr4", aHdr4);
 
-// salvo anche il record selezionato come sorgente valori header
-// (usa oRec/oSel che hai già in scope)
+
 oDetail.setProperty("/_mmct/rec", oRec || oSel || {});
 
 
-// 3) se hai trovato sCat ma cfg02 è ancora vuota, logga (vuol dire MMCT non caricato)
 if (sCat && !aCfg02.length) {
   this._log("[S4][_loadSelectedRecordRows] WARN cfg02 EMPTY even with CatMateriale", {
     cacheKey: sKey, cat: sCat, firstRecCat: (aRecords && aRecords[0]) ? pickCat(aRecords[0]) : ""
   });
 }
 
-// 4) se proprio non hai cfg02 (caso estremo), fai fallback MA basato sul primo record/riga (non sul new)
 if (!aCfg02.length) {
   var oBase = (aAllRows || [])[0] || (aRecords || [])[0] || r0 || oRec || {};
   aCfg02 = buildCfgFallbackFromObject(oBase);
@@ -927,10 +906,9 @@ if (sCat) {
 
     // se MMCT non c’è -> fallback colonne da chiavi riga/record
     if (!aCfg02.length) {
-      // preferisci la riga (contiene i campi “veri” che vuoi mostrare)
+      
       aCfg02 = buildCfgFallbackFromObject(r0);
 
-      // se la riga è povera, unisci anche chiavi del record
       if (aCfg02.length <= 1) {
         var a2 = buildCfgFallbackFromObject(oRec);
         var m = {};
@@ -954,7 +932,6 @@ if (sCat) {
       });
     }
 
-    // salva mmct in modo “safe” (NO replace oggetto intero)
     oDetail.setProperty("/_mmct/cat", sCat);
     oDetail.setProperty("/_mmct/s02", aCfg02);
 
@@ -1100,7 +1077,6 @@ if (sCat) {
       await this._forceP13nAllVisible(oTbl, "t0");
       setTimeout(function () { this._forceP13nAllVisible(oTbl, "t300"); }.bind(this), 300);
 
-      // >>> INIETTA FILTRI DENTRO HEADER (inner GridTable) <<<
       var oMdc = this.byId("mdcTable4");
 var that = this;
 
@@ -1326,31 +1302,6 @@ if (this._sortState && this._sortState.key) {
       try { oCtrl.data("hdrFilterKey", sKey); } catch (e) {  }
       return oCtrl;
     },
-
-   /*  _ensureHeaderBoxForKey: function (sKey, fMeta) {
-      if (!this._hdrFilter) this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-
-      var p = this._hdrFilter.boxesByKey[sKey];
-      var sHeader = (fMeta && (fMeta.label || fMeta.ui)) ? String(fMeta.label || fMeta.ui) : String(sKey);
-      if (fMeta && fMeta.required) sHeader += " *";
-
-      if (!p || !p.box || p.box.bIsDestroyed) {
-        var oLbl = new Text({ text: sHeader, wrapping: true });
-        var oCtrl = this._createHeaderFilterCtrl(sKey, fMeta);
-
-        var oBox = new VBox({
-          width: "100%",
-          renderType: "Bare",
-          items: [oLbl, oCtrl]
-        });
-
-        this._hdrFilter.boxesByKey[sKey] = { box: oBox, lbl: oLbl, ctrl: oCtrl };
-      } else {
-        p.lbl.setText(sHeader);
-      }
-
-      return this._hdrFilter.boxesByKey[sKey];
-    }, */
     _ensureHeaderBoxForKey: function (sKey, fMeta) {
   if (!this._hdrFilter) this._hdrFilter = { boxesByKey: {}, seenLast: {} };
 
@@ -1496,10 +1447,8 @@ var bCanUseIndexMap = Array.isArray(aMdcCols) && aMdcCols.length === aInnerCols.
 aInnerCols.forEach(function (c, i) {
   if (!c) return;
 
-  // 1) prova a leggere la key dalla inner column (spesso vuota)
   var sKey = this._normKeyFromInnerCol(c);
 
-  // 2) fallback: usa la corrispondente colonna MDC (mappa per indice)
   if (!sKey && bCanUseIndexMap && aMdcCols[i]) {
     var mdcCol = aMdcCols[i];
     sKey =
@@ -1531,14 +1480,12 @@ aInnerCols.forEach(function (c, i) {
 
 }.bind(this));
 
-// se okKeys è 0, per te non è un "success" vero: forza retry
 if (!okKeys) {
   this._dbg("inject attempt FAIL: 0 keys resolved", { reason: reason, attempt: attempt });
   return false;
 }
 
 
-        // cleanup box non piu' presenti
         var boxes = (this._hdrFilter && this._hdrFilter.boxesByKey) || {};
         Object.keys(boxes).forEach(function (k) {
           if (!seen[k]) {
@@ -1547,12 +1494,10 @@ if (!okKeys) {
           }
         });
 
-        // header height coerente con show/hide
         var oUi = this.getView().getModel("ui");
         var bShow = !!(oUi && oUi.getProperty("/showHeaderFilters"));
         this._setInnerHeaderHeight(oInner, bShow);
 
-        // allinea stato controlli ai filtri correnti
         this._syncHeaderFilterCtrlsFromState(false);
 
         this._dbg("inject SUCCESS", {
@@ -1568,7 +1513,6 @@ if (!okKeys) {
         return true;
       }.bind(this);
 
-      // attendo initialized + qualche retry (perche' la inner table e le colonne arrivano dopo rebind)
       var doLater = function (attempt) {
         var ok = tryDo(attempt);
         if (!ok && attempt < 6) {
@@ -1585,7 +1529,6 @@ if (!okKeys) {
       }
     },
 
-    // Bottone "filtri per colonna" -> show/hide dentro header
     onOpenColumnFilters: function () {
       this._dbg("CLICK onOpenColumnFilters()");
       var oUi = this.getView().getModel("ui");
@@ -1597,7 +1540,6 @@ if (!okKeys) {
 
       if (oUi) oUi.setProperty("/showHeaderFilters", bNew);
 
-      // assicurati che i controlli siano presenti e aggiorna altezza header
       
       var oMdc = this.byId("mdcTable4");
 var that = this;
@@ -1742,8 +1684,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var sRole = String(oDetail.getProperty("/__role") || "").trim().toUpperCase();
         var sStatus = String(oDetail.getProperty("/__status") || "").trim().toUpperCase();
         if (sRole === "E" && sStatus !== "AP") {
-          /* this._applyGroupStatusToRows(aRemain, "CH", false);
-          oDetail.setProperty("/__status", "CH"); */
           oDetail.setProperty("/__canEdit", true);
           oDetail.setProperty("/__canAddRow", true);
           oDetail.setProperty("/__canApprove", false);
@@ -1767,10 +1707,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
 
         aCacheAll = aCacheAll.concat(aRemain);
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
-
-        if (sRole === "E" && oDetail.getProperty("/__status") === "CH") {
-        /*   this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH"); */
-        }
 
         this._applyUiPermissions();
         this._applyFiltersAndSort();
@@ -1958,8 +1894,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var oNew = Common.deepClone(oBase) || {};
         delete oNew.__metadata;
         oNew.__readOnly = false;
-
-       /*  oNew.Stato = "CH"; */
         oNew.Approved = 0;
         oNew.Rejected = 0;
         oNew.ToApprove = 1;
@@ -1982,13 +1916,10 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aRowsAll2 = aRowsAll.slice();
         var aRows2 = Array.isArray(aRows) ? aRows.slice() : [];
 
-       /*  this._applyGroupStatusToRows(aRowsAll2, "CH", false); */
-
         aRowsAll2.push(oNew);
         aRows2.push(oNew);
 
         oDetail.setProperty("/RowsAll", aRowsAll2);
-       /*  oDetail.setProperty("/__status", "CH"); */
         oDetail.setProperty("/__canEdit", true);
         oDetail.setProperty("/__canAddRow", true);
         oDetail.setProperty("/__canApprove", false);
@@ -2019,7 +1950,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 
         var sRole = String(oDetail.getProperty("/__role") || "").trim().toUpperCase();
-       /*  this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, "CH"); */
 
         this._applyUiPermissions();
         this._applyFiltersAndSort();

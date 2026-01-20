@@ -1,6 +1,3 @@
-
-
-// webapp/controller/Screen0.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel",
@@ -197,14 +194,10 @@ sap.ui.define([
       }
 
       // =========================================================
-      // MOCK SWITCHES (EDITA QUI, SOLO QUI)
+      // MOCK SWITCHES 
       // =========================================================
       var sUserId = "E_ZEMAF";
 
-      // SOLO NOMI GENERICI
-      // - webapp/mock/UserInfosSet.json
-      // - webapp/mock/MaterialDataSet.json
-      // - webapp/mock/DataSet.json
       var sMockUserInfosFile = "mock/UserInfosSet.json";
       var sMockMaterialsFile = "mock/MaterialDataSet.json";
       var sMockDataSetFile = "mock/DataSet.json";
@@ -218,16 +211,15 @@ sap.ui.define([
       var iVendorIdx = 0;
       var sForceStato = "";
 
-      // solo se fai mock S0: tipo utente mock
+      // tipo utente mock
       var sMockUserType = "E"; // "E" / "I" / "S"
 
-      // opzionale: override userType anche quando NON mockS0 (lascia "" per non forzare)
+      // override userType
       var sOverrideUserTypeWhenReal = "E"; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
 
-      // pubblica sempre in vm
       oVm.setProperty("/mock", {
         vendorIdx: iVendorIdx,
         forceStato: sForceStato,
@@ -293,7 +285,7 @@ sap.ui.define([
       }
 
       // =========================================================
-      // PATH NORMALE: OData read UserInfosSet(...)
+      // PATH NORMALE: 
       // =========================================================
       var oModel = oComponent.getModel();
 
@@ -352,7 +344,7 @@ sap.ui.define([
                 return acc.concat(aFields);
               }, []);
 
-              // === DOMAIN FALLBACK (se attivo) ===
+              // === DOMAIN FALLBACK ===
               (function applyDomainFallbackIfNeeded() {
                 var bEnabled = false;
 

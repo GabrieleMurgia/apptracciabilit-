@@ -337,71 +337,12 @@ _dbg: function () {
     },
 
     _createCellTemplate: function (sKey, oMeta) {
-      var bRequired = !!(oMeta && oMeta.required);
-      var bLocked = !!(oMeta && oMeta.locked);
-      var bMultiple = !!(oMeta && oMeta.multiple);
-
-      var sDomain = String((oMeta && oMeta.domain) || "").trim();
-      var bUseCombo = !!sDomain && this._domainHasValues(sDomain);
-
-      var sValueBind = "{detail>" + sKey + "}";
-      var sReadOnlyExpr = "${detail>__readOnly}";
-      var sIsEmptyExpr =
-        "(${detail>" + sKey + "} === null || ${detail>" + sKey + "} === undefined || ${detail>" + sKey + "} === '' || ${detail>" + sKey + "}.length === 0)";
-
-      var sValueState = (bRequired && !bLocked)
-        ? "{= (!" + sReadOnlyExpr + " && " + sIsEmptyExpr + ") ? 'Error' : 'None' }"
-        : "None";
-
-      var sValueStateText = (bRequired && !bLocked) ? "Campo obbligatorio" : "";
-
-      var oText = new Text({
-        text: sValueBind,
-        visible: "{= " + sReadOnlyExpr + " }"
-      });
-
-      var oEditCtrl;
-
-      if (bUseCombo) {
-        if (bMultiple) {
-          oEditCtrl = new MultiComboBox({
-            visible: "{= !" + sReadOnlyExpr + " }",
-            enabled: !bLocked,
-            allowCustomValues: false,
-            selectedKeys: sValueBind,
-            valueState: sValueState,
-            valueStateText: sValueStateText,
-            items: {
-              path: "vm>/domainsByName/" + sDomain,
-              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-            }
-          });
-        } else {
-          oEditCtrl = new ComboBox({
-            visible: "{= !" + sReadOnlyExpr + " }",
-            enabled: !bLocked,
-            allowCustomValues: false,
-            selectedKey: sValueBind,
-            valueState: sValueState,
-            valueStateText: sValueStateText,
-            items: {
-              path: "vm>/domainsByName/" + sDomain,
-              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-            }
-          });
-        }
-      } else {
-        oEditCtrl = new Input({
-          visible: "{= !" + sReadOnlyExpr + " }",
-          editable: !bLocked,
-          value: sValueBind,
-          valueState: sValueState,
-          valueStateText: sValueStateText
-        });
-      }
-
-      this._hookDirtyOnEdit(oEditCtrl);
-      return new HBox({ items: [oText, oEditCtrl] });
+    return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+    domainHasValuesFn: function (sDomain) {
+      return Domains.domainHasValues(this.getOwnerComponent(), sDomain);
+    }.bind(this),
+    hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
+    });
     },
 
     // =========================
@@ -1134,34 +1075,10 @@ if (sCat) {
       this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
     },
 
-    _forceP13nAllVisible: async function (oTbl, reason) {
-      if (!oTbl || !StateUtil) return;
-      try {
-        var st = await StateUtil.retrieveExternalState(oTbl);
-        var patched = JSON.parse(JSON.stringify(st || {}));
-
-        var arr =
-          patched.items ||
-          patched.columns ||
-          patched.Columns ||
-          (patched.table && patched.table.items) ||
-          null;
-
-        if (Array.isArray(arr) && arr.length) {
-          arr.forEach(function (it) {
-            if (!it) return;
-            if (it.visible === false) it.visible = true;
-            if (it.visible == null) it.visible = true;
-          });
-
-          await StateUtil.applyExternalState(oTbl, patched);
-          this._log("P13N applyExternalState FORCED visible @ " + reason);
-          if (typeof oTbl.rebind === "function") oTbl.rebind();
-        }
-      } catch (e) {
-        this._log("P13N force visible FAILED @ " + reason, e && e.message);
-      }
+    _forceP13nAllVisible: function (oTbl, reason) {
+    return P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), reason);
     },
+
 
     _bindRowsAndColumns: async function () {
       var oDetail = this.getView().getModel("detail");
@@ -1313,85 +1230,10 @@ if (this._sortState && this._sortState.key) {
     // =========================
 
     _getInnerTable: function (bDebug) {
-  var oMdc = this.byId("mdcTable4");
-  if (!oMdc) {
-    if (bDebug) this._dbg("_getInnerTable: mdcTable4 not found");
-    return null;
-  }
-
-  var oInner = null;
-  var sMdcMeta = "";
-  try {
-    sMdcMeta = (oMdc.getMetadata && oMdc.getMetadata().getName && oMdc.getMetadata().getName()) || "";
-  } catch (eMeta) {  }
-
-  try {
-    // 1) alcune versioni/contesti NON espongono getTable() sul MDC Table
-    if (typeof oMdc.getTable === "function") {
-      oInner = oMdc.getTable();
-    }
-
-    // 2) fallback tipico: "content" (spesso qui trovi direttamente la sap.ui.table.Table / sap.m.Table)
-    if (!oInner && typeof oMdc.getContent === "function") {
-      oInner = oMdc.getContent();
-    }
-
-    // 3) fallback su aggregazioni (a seconda della versione, il nome può cambiare)
-    if (!oInner && typeof oMdc.getAggregation === "function") {
-      oInner =
-        oMdc.getAggregation("content") ||
-        oMdc.getAggregation("_content") ||
-        oMdc.getAggregation("_table") ||
-        null;
-    }
-
-    // 4) fallback privati (ultima spiaggia)
-    if (!oInner && oMdc._oTable) {
-      oInner = oMdc._oTable;
-    }
-    if (!oInner && typeof oMdc._getTable === "function") {
-      oInner = oMdc._getTable();
-    }
-  } catch (e) {
-    if (bDebug) this._dbg("_getInnerTable: resolve error", { mdcMeta: sMdcMeta, err: e && e.message });
-  }
-
-  // Unwrap: a volte "content" NON è la tabella finale ma il "TableType"
-  // (che poi contiene la vera tabella)
-  try {
-    if (oInner && typeof oInner.getColumns !== "function") {
-      if (typeof oInner.getTable === "function") {
-        oInner = oInner.getTable();
-      } else if (typeof oInner.getInnerTable === "function") {
-        oInner = oInner.getInnerTable();
-      } else if (oInner._oTable) {
-        oInner = oInner._oTable;
-      }
-    }
-  } catch (e2) {  }
-
-  if (bDebug) {
-    this._dbg("_getInnerTable resolved", {
-      mdcMeta: sMdcMeta,
-      hasInner: !!oInner,
-      innerMeta: oInner && oInner.getMetadata && oInner.getMetadata().getName && oInner.getMetadata().getName(),
-      hasGetColumns: !!(oInner && typeof oInner.getColumns === "function")
-    });
-  }
-
-  return oInner || null;
-},
-
-    _setInnerHeaderHeight: function (oInner, bShow) {
-      try {
-        if (!oInner) return;
-        // con VBox (label + input) serve piu' altezza
-        if (typeof oInner.setColumnHeaderHeight === "function") {
-          oInner.setColumnHeaderHeight(bShow ? 64 : 32);
-        } else {
-          this._dbg("_setInnerHeaderHeight: setColumnHeaderHeight not available on inner");
-        }
-      } catch (e) {  }
+    return MdcTableUtil.getInnerTableFromMdc(this.byId("mdcTable4"));
+    },
+    _setInnerHeaderHeight: function (oInnerOrMdc, bShow) {
+    MdcTableUtil.setInnerHeaderHeight(oInnerOrMdc, bShow);
     },
 
     _getCfg02Map: function () {
@@ -2226,17 +2068,12 @@ if (oMdc && typeof oMdc.initialized === "function") {
       };
     }.bind(this));
 
-  // (opzionale) se NON vuoi Fornitore in testata:
   a = a.filter(function(x){ return String(x.key).toUpperCase() !== "FORNITORE"; });
 
   oDetail.setProperty("/Header4Fields", a);
   this._log("_refreshHeader4Fields", { hdr4: aHdr.length, out: a.length });
 },
 
-
-    // =========================
-    // NavBack
-    // =========================
     onNavBack: function () {
       var oHistory = History.getInstance();
       var sPreviousHash = oHistory.getPreviousHash();

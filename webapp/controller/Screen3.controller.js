@@ -67,6 +67,7 @@ exportLibrary
       }), "ui");
 
       var oDetail = new JSONModel({
+        Header3Fields: [],
         VendorId: "",
         Material: "",
         RecordsAll: [],
@@ -149,6 +150,7 @@ exportLibrary
 
       var oDetail = this.getView().getModel("detail");
       oDetail.setData({
+        Header3Fields: [],
         VendorId: this._sVendorId,
         Material: this._sMaterial,
         RecordsAll: [],
@@ -268,6 +270,21 @@ exportLibrary
       var s = String((c && (c.MultipleVal !== undefined ? c.MultipleVal : c.MULTIPLEVAL)) || "").trim().toUpperCase();
       return s === "X";
     },
+    _isX: function (v) {
+  return String(v || "").trim().toUpperCase() === "X";
+},
+
+_parseOrder: function (c) {
+  var n = parseInt(String(c?.Ordinamento ?? c?.ORDINAMENTO ?? "").trim(), 10);
+  return isNaN(n) ? 9999 : n;
+},
+
+_valToText: function (v) {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  return String(v);
+},
+
 
     // =========================
     // DOMAINS
@@ -446,52 +463,142 @@ new ObjectStatus({
       return Array.isArray(aFields) ? aFields : [];
     },
 
-    _cfgForScreen: function (sCat, sScreen) {
-      var a = this._getMmctCfgForCat(sCat) || [];
-      var sTarget = String(sScreen || "");
-      if (sTarget.length === 1) sTarget = "0" + sTarget;
+_cfgForScreen: function (sCat, sScreen) {
+  var a = this._getMmctCfgForCat(sCat) || [];
+  var sTarget = String(sScreen || "");
+  if (sTarget.length === 1) sTarget = "0" + sTarget;
 
-      return (a || [])
-        .filter(function (c) {
-          var lv = String(c.LivelloSchermata || "");
-          if (lv.length === 1) lv = "0" + lv;
-          return lv === sTarget;
-        })
-        .map(function (c) {
-          var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-          if (!ui) return null;
+  var out = (a || [])
+    .filter(function (c) {
+      var lv = String(c.LivelloSchermata || "");
+      if (lv.length === 1) lv = "0" + lv;
+      return lv === sTarget;
+    })
+    .map(function (c) {
+      var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
+      if (!ui) return null;
 
-          var label = (c.Descrizione || c.DESCRIZIONE || ui);
-          var domain = String(
-            c.Dominio !== undefined ? c.Dominio :
-            (c.DOMINIO !== undefined ? c.DOMINIO :
-              (c.Domain !== undefined ? c.Domain : (c.DOMAIN !== undefined ? c.DOMAIN : "")))
-          ).trim();
+      var label = (c.Descrizione || c.DESCRIZIONE || ui);
 
-          var flags = this._getSettingFlags(c);
-          if (flags.hidden) return null;
+      var domain = String(
+        c.Dominio !== undefined ? c.Dominio :
+        (c.DOMINIO !== undefined ? c.DOMINIO :
+          (c.Domain !== undefined ? c.Domain : (c.DOMAIN !== undefined ? c.DOMAIN : "")))
+      ).trim();
 
-          var required = !!flags.required;
-          var locked = !!flags.locked;
-          var multiple = this._isMultipleField(c);
+      var flags = this._getSettingFlags(c);
+      if (flags.hidden) return null;
 
-          return { ui: ui, label: label, domain: domain, required: required, locked: locked, multiple: multiple };
-        }.bind(this))
-        .filter(Boolean);
-    },
+      var required = !!flags.required;
+      var locked = !!flags.locked;
+      var multiple = this._isMultipleField(c);
+      
+      // NEW: Ordinamento + Testata flags
+      var order = this._parseOrder(c);
+      var testata1 = this._isX(c.Testata1 ?? c.TESTATA1);
+      var testata2 = this._isX(c.Testata2 ?? c.TESTATA2);
 
-    _hydrateMmctFromRows: function (aRows) {
-      var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
-      var sCat = String(r0.CatMateriale || "").trim();
+      return {
+        ui: ui,
+        label: label,
+        domain: domain,
+        required: required,
+        locked: locked,
+        multiple: multiple,
+        order: order,
+        testata1: testata1,
+        testata2: testata2
+      };
+    }.bind(this))
+    .filter(Boolean);
 
-      var oDetail = this.getView().getModel("detail");
-      var a01 = sCat ? this._cfgForScreen(sCat, "01") : [];
-      var a02 = sCat ? this._cfgForScreen(sCat, "02") : [];
-      oDetail.setProperty("/_mmct", { cat: sCat, s01: a01, s02: a02 });
+  // NEW: sort per Ordinamento (e fallback stabili)
+  out.sort(function (a, b) {
+    var ao = (a && a.order != null) ? a.order : 9999;
+    var bo = (b && b.order != null) ? b.order : 9999;
+    if (ao !== bo) return ao - bo;
 
-      this._log("_hydrateMmctFromRows", { cat: sCat, s01Count: a01.length, s02Count: a02.length });
-    },
+    var al = String((a && a.label) || "");
+    var bl = String((b && b.label) || "");
+    var cmp = al.localeCompare(bl, undefined, { sensitivity: "base" });
+    if (cmp !== 0) return cmp;
 
+    var au = String((a && a.ui) || "");
+    var bu = String((b && b.ui) || "");
+    return au.localeCompare(bu, undefined, { sensitivity: "base" });
+  });
+
+  return out;
+},
+_refreshHeader3Fields: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
+  var r0 = oDetail.getProperty("/_mmct/raw0") || {}; // <-- QUI
+
+  var a = (aHdr || [])
+    .slice()
+    .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
+    .map(function (f) {
+      var kRaw = String(f.ui || "").trim();
+      var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
+
+      return {
+        key: k,
+        label: f.label || kRaw || k,
+        value: this._valToText(r0[k])
+      };
+    }.bind(this));
+
+  oDetail.setProperty("/Header3Fields", a);
+  this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
+},
+
+
+
+
+_hydrateMmctFromRows: function (aRows) {
+  var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
+  var sCat = String(r0.CatMateriale || "").trim();
+
+  var oDetail = this.getView().getModel("detail");
+
+  // 00 = TESTATA
+  var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
+  var aHdr3  = (a00All || [])
+    .filter(function (f) { return !!(f && f.testata1); })
+    .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; }); // NO Fornitore
+
+  // 01 = TABELLA (Screen3)
+  var a01All = sCat ? this._cfgForScreen(sCat, "01") : [];
+  var a01Table = (a01All || [])
+    .filter(function (f) { return !(f && f.testata1); }); // se per caso arrivasse testata1 anche su 01
+
+  // 02 = Screen4 (come già avevi)
+  var a02All = sCat ? this._cfgForScreen(sCat, "02") : [];
+
+  // IMPORTANT: salvo anche raw0 per la testata (più stabile di RecordsAll[0])
+  oDetail.setProperty("/_mmct", {
+    cat: sCat,
+    raw0: r0,
+
+    s00: a00All,
+    hdr3: aHdr3,
+
+    s01: a01All,
+    s01Table: a01Table,
+
+    s02: a02All
+  });
+
+  this._log("_hydrateMmctFromRows", {
+    cat: sCat,
+    s00All: a00All.length,
+    hdr3: aHdr3.length,
+    s01All: a01All.length,
+    s01Table: a01Table.length,
+    s02All: a02All.length
+  });
+},
     // =========================
     // ODATA / MOCK
     // =========================
@@ -1254,14 +1361,14 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
       oDetail.setProperty("/RecordsAll", a);
       oDetail.setProperty("/Records", a);
       oDetail.setProperty("/RecordsCount", a.length);
+      this._refreshHeader3Fields();
 
       this._snapshotRecords = deepClone(a);
 
       var oTbl = this.byId("mdcTable3");
-      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-      this._ensureMdcCfgScreen3(aCfg01);
-
-      await this._rebuildColumnsHard(oTbl, aCfg01);
+      var aCfg01Table = oDetail.getProperty("/_mmct/s01Table") || [];
+      this._ensureMdcCfgScreen3(aCfg01Table);
+      await this._rebuildColumnsHard(oTbl, aCfg01Table);
 
       if (oTbl && oTbl.initialized) await oTbl.initialized();
       if (oTbl) oTbl.setModel(oDetail, "detail");

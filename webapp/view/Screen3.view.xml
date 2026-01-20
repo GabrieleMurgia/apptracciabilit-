@@ -26,25 +26,32 @@
           </contentMiddle>
 
           <contentRight>
-
           </contentRight>
         </Bar>
       </Toolbar>
     </customHeader>
 
     <subHeader>
-      <Toolbar id="toolbarInfo3">
-        <Label id="lblVend3" text="Fornitore:" />
-        <Text id="txtVend3" text="{detail>/VendorId}" />
-        <ToolbarSpacer id="sp1_3" />
+      <!-- Testata dinamica (Screen3) -->
+      <OverflowToolbar id="toolbarInfo3" design="Transparent">
 
-        <Label id="lblMat3" text="Materiale:" />
-        <Text id="txtMat3" text="{detail>/Material}" />
-        <ToolbarSpacer id="sp2_3" />
+        <HBox
+          id="hdr3Dynamic"
+          width="100%"
+          fitContainer="true"
+          wrap="Wrap"
+          alignItems="Center"
+          visible="{= ${detail>/Header3Fields} &amp;&amp; ${detail>/Header3Fields}.length > 0 }"
+          items="{detail>/Header3Fields}">
+          <items>
+            <HBox id="hb" class="sapUiTinyMarginEnd" alignItems="Center">
+              <Label id="lab" text="{detail>label}:" class="sapUiTinyMarginEnd"/>
+              <Text id="tex" text="{detail>value}"/>
+            </HBox>
+          </items>
+        </HBox>
 
-        <Label id="lblCount3" text="Record:" />
-        <Text id="txtCount3" text="{detail>/RecordsCount}" />
-      </Toolbar>
+      </OverflowToolbar>
     </subHeader>
 
     <content>
@@ -160,21 +167,22 @@
           <!-- BOTTONI: print/excel (NO dialog) -->
           <Toolbar id="tblToolbar3" design="Transparent">
             <ToolbarSpacer id="footerToolbar532"/>
-              <Button
-                id="btnAddRow01"
-                text="Aggiungi riga"
-                type="Emphasized"
-                icon="sap-icon://add"
-                enabled="{detail>/__canAddRow}"
-                press=".onAddRow" />
+            <Button
+              id="btnAddRow01"
+              text="Aggiungi riga"
+              type="Emphasized"
+              icon="sap-icon://add"
+              enabled="{detail>/__canAddRow}"
+              press=".onAddRow" />
 
-              <Button
-                id="btnDeleteRows01"
-                text="Elimina righe"
-                type="Negative"
-                icon="sap-icon://delete"
-                enabled="{detail>/__canAddRow}"
-                press=".onDeleteRows" />
+            <Button
+              id="btnDeleteRows01"
+              text="Elimina righe"
+              type="Negative"
+              icon="sap-icon://delete"
+              enabled="{detail>/__canAddRow}"
+              press=".onDeleteRows" />
+
             <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
             <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
           </Toolbar>

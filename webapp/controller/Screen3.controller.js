@@ -1,5 +1,3 @@
-
-
 // webapp/controller/Screen3.controller.js
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
@@ -22,7 +20,17 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/mockData",
   "sap/m/VBox",
   "sap/ui/export/Spreadsheet",
-"sap/ui/export/library"
+  "sap/ui/export/library",
+
+  // ===== UTIL (NUOVI) =====
+  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/domains",
+  "apptracciabilita/apptracciabilita/util/statusUtil",
+  "apptracciabilita/apptracciabilita/util/mmctUtil",
+  "apptracciabilita/apptracciabilita/util/mdcTableUtil",
+  "apptracciabilita/apptracciabilita/util/p13nUtil",
+  "apptracciabilita/apptracciabilita/util/cellTemplateUtil"
 ], function (
   Controller,
   History,
@@ -44,13 +52,26 @@ sap.ui.define([
   MockData,
   VBox,
   Spreadsheet,
-exportLibrary
+  exportLibrary,
+
+  // ===== UTIL (NUOVI) =====
+  Common,
+  VmCache,
+  Domains,
+  StatusUtil,
+  MmctUtil,
+  MdcTableUtil,
+  P13nUtil,
+  CellTemplateUtil
 ) {
 
   "use strict";
+
   var EdmType = exportLibrary.EdmType;
-  function ts() { return new Date().toISOString(); }
-  function deepClone(x) { try { return JSON.parse(JSON.stringify(x)); } catch (e) { return x; } }
+
+  // usa util
+  var ts = Common.ts;
+  var deepClone = Common.deepClone;
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
 
@@ -187,12 +208,8 @@ exportLibrary
       try {
         var oUi = this.getView().getModel("ui");
         var bShowFilters = !!(oUi && oUi.getProperty("/showHeaderFilters"));
-
-        var oInner = this._getInnerTableFromMdc(oMdcTbl);
-        if (oInner && typeof oInner.setColumnHeaderHeight === "function") {
-          oInner.setColumnHeaderHeight(bShowFilters ? 64 : 32);
-        }
-      } catch (e) {  }
+        MdcTableUtil.setInnerHeaderHeight(oMdcTbl, bShowFilters);
+      } catch (e) { }
     },
 
     onToggleHeaderFilters: function () {
@@ -231,182 +248,65 @@ exportLibrary
     },
 
     // =========================
-    // Utils
+    // Utils (delegate su util)
     // =========================
-    _toStableString: function (v) {
-      if (v === null || v === undefined) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "number" || typeof v === "boolean") return String(v);
-      try { return JSON.stringify(v); } catch (e) { return String(v); }
-    },
+    _toStableString: function (v) { return Common.toStableString(v); },
+    _valToText: function (v) { return Common.valToText(v); },
 
-    _getApprovedFlag: function (r) {
-      if (!r) return 0;
+    _getApprovedFlag: function (r) { return StatusUtil.getApprovedFlag(r); },
 
-      var v;
-      if (r.Approved !== undefined && r.Approved !== null) v = r.Approved;
-      else if (r.APPROVED !== undefined && r.APPROVED !== null) v = r.APPROVED;
-      else if (r.approved !== undefined && r.approved !== null) v = r.approved;
-      else if (r.FLAG_APPROVED !== undefined && r.FLAG_APPROVED !== null) v = r.FLAG_APPROVED;
-      else v = r.FlagApproved;
-
-      if (v === true) return 1;
-      if (v === false) return 0;
-
-      var n = parseInt(String(v || "0"), 10);
-      return isNaN(n) ? 0 : n;
-    },
-
-    _getSettingFlags: function (c) {
-      var s = String((c && (c.Impostazione !== undefined ? c.Impostazione : c.IMPOSTAZIONE)) || "").trim().toUpperCase();
-      return {
-        required: s === "O",
-        locked: s === "B",
-        hidden: s === "N"
-      };
-    },
-
-    _isMultipleField: function (c) {
-      var s = String((c && (c.MultipleVal !== undefined ? c.MultipleVal : c.MULTIPLEVAL)) || "").trim().toUpperCase();
-      return s === "X";
-    },
-    _isX: function (v) {
-  return String(v || "").trim().toUpperCase() === "X";
-},
-
-_parseOrder: function (c) {
-  var n = parseInt(String(c?.Ordinamento ?? c?.ORDINAMENTO ?? "").trim(), 10);
-  return isNaN(n) ? 9999 : n;
-},
-
-_valToText: function (v) {
-  if (v === null || v === undefined) return "";
-  if (Array.isArray(v)) return v.join(", ");
-  return String(v);
-},
-
+    _getSettingFlags: function (c) { return MmctUtil.getSettingFlags(c); },
+    _isMultipleField: function (c) { return MmctUtil.isMultipleField(c); },
+    _isX: function (v) { return MmctUtil.isX(v); },
+    _parseOrder: function (c) { return MmctUtil.parseOrder(c); },
 
     // =========================
     // DOMAINS
     // =========================
     _domainHasValues: function (sDomain) {
-      if (!sDomain) return false;
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var a = (oVm && oVm.getProperty("/domainsByName/" + sDomain)) || [];
-      return Array.isArray(a) && a.length > 0;
+      return Domains.domainHasValues(this.getOwnerComponent(), sDomain);
     },
 
     _createCellTemplate: function (sKey, oMeta) {
-      var bRequired = !!(oMeta && oMeta.required);
-      var bLocked = !!(oMeta && oMeta.locked);
-      var bMultiple = !!(oMeta && oMeta.multiple);
-
-      var sDomain = String((oMeta && oMeta.domain) || "").trim();
-      var bUseCombo = !!sDomain && this._domainHasValues(sDomain);
-
-      var sValueBind = "{detail>" + sKey + "}";
-      var sReadOnlyExpr = "${detail>__readOnly}";
-      var sIsEmptyExpr =
-        "(${detail>" + sKey + "} === null || ${detail>" + sKey + "} === undefined || ${detail>" + sKey + "} === '' || ${detail>" + sKey + "}.length === 0)";
-
-      var sValueState = (bRequired && !bLocked)
-        ? "{= (!" + sReadOnlyExpr + " && " + sIsEmptyExpr + ") ? 'Error' : 'None' }"
-        : "None";
-
-      var sValueStateText = (bRequired && !bLocked) ? "Campo obbligatorio" : "";
-
-      var oText = new Text({
-        text: sValueBind,
-        visible: "{= " + sReadOnlyExpr + " }"
+      return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+        domainHasValuesFn: this._domainHasValues.bind(this)
       });
-
-      var oEditCtrl;
-
-      if (bUseCombo) {
-        if (bMultiple) {
-          oEditCtrl = new MultiComboBox({
-            visible: "{= !" + sReadOnlyExpr + " }",
-            enabled: !bLocked,
-            allowCustomValues: false,
-            selectedKeys: sValueBind,
-            valueState: sValueState,
-            valueStateText: sValueStateText,
-            items: {
-              path: "vm>/domainsByName/" + sDomain,
-              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-            }
-          });
-        } else {
-          oEditCtrl = new ComboBox({
-            visible: "{= !" + sReadOnlyExpr + " }",
-            enabled: !bLocked,
-            allowCustomValues: false,
-            selectedKey: sValueBind,
-            valueState: sValueState,
-            valueStateText: sValueStateText,
-            items: {
-              path: "vm>/domainsByName/" + sDomain,
-              template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-            }
-          });
-        }
-      } else {
-        oEditCtrl = new Input({
-          visible: "{= !" + sReadOnlyExpr + " }",
-          editable: !bLocked,
-          value: sValueBind,
-          valueState: sValueState,
-          valueStateText: sValueStateText
-        });
-      }
-
-      return new HBox({ items: [oText, oEditCtrl] });
     },
 
     _createStatusCellTemplate: function (sKey) {
       var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
 
-var sStateExpr =
-  "{= (${detail>" + sBindKey + "} === '' ? 'Warning' : " +
-  "(${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
-  "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
-  "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
-  "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))))}";
+      var sStateExpr =
+        "{= (${detail>" + sBindKey + "} === '' ? 'Warning' : " +
+        "(${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
+        "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
+        "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
+        "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))))}";
 
       return new HBox({
         width: "100%",
         justifyContent: "Center",
         alignItems: "Center",
         items: [
-new ObjectStatus({
-  text: "",
-  icon: "sap-icon://circle-task",
-  state: sStateExpr,
-  tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
-})
-
+          new ObjectStatus({
+            text: "",
+            icon: "sap-icon://circle-task",
+            state: sStateExpr,
+            tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
+          })
         ]
       });
     },
 
     // =========================
-    // CACHE
+    // CACHE (delegate su util)
     // =========================
     _getCacheKeySafe: function () {
-      return encodeURIComponent((this._sVendorId || "") + "||" + (this._sMaterial || ""));
+      return VmCache.getCacheKeySafe(this._sVendorId, this._sMaterial);
     },
 
     _ensureVmCache: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      if (!oVm) oVm = new JSONModel({});
-
-      if (!oVm.getProperty("/cache")) oVm.setProperty("/cache", {});
-      if (!oVm.getProperty("/cache/dataRowsByKey")) oVm.setProperty("/cache/dataRowsByKey", {});
-      if (!oVm.getProperty("/cache/recordsByKey")) oVm.setProperty("/cache/recordsByKey", {});
-      if (!oVm.getProperty("/mdcCfg")) oVm.setProperty("/mdcCfg", {});
-
-      this.getOwnerComponent().setModel(oVm, "vm");
-      return oVm;
+      return VmCache.ensureVmCache(this.getOwnerComponent());
     },
 
     _isMockS3Enabled: function () {
@@ -452,153 +352,85 @@ new ObjectStatus({
     },
 
     // =========================
-    // MMCT -> colonne
+    // MMCT -> colonne (delegate su util)
     // =========================
     _getMmctCfgForCat: function (sCat) {
       var oVm = this.getOwnerComponent().getModel("vm");
-      var aUserInfos = (oVm && (oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userInfosMMCT"))) || [];
-      if (!Array.isArray(aUserInfos)) return [];
-      var oCat = aUserInfos.find(function (x) { return String(x && x.CatMateriale) === String(sCat); });
-      var aFields = (oCat && oCat.UserMMCTFields && oCat.UserMMCTFields.results) ? oCat.UserMMCTFields.results : [];
-      return Array.isArray(aFields) ? aFields : [];
+      return MmctUtil.getMmctCfgForCat(oVm, sCat);
     },
 
-_cfgForScreen: function (sCat, sScreen) {
-  var a = this._getMmctCfgForCat(sCat) || [];
-  var sTarget = String(sScreen || "");
-  if (sTarget.length === 1) sTarget = "0" + sTarget;
+    _cfgForScreen: function (sCat, sScreen) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      return MmctUtil.cfgForScreen(oVm, sCat, sScreen);
+    },
 
-  var out = (a || [])
-    .filter(function (c) {
-      var lv = String(c.LivelloSchermata || "");
-      if (lv.length === 1) lv = "0" + lv;
-      return lv === sTarget;
-    })
-    .map(function (c) {
-      var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-      if (!ui) return null;
+    _refreshHeader3Fields: function () {
+      var oDetail = this.getView().getModel("detail");
+      var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
+      var r0 = oDetail.getProperty("/_mmct/raw0") || {}; // <-- QUI
 
-      var label = (c.Descrizione || c.DESCRIZIONE || ui);
+      var a = (aHdr || [])
+        .slice()
+        .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
+        .map(function (f) {
+          var kRaw = String(f.ui || "").trim();
+          var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
 
-      var domain = String(
-        c.Dominio !== undefined ? c.Dominio :
-        (c.DOMINIO !== undefined ? c.DOMINIO :
-          (c.Domain !== undefined ? c.Domain : (c.DOMAIN !== undefined ? c.DOMAIN : "")))
-      ).trim();
+          return {
+            key: k,
+            label: f.label || kRaw || k,
+            value: this._valToText(r0[k])
+          };
+        }.bind(this));
 
-      var flags = this._getSettingFlags(c);
-      if (flags.hidden) return null;
+      oDetail.setProperty("/Header3Fields", a);
+      this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
+    },
 
-      var required = !!flags.required;
-      var locked = !!flags.locked;
-      var multiple = this._isMultipleField(c);
-      
-      // NEW: Ordinamento + Testata flags
-      var order = this._parseOrder(c);
-      var testata1 = this._isX(c.Testata1 ?? c.TESTATA1);
-      var testata2 = this._isX(c.Testata2 ?? c.TESTATA2);
+    _hydrateMmctFromRows: function (aRows) {
+      var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
+      var sCat = String(r0.CatMateriale || "").trim();
 
-      return {
-        ui: ui,
-        label: label,
-        domain: domain,
-        required: required,
-        locked: locked,
-        multiple: multiple,
-        order: order,
-        testata1: testata1,
-        testata2: testata2
-      };
-    }.bind(this))
-    .filter(Boolean);
+      var oDetail = this.getView().getModel("detail");
 
-  // NEW: sort per Ordinamento (e fallback stabili)
-  out.sort(function (a, b) {
-    var ao = (a && a.order != null) ? a.order : 9999;
-    var bo = (b && b.order != null) ? b.order : 9999;
-    if (ao !== bo) return ao - bo;
+      // 00 = TESTATA
+      var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
+      var aHdr3 = (a00All || [])
+        .filter(function (f) { return !!(f && f.testata1); })
+        .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; }); // NO Fornitore
 
-    var al = String((a && a.label) || "");
-    var bl = String((b && b.label) || "");
-    var cmp = al.localeCompare(bl, undefined, { sensitivity: "base" });
-    if (cmp !== 0) return cmp;
+      // 01 = TABELLA (Screen3)
+      var a01All = sCat ? this._cfgForScreen(sCat, "01") : [];
+      var a01Table = (a01All || [])
+        .filter(function (f) { return !(f && f.testata1); }); // se per caso arrivasse testata1 anche su 01
 
-    var au = String((a && a.ui) || "");
-    var bu = String((b && b.ui) || "");
-    return au.localeCompare(bu, undefined, { sensitivity: "base" });
-  });
+      // 02 = Screen4
+      var a02All = sCat ? this._cfgForScreen(sCat, "02") : [];
 
-  return out;
-},
-_refreshHeader3Fields: function () {
-  var oDetail = this.getView().getModel("detail");
-  var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
-  var r0 = oDetail.getProperty("/_mmct/raw0") || {}; // <-- QUI
+      // IMPORTANT: salvo anche raw0 per la testata (più stabile di RecordsAll[0])
+      oDetail.setProperty("/_mmct", {
+        cat: sCat,
+        raw0: r0,
 
-  var a = (aHdr || [])
-    .slice()
-    .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
-    .map(function (f) {
-      var kRaw = String(f.ui || "").trim();
-      var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
+        s00: a00All,
+        hdr3: aHdr3,
 
-      return {
-        key: k,
-        label: f.label || kRaw || k,
-        value: this._valToText(r0[k])
-      };
-    }.bind(this));
+        s01: a01All,
+        s01Table: a01Table,
 
-  oDetail.setProperty("/Header3Fields", a);
-  this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
-},
+        s02: a02All
+      });
 
+      this._log("_hydrateMmctFromRows", {
+        cat: sCat,
+        s00All: a00All.length,
+        hdr3: aHdr3.length,
+        s01All: a01All.length,
+        s01Table: a01Table.length,
+        s02All: a02All.length
+      });
+    },
 
-
-
-_hydrateMmctFromRows: function (aRows) {
-  var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
-  var sCat = String(r0.CatMateriale || "").trim();
-
-  var oDetail = this.getView().getModel("detail");
-
-  // 00 = TESTATA
-  var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
-  var aHdr3  = (a00All || [])
-    .filter(function (f) { return !!(f && f.testata1); })
-    .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; }); // NO Fornitore
-
-  // 01 = TABELLA (Screen3)
-  var a01All = sCat ? this._cfgForScreen(sCat, "01") : [];
-  var a01Table = (a01All || [])
-    .filter(function (f) { return !(f && f.testata1); }); // se per caso arrivasse testata1 anche su 01
-
-  // 02 = Screen4 (come già avevi)
-  var a02All = sCat ? this._cfgForScreen(sCat, "02") : [];
-
-  // IMPORTANT: salvo anche raw0 per la testata (più stabile di RecordsAll[0])
-  oDetail.setProperty("/_mmct", {
-    cat: sCat,
-    raw0: r0,
-
-    s00: a00All,
-    hdr3: aHdr3,
-
-    s01: a01All,
-    s01Table: a01Table,
-
-    s02: a02All
-  });
-
-  this._log("_hydrateMmctFromRows", {
-    cat: sCat,
-    s00All: a00All.length,
-    hdr3: aHdr3.length,
-    s01All: a01All.length,
-    s01Table: a01Table.length,
-    s02All: a02All.length
-  });
-},
     // =========================
     // ODATA / MOCK
     // =========================
@@ -669,7 +501,6 @@ _hydrateMmctFromRows: function (aRows) {
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
-          debugger
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
 
@@ -723,48 +554,6 @@ _hydrateMmctFromRows: function (aRows) {
       var sRole = (oVm && oVm.getProperty("/userType")) || "";
       sRole = String(sRole || "").trim().toUpperCase();
 
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sForce = String(mock.forceStato || "").trim().toUpperCase();
-
-      function normStato(r) {
-        if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
-
-        var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
-        if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
-
-        var ap = this._getApprovedFlag(r);
-        if (ap === 1) return "AP";
-
-        var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
-        if (rej > 0) return "RJ";
-
-        var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
-        if (pend > 0) return "ST";
-
-        return "ST";
-      }
-
-      function rank(st) {
-        if (st === "AP") return 4;
-        if (st === "CH") return 3;
-        if (st === "RJ") return 2;
-        return 1;
-      }
-      function mergeStatus(a, b) { return (rank(b) > rank(a)) ? b : a; }
-
-      function canEdit(role, status) {
-        if (role === "S") return false;
-        if (role === "I") return false;
-        if (role === "E") return status !== "AP";
-        return false;
-      }
-      function canApprove(role, status) {
-        return role === "I" && (status === "ST" || status === "CH");
-      }
-      function canReject(role, status) {
-        return role === "I" && (status === "ST" || status === "CH");
-      }
-
       this._log("_buildRecords01 role", sRole, "cols", aCols01.length);
 
       var m = {};
@@ -775,25 +564,25 @@ _hydrateMmctFromRows: function (aRows) {
         var sFibra = this._rowFibra(r);
         var sKey = sGuidKey + "||" + sFibra;
 
-        var stRow = normStato.call(this, r);
+        var stRow = StatusUtil.normStatoRow(r, oVm);
 
         var oRec = m[sKey];
 
         if (!oRec) {
           oRec = {
-             idx: a.length,
-  guidKey: sGuidKey,
-  Fibra: sFibra,
+            idx: a.length,
+            guidKey: sGuidKey,
+            Fibra: sFibra,
 
-  Stato: stRow,
-  StatoText: this._statusText(stRow),
-  __status: stRow,
+            Stato: stRow,
+            StatoText: this._statusText(stRow),
+            __status: stRow,
 
-            __canEdit: canEdit(sRole, stRow),
-            __canApprove: canApprove(sRole, stRow),
-            __canReject: canReject(sRole, stRow),
+            __canEdit: StatusUtil.canEdit(sRole, stRow),
+            __canApprove: StatusUtil.canApprove(sRole, stRow),
+            __canReject: StatusUtil.canReject(sRole, stRow),
 
-            __readOnly: !canEdit(sRole, stRow)
+            __readOnly: !StatusUtil.canEdit(sRole, stRow)
           };
 
           aCols01.forEach(function (c) {
@@ -805,15 +594,15 @@ _hydrateMmctFromRows: function (aRows) {
           a.push(oRec);
 
         } else {
-          var merged = mergeStatus(oRec.__status, stRow);
+          var merged = StatusUtil.mergeStatus(oRec.__status, stRow);
           if (merged !== oRec.__status) {
             oRec.__status = merged;
             oRec.Stato = merged;
             oRec.StatoText = this._statusText(merged);
 
-            oRec.__canEdit = canEdit(sRole, merged);
-            oRec.__canApprove = canApprove(sRole, merged);
-            oRec.__canReject = canReject(sRole, merged);
+            oRec.__canEdit = StatusUtil.canEdit(sRole, merged);
+            oRec.__canApprove = StatusUtil.canApprove(sRole, merged);
+            oRec.__canReject = StatusUtil.canReject(sRole, merged);
 
             oRec.__readOnly = !oRec.__canEdit;
           }
@@ -829,7 +618,6 @@ _hydrateMmctFromRows: function (aRows) {
     // =========================
     onGoToScreen4FromRow: function (oEvent) {
       try {
-        debugger
         var oBtn = oEvent.getSource();
         var oCtx = oBtn && oBtn.getBindingContext && (
           oBtn.getBindingContext("detail") || oBtn.getBindingContext()
@@ -859,37 +647,10 @@ _hydrateMmctFromRows: function (aRows) {
     },
 
     // =========================
-    // P13N force visible
+    // P13N force visible (delegate su util)
     // =========================
     _forceP13nAllVisible: async function (oTbl, reason) {
-      if (!oTbl || !StateUtil) return;
-
-      try {
-        var st = await StateUtil.retrieveExternalState(oTbl);
-        var patched = JSON.parse(JSON.stringify(st || {}));
-
-        var arr =
-          patched.items ||
-          patched.columns ||
-          patched.Columns ||
-          (patched.table && patched.table.items) ||
-          null;
-
-        if (Array.isArray(arr) && arr.length) {
-          arr.forEach(function (it) {
-            if (!it) return;
-            if (it.visible === false) it.visible = true;
-            if (it.visible == null) it.visible = true;
-          });
-
-          await StateUtil.applyExternalState(oTbl, patched);
-          this._log("P13N applyExternalState FORCED visible @ " + reason);
-
-          if (typeof oTbl.rebind === "function") oTbl.rebind();
-        }
-      } catch (e) {
-        this._log("P13N force visible FAILED @ " + reason, e && e.message);
-      }
+      return P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), reason);
     },
 
     _ensureMdcCfgScreen3: function (aCfg01) {
@@ -1099,51 +860,9 @@ _hydrateMmctFromRows: function (aRows) {
       this._applyClientFilters();
     },
 
-_getInnerTableFromMdc: function (oMdcTbl) {
-  var oInner = null;
-
-  try {
-    if (oMdcTbl && typeof oMdcTbl.getTable === "function") {
-      oInner = oMdcTbl.getTable();
-    }
-
-    if (!oInner && oMdcTbl && typeof oMdcTbl.getContent === "function") {
-      oInner = oMdcTbl.getContent();
-    }
-
-    if (!oInner && oMdcTbl && typeof oMdcTbl.getAggregation === "function") {
-      oInner =
-        oMdcTbl.getAggregation("content") ||
-        oMdcTbl.getAggregation("_content") ||
-        oMdcTbl.getAggregation("_table") ||
-        null;
-    }
-
-    if (!oInner && oMdcTbl && oMdcTbl._oTable) {
-      oInner = oMdcTbl._oTable;
-    }
-
-    if (!oInner && oMdcTbl && typeof oMdcTbl._getTable === "function") {
-      oInner = oMdcTbl._getTable();
-    }
-  } catch (e) {  }
-
-  // Unwrap: a volte getTable/getContent restituiscono il TableType e non la tabella finale
-  try {
-    if (oInner && typeof oInner.getColumns !== "function") {
-      if (typeof oInner.getTable === "function") {
-        oInner = oInner.getTable();
-      } else if (typeof oInner.getInnerTable === "function") {
-        oInner = oInner.getInnerTable();
-      } else if (oInner._oTable) {
-        oInner = oInner._oTable;
-      }
-    }
-  } catch (e2) {  }
-
-  return oInner || null;
-},
-
+    _getInnerTableFromMdc: function (oMdcTbl) {
+      return MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
+    },
 
     _refreshInlineSortIcons: function () {
       var st2 = (this._inlineFS && this._inlineFS.sort) || { key: "", desc: false };
@@ -1195,164 +914,158 @@ _getInnerTableFromMdc: function (oMdcTbl) {
       this._applyClientFilters();
     },
 
-_applyInlineHeaderFilterSort: async function (oMdcTbl) {
-  if (!oMdcTbl) return;
-  if (oMdcTbl.initialized) await oMdcTbl.initialized();
+    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
+      if (!oMdcTbl) return;
+      if (oMdcTbl.initialized) await oMdcTbl.initialized();
 
-  var oInner = this._getInnerTableFromMdc(oMdcTbl);
-  if (!oInner || typeof oInner.getColumns !== "function") {
-    this._log("InlineFS: inner table non trovata o non compatibile");
-    return;
-  }
+      var oInner = this._getInnerTableFromMdc(oMdcTbl);
+      if (!oInner || typeof oInner.getColumns !== "function") {
+        this._log("InlineFS: inner table non trovata o non compatibile");
+        return;
+      }
 
-  var aMdcCols = (oMdcTbl.getColumns && oMdcTbl.getColumns()) || [];
-  var aInnerCols = oInner.getColumns() || [];
+      var aMdcCols = (oMdcTbl.getColumns && oMdcTbl.getColumns()) || [];
+      var aInnerCols = oInner.getColumns() || [];
 
-  // helper: prova a capire la key vera di una inner column (GridTable/Responsive)
-  function normInnerKey(col) {
-    var k = "";
-    try {
-      if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
-      if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
-    } catch (e) {  }
+      // helper: prova a capire la key vera di una inner column (GridTable/Responsive)
+      function normInnerKey(col) {
+        var k = "";
+        try {
+          if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
+          if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
+        } catch (e) { }
 
-    k = String(k || "").trim();
-    if (k.indexOf(">") >= 0) k = k.split(">").pop(); // "detail>FIELD" -> "FIELD"
-    return String(k || "").trim();
-  }
+        k = String(k || "").trim();
+        if (k.indexOf(">") >= 0) k = k.split(">").pop(); // "detail>FIELD" -> "FIELD"
+        return String(k || "").trim();
+      }
 
-  // mappa inner columns per key (molto più stabile dell’indice)
-  var mInnerByKey = {};
-  aInnerCols.forEach(function (c) {
-    var k = normInnerKey(c);
-    if (!k) return;
-    mInnerByKey[k] = c;
-    mInnerByKey[k.toUpperCase()] = c;
-  });
-
-  if (!this._inlineFS) {
-    this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
-  }
-  if (!this._inlineFS.sortBtns) this._inlineFS.sortBtns = {};
-  if (!this._inlineFS.filterInputs) this._inlineFS.filterInputs = {};
-  if (!this._inlineFS.headerTitles) this._inlineFS.headerTitles = {};
-  if (!this._inlineFS.headerRows) this._inlineFS.headerRows = {};
-  if (!this._inlineFS.headerBoxes) this._inlineFS.headerBoxes = {};
-
-  var oUiModel = this.getView().getModel("ui");
-
-  // fallback “soft” per casi strani: se non troviamo per key, proviamo per indice
-  // ma SOLO se l’inner col supporta setLabel/setHeader
-  function fallbackInnerByIndex(iMdc) {
-    var col = aInnerCols[iMdc] || null;
-    if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
-
-    // prova a shiftare di 1 se c’è una colonna extra (selezione/row actions)
-    col = aInnerCols[iMdc + 1] || null;
-    if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
-
-    return null;
-  }
-
-  for (var i = 0; i < aMdcCols.length; i++) {
-    var mdcCol = aMdcCols[i];
-
-    var sField =
-      (mdcCol && (
-        (typeof mdcCol.getPropertyKey === "function" && mdcCol.getPropertyKey()) ||
-        (typeof mdcCol.getDataProperty === "function" && mdcCol.getDataProperty())
-      )) || "";
-
-    sField = String(sField || "").trim();
-    if (!sField) continue; // es. colonna "Dettaglio"
-
-    var sHeader = (typeof mdcCol.getHeader === "function" && mdcCol.getHeader()) || sField;
-
-    // trova inner col per key (preferito), altrimenti fallback per indice
-    var innerCol = mInnerByKey[sField] || mInnerByKey[sField.toUpperCase()] || null;
-    if (!innerCol) innerCol = fallbackInnerByIndex(i);
-
-    if (!innerCol) continue;
-
-    // --- Sort Button (riuso) ---
-    var oSortBtn = this._inlineFS.sortBtns[sField];
-    if (!oSortBtn) {
-      oSortBtn = new Button({
-        type: "Transparent",
-        icon: "sap-icon://sort",
-        visible: "{ui>/showHeaderSort}",
-        press: this._onInlineColSortPress.bind(this)
+      // mappa inner columns per key (molto più stabile dell’indice)
+      var mInnerByKey = {};
+      aInnerCols.forEach(function (c) {
+        var k = normInnerKey(c);
+        if (!k) return;
+        mInnerByKey[k] = c;
+        mInnerByKey[k.toUpperCase()] = c;
       });
-      oSortBtn.data("field", sField);
-      this._inlineFS.sortBtns[sField] = oSortBtn;
-    } else {
-      if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
-    }
 
-    // --- Filter Input (riuso) ---
-    var oInp = this._inlineFS.filterInputs[sField];
-    if (!oInp) {
-      oInp = new Input({
-        width: "100%",
-        placeholder: "Filtra...",
-        visible: "{ui>/showHeaderFilters}",
-        liveChange: this._onInlineColFilterLiveChange.bind(this)
-      });
-      oInp.data("field", sField);
-      this._inlineFS.filterInputs[sField] = oInp;
-    } else {
-      if (oInp.bindProperty) oInp.bindProperty("visible", "ui>/showHeaderFilters");
-    }
+      if (!this._inlineFS) {
+        this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
+      }
+      if (!this._inlineFS.sortBtns) this._inlineFS.sortBtns = {};
+      if (!this._inlineFS.filterInputs) this._inlineFS.filterInputs = {};
+      if (!this._inlineFS.headerTitles) this._inlineFS.headerTitles = {};
+      if (!this._inlineFS.headerRows) this._inlineFS.headerRows = {};
+      if (!this._inlineFS.headerBoxes) this._inlineFS.headerBoxes = {};
 
-    // riallineo valore input allo stato filtri
-    var wantedVal = String((this._inlineFS.filters && this._inlineFS.filters[sField]) || "");
-    if (oInp.getValue && oInp.getValue() !== wantedVal) oInp.setValue(wantedVal);
+      var oUiModel = this.getView().getModel("ui");
 
-    // --- Title (riuso) ---
-    var oTitle = this._inlineFS.headerTitles[sField];
-    if (!oTitle) {
-      oTitle = new Text({ text: (typeof sHeader === "string" ? sHeader : sField), wrapping: false });
-      this._inlineFS.headerTitles[sField] = oTitle;
-    } else if (oTitle.setText) {
-      oTitle.setText(typeof sHeader === "string" ? sHeader : sField);
-    }
+      // fallback “soft” per casi strani: se non troviamo per key, proviamo per indice
+      // ma SOLO se l’inner col supporta setLabel/setHeader
+      function fallbackInnerByIndex(iMdc) {
+        var col = aInnerCols[iMdc] || null;
+        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
 
-    // --- Header row + box (riuso) ---
-    var oH = this._inlineFS.headerRows[sField];
-    if (!oH) {
-      oH = new HBox({
-        justifyContent: "SpaceBetween",
-        alignItems: "Center",
-        items: [oTitle, oSortBtn]
-      });
-      this._inlineFS.headerRows[sField] = oH;
-    }
+        // prova a shiftare di 1 se c’è una colonna extra (selezione/row actions)
+        col = aInnerCols[iMdc + 1] || null;
+        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
 
-    var oV = this._inlineFS.headerBoxes[sField];
-    if (!oV) {
-      oV = new VBox({ items: [oH, oInp] });
-      this._inlineFS.headerBoxes[sField] = oV;
-    }
+        return null;
+      }
 
-    // assicuro che veda il model "ui"
-    if (oUiModel) oV.setModel(oUiModel, "ui");
+      for (var i = 0; i < aMdcCols.length; i++) {
+        var mdcCol = aMdcCols[i];
 
-    //  QUI È LA DIFFERENZA CHIAVE:
-    // GridTable (sap.ui.table.Column) -> setLabel
-    // ResponsiveTable (sap.m.Column)  -> setHeader
-    if (typeof innerCol.setLabel === "function") {
-      innerCol.setLabel(oV);
-    } else if (typeof innerCol.setHeader === "function") {
-      innerCol.setHeader(oV);
-    }
+        var sField =
+          (mdcCol && (
+            (typeof mdcCol.getPropertyKey === "function" && mdcCol.getPropertyKey()) ||
+            (typeof mdcCol.getDataProperty === "function" && mdcCol.getDataProperty())
+          )) || "";
 
-    if (innerCol.data) innerCol.data("__inlineFS", true);
-  }
+        sField = String(sField || "").trim();
+        if (!sField) continue; // es. colonna "Dettaglio"
 
-  this._refreshInlineSortIcons();
-  this._setInnerHeaderHeight(oMdcTbl);
-},
+        var sHeader = (typeof mdcCol.getHeader === "function" && mdcCol.getHeader()) || sField;
 
+        // trova inner col per key (preferito), altrimenti fallback per indice
+        var innerCol = mInnerByKey[sField] || mInnerByKey[sField.toUpperCase()] || null;
+        if (!innerCol) innerCol = fallbackInnerByIndex(i);
+
+        if (!innerCol) continue;
+
+        // --- Sort Button (riuso) ---
+        var oSortBtn = this._inlineFS.sortBtns[sField];
+        if (!oSortBtn) {
+          oSortBtn = new Button({
+            type: "Transparent",
+            icon: "sap-icon://sort",
+            visible: "{ui>/showHeaderSort}",
+            press: this._onInlineColSortPress.bind(this)
+          });
+          oSortBtn.data("field", sField);
+          this._inlineFS.sortBtns[sField] = oSortBtn;
+        } else {
+          if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
+        }
+
+        // --- Filter Input (riuso) ---
+        var oInp = this._inlineFS.filterInputs[sField];
+        if (!oInp) {
+          oInp = new Input({
+            width: "100%",
+            placeholder: "Filtra...",
+            visible: "{ui>/showHeaderFilters}",
+            liveChange: this._onInlineColFilterLiveChange.bind(this)
+          });
+          oInp.data("field", sField);
+          this._inlineFS.filterInputs[sField] = oInp;
+        } else {
+          if (oInp.bindProperty) oInp.bindProperty("visible", "ui>/showHeaderFilters");
+        }
+
+        // riallineo valore input allo stato filtri
+        var wantedVal = String((this._inlineFS.filters && this._inlineFS.filters[sField]) || "");
+        if (oInp.getValue && oInp.getValue() !== wantedVal) oInp.setValue(wantedVal);
+
+        // --- Title (riuso) ---
+        var oTitle = this._inlineFS.headerTitles[sField];
+        if (!oTitle) {
+          oTitle = new Text({ text: (typeof sHeader === "string" ? sHeader : sField), wrapping: false });
+          this._inlineFS.headerTitles[sField] = oTitle;
+        } else if (oTitle.setText) {
+          oTitle.setText(typeof sHeader === "string" ? sHeader : sField);
+        }
+
+        // --- Header row + box (riuso) ---
+        var oH = this._inlineFS.headerRows[sField];
+        if (!oH) {
+          oH = new HBox({
+            justifyContent: "SpaceBetween",
+            alignItems: "Center",
+            items: [oTitle, oSortBtn]
+          });
+          this._inlineFS.headerRows[sField] = oH;
+        }
+
+        var oV = this._inlineFS.headerBoxes[sField];
+        if (!oV) {
+          oV = new VBox({ items: [oH, oInp] });
+          this._inlineFS.headerBoxes[sField] = oV;
+        }
+
+        // assicuro che veda il model "ui"
+        if (oUiModel) oV.setModel(oUiModel, "ui");
+
+        // GridTable (sap.ui.table.Column) -> setLabel
+        // ResponsiveTable (sap.m.Column)  -> setHeader
+        MdcTableUtil.setInnerColumnHeader(innerCol, oV);
+
+        if (innerCol.data) innerCol.data("__inlineFS", true);
+      }
+
+      this._refreshInlineSortIcons();
+      this._setInnerHeaderHeight(oMdcTbl);
+    },
 
     _bindRecords: async function (aRecords) {
       var oDetail = this.getView().getModel("detail");
@@ -1421,649 +1134,628 @@ _applyInlineHeaderFilterSort: async function (oMdcTbl) {
     // =========================
     onPrint: function () { MessageToast.show("Stampa: TODO"); },
 
-  onExportExcel: async function () {
-  BusyIndicator.show(0);
+    onExportExcel: async function () {
+      BusyIndicator.show(0);
 
-  try {
-    // ==========================================================
-    // 0) PRENDO LE DUE VARIABILI COME MI HAI DETTO TU
-    // ==========================================================
-    let so = this.getOwnerComponent().getModel("vm");
+      try {
+        // ==========================================================
+        // 0) PRENDO LE DUE VARIABILI COME MI HAI DETTO TU
+        // ==========================================================
+        let so = this.getOwnerComponent().getModel("vm");
 
-    // ⚠️ fragile per definizione (ordine Object.values non garantito)
-    let recordsScreen4 = Object.values(so.getData().cache.dataRowsByKey)[1] || so.getProperty("/cache/dataRowsByKey/" + this._getExportCacheKey()) || [];;
-    let recordsScreen3 = this.getView().getModel("detail").getData().Records || [];
+        // ⚠️ fragile per definizione (ordine Object.values non garantito)
+        let recordsScreen4 = Object.values(so.getData().cache.dataRowsByKey)[1] || so.getProperty("/cache/dataRowsByKey/" + this._getExportCacheKey()) || [];
+        let recordsScreen3 = this.getView().getModel("detail").getData().Records || [];
 
-    // normalizzo
-    recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
-    recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
+        // normalizzo
+        recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
+        recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
-    if (!recordsScreen4.length) {
-      MessageToast.show("Nessun dato Screen4 in cache (recordsScreen4 vuoto)");
-      return;
-    }
-
-    // ==========================================================
-    // 1) FUNZIONI UTILI: GUID + FIBRA  (chiave vera del tuo aggregato)
-    // ==========================================================
-    function norm(v) { return String(v == null ? "" : v).trim(); }
-
-    function guidOf(x) {
-      return norm(x && (x.GUID != null ? x.GUID : (x.Guid != null ? x.Guid : (x.guidKey != null ? x.guidKey : ""))));
-    }
-
-    function fibraOf(x) {
-      return norm(x && (x.Fibra != null ? x.Fibra : (x.FIBRA != null ? x.FIBRA : "")));
-    }
-
-    function keyOf(x) {
-      return guidOf(x) + "||" + fibraOf(x);
-    }
-
-    function isEmpty(v) {
-      if (v == null) return true;
-      if (Array.isArray(v)) return v.length === 0;
-      if (typeof v === "string") return v.trim() === "";
-      return false;
-    }
-
-    // ==========================================================
-    // 2) MAP DEI PARENT (Screen3) PER GUID||FIBRA
-    // ==========================================================
-    // Se ci sono duplicati di guid||fibra in Screen3, l'ultimo vince (ma non dovrebbe succedere)
-    let mParentByKey = {};
-    recordsScreen3.forEach(function (p) {
-      let k = keyOf(p);
-      if (k !== "||") mParentByKey[k] = p;
-    });
-
-    // ==========================================================
-    // 3) MERGE: per OGNI riga di Screen4 -> aggiungo campi Screen3
-    //    Output righe = recordsScreen4.length  ✅
-    // ==========================================================
-    let mergedRows = recordsScreen4.map(function (r4) {
-      // copia shallow della row Screen4
-      let out = Object.assign({}, r4);
-
-      let k = keyOf(out);
-      let parent = mParentByKey[k] || null;
-
-      // Se non matcha, provo un fallback SOLO su GUID (senza Fibra)
-      // (utile se Fibra è sempre "" e in qualche punto viene null/undefined)
-      if (!parent) {
-        let g = guidOf(out);
-        if (g) {
-          // cerco un parent con stesso guid e Fibra vuota
-          parent = mParentByKey[g + "||"] || null;
+        if (!recordsScreen4.length) {
+          MessageToast.show("Nessun dato Screen4 in cache (recordsScreen4 vuoto)");
+          return;
         }
-      }
 
-      if (parent) {
-        // Copio dal parent solo se:
-        // - campo NON presente in Screen4 (undefined) oppure è vuoto
-        Object.keys(parent).forEach(function (prop) {
-          if (prop.indexOf("__") === 0) return; // meta no
-          if (out[prop] === undefined || isEmpty(out[prop])) {
-            out[prop] = parent[prop];
-          }
+        // ==========================================================
+        // 1) FUNZIONI UTILI: GUID + FIBRA  (chiave vera del tuo aggregato)
+        // ==========================================================
+        function norm(v) { return String(v == null ? "" : v).trim(); }
+
+        function guidOf(x) {
+          return norm(x && (x.GUID != null ? x.GUID : (x.Guid != null ? x.Guid : (x.guidKey != null ? x.guidKey : ""))));
+        }
+
+        function fibraOf(x) {
+          return norm(x && (x.Fibra != null ? x.Fibra : (x.FIBRA != null ? x.FIBRA : "")));
+        }
+
+        function keyOf(x) {
+          return guidOf(x) + "||" + fibraOf(x);
+        }
+
+        function isEmpty(v) {
+          if (v == null) return true;
+          if (Array.isArray(v)) return v.length === 0;
+          if (typeof v === "string") return v.trim() === "";
+          return false;
+        }
+
+        // ==========================================================
+        // 2) MAP DEI PARENT (Screen3) PER GUID||FIBRA
+        // ==========================================================
+        // Se ci sono duplicati di guid||fibra in Screen3, l'ultimo vince (ma non dovrebbe succedere)
+        let mParentByKey = {};
+        recordsScreen3.forEach(function (p) {
+          let k = keyOf(p);
+          if (k !== "||") mParentByKey[k] = p;
         });
 
-        // Stato: Screen3 spesso ce l'ha in __status
-        if (isEmpty(out.Stato)) {
-          out.Stato = parent.__status || parent.Stato || out.Stato || "";
-        }
-        if (isEmpty(out.StatoText) && !isEmpty(out.Stato)) {
-          out.StatoText = parent.StatoText || (this._statusText ? this._statusText(out.Stato) : out.Stato);
+        // ==========================================================
+        // 3) MERGE: per OGNI riga di Screen4 -> aggiungo campi Screen3
+        //    Output righe = recordsScreen4.length  ✅
+        // ==========================================================
+        let mergedRows = recordsScreen4.map(function (r4) {
+          // copia shallow della row Screen4
+          let out = Object.assign({}, r4);
+
+          let k = keyOf(out);
+          let parent = mParentByKey[k] || null;
+
+          // fallback SOLO su GUID (senza Fibra)
+          if (!parent) {
+            let g = guidOf(out);
+            if (g) {
+              parent = mParentByKey[g + "||"] || null;
+            }
+          }
+
+          if (parent) {
+            // Copio dal parent solo se:
+            // - campo NON presente in Screen4 (undefined) oppure è vuoto
+            Object.keys(parent).forEach(function (prop) {
+              if (prop.indexOf("__") === 0) return; // meta no
+              if (out[prop] === undefined || isEmpty(out[prop])) {
+                out[prop] = parent[prop];
+              }
+            });
+
+            // Stato: Screen3 spesso ce l'ha in __status
+            if (isEmpty(out.Stato)) {
+              out.Stato = parent.__status || parent.Stato || out.Stato || "";
+            }
+            if (isEmpty(out.StatoText) && !isEmpty(out.Stato)) {
+              out.StatoText = parent.StatoText || (this._statusText ? this._statusText(out.Stato) : out.Stato);
+            }
+
+            // Coerenza GUID/Fibra (se nel raw mancano)
+            if (isEmpty(out.GUID) && !isEmpty(parent.GUID)) out.GUID = parent.GUID;
+            if (isEmpty(out.Guid) && !isEmpty(parent.Guid)) out.Guid = parent.Guid;
+            if (isEmpty(out.guidKey) && !isEmpty(parent.guidKey)) out.guidKey = parent.guidKey;
+            if (isEmpty(out.Fibra) && !isEmpty(parent.Fibra)) out.Fibra = parent.Fibra;
+          }
+
+          return out;
+        }.bind(this));
+
+        // ==========================================================
+        // 4) COLONNE + MAPPING EXPORT
+        // ==========================================================
+        let aColumns = this._buildExportColumnsComplete();
+
+        let aData = mergedRows.map(function (r) {
+          return this._mapRawRowToExportObject(r, aColumns);
+        }.bind(this));
+
+        // applichi filtri/sort della Screen3
+        aData = this._applyExportClientFiltersAndSort(aData);
+
+        if (!aData.length) {
+          MessageToast.show("Nessun dato dopo i filtri attivi");
+          return;
         }
 
-        // Coerenza GUID/Fibra (se nel raw mancano)
-        if (isEmpty(out.GUID) && !isEmpty(parent.GUID)) out.GUID = parent.GUID;
-        if (isEmpty(out.Guid) && !isEmpty(parent.Guid)) out.Guid = parent.Guid;
-        if (isEmpty(out.guidKey) && !isEmpty(parent.guidKey)) out.guidKey = parent.guidKey;
-        if (isEmpty(out.Fibra) && !isEmpty(parent.Fibra)) out.Fibra = parent.Fibra;
+        // ==========================================================
+        // 5) BUILD EXCEL
+        // ==========================================================
+        let sDate = new Date().toISOString().slice(0, 10);
+        let sFileName =
+          "Tracciabilita_" +
+          (this._sVendorId || "Vendor") + "_" +
+          (this._sMaterial || "Material") + "_" +
+          sDate + ".xlsx";
+
+        let oSheet = new Spreadsheet({
+          workbook: { columns: aColumns },
+          dataSource: aData,
+          fileName: sFileName
+        });
+
+        await oSheet.build();
+        MessageToast.show("Excel esportato");
+
+      } catch (e) {
+        console.error("[S3] Export Excel ERROR", e);
+        MessageToast.show("Errore export Excel (vedi Console)");
+      } finally {
+        BusyIndicator.hide();
+      }
+    },
+
+    _buildExportColumnsComplete: function () {
+      var oDetail = this.getView().getModel("detail");
+      var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
+      var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
+
+      // base columns sempre presenti
+      var aCols = [];
+      var mSeen = {};
+
+      var add = function (label, prop) {
+        prop = String(prop || "").trim();
+        if (!prop || mSeen[prop]) return;
+        mSeen[prop] = true;
+
+        aCols.push({
+          label: label || prop,
+          property: prop,
+          type: EdmType.String
+        });
+      };
+
+      add("Fornitore", "Fornitore");
+      add("Materiale", "Materiale");
+      add("GUID", "GUID");
+      add("Fibra", "Fibra");
+
+      add("Stato", "Stato");
+      add("Stato testo", "StatoText");
+
+      // prima Screen3 (01), poi Screen4 (02)
+      var addFromCfg = function (arr) {
+        (arr || []).forEach(function (f) {
+          if (!f || !f.ui) return;
+          var p = String(f.ui).trim();
+          if (!p) return;
+          if (p.toUpperCase() === "STATO") p = "Stato"; // normalizzo
+          add(f.label || p, p);
+        });
+      };
+
+      addFromCfg(a01);
+      addFromCfg(a02);
+
+      return aCols;
+    },
+
+    _mapRawRowToExportObject: function (r, aColumns) {
+      r = r || {};
+
+      // calcolo stato per singola riga RAW (coerente con la logica di Screen3)
+      var sStato = this._deriveRowStatusForExport(r);
+
+      var o = {};
+      (aColumns || []).forEach(function (c) {
+        var p = c.property;
+        var v = "";
+
+        if (p === "Fornitore") {
+          v = r.Fornitore != null ? r.Fornitore : (this._sVendorId || "");
+        } else if (p === "Materiale") {
+          v = r.Materiale != null ? r.Materiale : (this._sMaterial || "");
+        } else if (p === "GUID") {
+          v = r.GUID != null ? r.GUID : (r.Guid != null ? r.Guid : (r.guidKey != null ? r.guidKey : ""));
+        } else if (p === "Fibra") {
+          v = r.Fibra != null ? r.Fibra : (r.FIBRA != null ? r.FIBRA : "");
+        } else if (p === "Stato") {
+          v = sStato;
+        } else if (p === "StatoText") {
+          v = this._statusText(sStato);
+        } else {
+          v = (r[p] != null) ? r[p] : "";
+        }
+
+        if (Array.isArray(v)) v = v.join(", ");
+        if (v === null || v === undefined) v = "";
+
+        o[p] = v;
+      }.bind(this));
+
+      return o;
+    },
+
+    _deriveRowStatusForExport: function (r) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      return StatusUtil.normStatoRow(r, oVm);
+    },
+
+    _applyExportClientFiltersAndSort: function (aData) {
+      aData = Array.isArray(aData) ? aData.slice() : [];
+
+      var oDetail = this.getView().getModel("detail");
+      var q = String((oDetail && oDetail.getProperty("/__q")) || "").trim().toUpperCase();
+      var sStatus = String((oDetail && oDetail.getProperty("/__statusFilter")) || "").trim().toUpperCase();
+
+      // status
+      if (sStatus) {
+        aData = aData.filter(function (r) {
+          return String((r && r.Stato) || "").trim().toUpperCase() === sStatus;
+        });
       }
 
-      return out;
-    }.bind(this));
+      // global search
+      if (q) {
+        aData = aData.filter(function (r) {
+          return Object.keys(r || {}).some(function (k) {
+            var v = r[k];
+            if (v === null || v === undefined) return false;
+            return String(v).toUpperCase().indexOf(q) >= 0;
+          });
+        });
+      }
 
-    // ==========================================================
-    // 4) COLONNE + MAPPING EXPORT (riuso la tua pipeline)
-    // ==========================================================
-    let aColumns = this._buildExportColumnsComplete();
-
-    let aData = mergedRows.map(function (r) {
-      return this._mapRawRowToExportObject(r, aColumns);
-    }.bind(this));
-
-    // applichi filtri/sort della Screen3
-    aData = this._applyExportClientFiltersAndSort(aData);
-
-    if (!aData.length) {
-      MessageToast.show("Nessun dato dopo i filtri attivi");
-      return;
-    }
-
-    // ==========================================================
-    // 5) BUILD EXCEL
-    // ==========================================================
-    let sDate = new Date().toISOString().slice(0, 10);
-    let sFileName =
-      "Tracciabilita_" +
-      (this._sVendorId || "Vendor") + "_" +
-      (this._sMaterial || "Material") + "_" +
-      sDate + ".xlsx";
-
-    let oSheet = new Spreadsheet({
-      workbook: { columns: aColumns },
-      dataSource: aData,
-      fileName: sFileName
-    });
-
-    await oSheet.build();
-    MessageToast.show("Excel esportato");
-
-  } catch (e) {
-    console.error("[S3] Export Excel ERROR", e);
-    MessageToast.show("Errore export Excel (vedi Console)");
-  } finally {
-    BusyIndicator.hide();
-  }
-},
-
-
-
-_buildExportColumnsComplete: function () {
-  var oDetail = this.getView().getModel("detail");
-  var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
-  var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
-
-  // base columns sempre presenti
-  var aCols = [];
-  var mSeen = {};
-
-  var add = function (label, prop) {
-    prop = String(prop || "").trim();
-    if (!prop || mSeen[prop]) return;
-    mSeen[prop] = true;
-
-    aCols.push({
-      label: label || prop,
-      property: prop,
-      type: EdmType.String
-    });
-  };
-
-  add("Fornitore", "Fornitore");
-  add("Materiale", "Materiale");
-  add("GUID", "GUID");
-  add("Fibra", "Fibra");
-
-  add("Stato", "Stato");
-  add("Stato testo", "StatoText");
-
-  // prima Screen3 (01), poi Screen4 (02)
-  var addFromCfg = function (arr) {
-    (arr || []).forEach(function (f) {
-      if (!f || !f.ui) return;
-      var p = String(f.ui).trim();
-      if (!p) return;
-      if (p.toUpperCase() === "STATO") p = "Stato"; // normalizzo
-      add(f.label || p, p);
-    });
-  };
-
-  addFromCfg(a01);
-  addFromCfg(a02);
-
-  return aCols;
-},
-_mapRawRowToExportObject: function (r, aColumns) {
-  r = r || {};
-
-  // calcolo stato per singola riga RAW (coerente con la logica di Screen3)
-  var sStato = this._deriveRowStatusForExport(r);
-
-  var o = {};
-  (aColumns || []).forEach(function (c) {
-    var p = c.property;
-    var v = "";
-
-    if (p === "Fornitore") {
-      v = r.Fornitore != null ? r.Fornitore : (this._sVendorId || "");
-    } else if (p === "Materiale") {
-      v = r.Materiale != null ? r.Materiale : (this._sMaterial || "");
-    } else if (p === "GUID") {
-      v = r.GUID != null ? r.GUID : (r.Guid != null ? r.Guid : (r.guidKey != null ? r.guidKey : ""));
-    } else if (p === "Fibra") {
-      v = r.Fibra != null ? r.Fibra : (r.FIBRA != null ? r.FIBRA : "");
-    } else if (p === "Stato") {
-      v = sStato;
-    } else if (p === "StatoText") {
-      v = this._statusText(sStato);
-    } else {
-      v = (r[p] != null) ? r[p] : "";
-    }
-
-    if (Array.isArray(v)) v = v.join(", ");
-    if (v === null || v === undefined) v = "";
-
-    o[p] = v;
-  }.bind(this));
-
-  return o;
-},
-_deriveRowStatusForExport: function (r) {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var sForce = String(mock.forceStato || "").trim().toUpperCase();
-  if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
-
-  var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
-  if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
-
-  var ap = this._getApprovedFlag(r);
-  if (ap === 1) return "AP";
-
-  var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
-  if (rej > 0) return "RJ";
-
-  var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
-  if (pend > 0) return "ST";
-
-  return "ST";
-},
-_applyExportClientFiltersAndSort: function (aData) {
-  aData = Array.isArray(aData) ? aData.slice() : [];
-
-  var oDetail = this.getView().getModel("detail");
-  var q = String((oDetail && oDetail.getProperty("/__q")) || "").trim().toUpperCase();
-  var sStatus = String((oDetail && oDetail.getProperty("/__statusFilter")) || "").trim().toUpperCase();
-
-  // status
-  if (sStatus) {
-    aData = aData.filter(function (r) {
-      return String((r && r.Stato) || "").trim().toUpperCase() === sStatus;
-    });
-  }
-
-  // global search
-  if (q) {
-    aData = aData.filter(function (r) {
-      return Object.keys(r || {}).some(function (k) {
-        var v = r[k];
-        if (v === null || v === undefined) return false;
-        return String(v).toUpperCase().indexOf(q) >= 0;
+      // filtri per-colonna (header inline)
+      var mCol = (this._inlineFS && this._inlineFS.filters) || {};
+      var aKeys = Object.keys(mCol).filter(function (k) {
+        return String(mCol[k] || "").trim() !== "";
       });
-    });
-  }
 
-  // filtri per-colonna (header inline)
-  var mCol = (this._inlineFS && this._inlineFS.filters) || {};
-  var aKeys = Object.keys(mCol).filter(function (k) {
-    return String(mCol[k] || "").trim() !== "";
-  });
+      if (aKeys.length) {
+        aData = aData.filter(function (r) {
+          return aKeys.every(function (k) {
+            var wanted = String(mCol[k] || "").trim().toUpperCase();
+            if (!wanted) return true;
+            var v = (r && r[k] != null) ? r[k] : "";
+            return String(v).toUpperCase().indexOf(wanted) >= 0;
+          });
+        });
+      }
 
-  if (aKeys.length) {
-    aData = aData.filter(function (r) {
-      return aKeys.every(function (k) {
-        var wanted = String(mCol[k] || "").trim().toUpperCase();
-        if (!wanted) return true;
-        var v = (r && r[k] != null) ? r[k] : "";
-        return String(v).toUpperCase().indexOf(wanted) >= 0;
-      });
-    });
-  }
+      // sort
+      var st = (this._inlineFS && this._inlineFS.sort) || { key: "", desc: false };
+      if (st.key) {
+        var key = st.key;
+        var desc = !!st.desc;
 
-  // sort
-  var st = (this._inlineFS && this._inlineFS.sort) || { key: "", desc: false };
-  if (st.key) {
-    var key = st.key;
-    var desc = !!st.desc;
+        aData.sort(function (a, b) {
+          var va = (a && a[key] != null) ? a[key] : "";
+          var vb = (b && b[key] != null) ? b[key] : "";
+          va = String(va);
+          vb = String(vb);
+          var cmp = va.localeCompare(vb, undefined, { numeric: true, sensitivity: "base" });
+          return desc ? -cmp : cmp;
+        });
+      }
 
-    aData.sort(function (a, b) {
-      var va = (a && a[key] != null) ? a[key] : "";
-      var vb = (b && b[key] != null) ? b[key] : "";
-      va = String(va);
-      vb = String(vb);
-      var cmp = va.localeCompare(vb, undefined, { numeric: true, sensitivity: "base" });
-      return desc ? -cmp : cmp;
-    });
-  }
+      return aData;
+    },
 
-  return aData;
-},
+    _getExportCacheKey: function () {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      var bMockS3 = !!mock.mockS3;
 
-
-
-_getExportCacheKey: function () {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var bMockS3 = !!mock.mockS3;
-
-  var sBaseKey = this._getCacheKeySafe(); // vendor||material encoded
-  return (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
-},
+      var sBaseKey = this._getCacheKeySafe(); // vendor||material encoded
+      return (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
+    },
 
     onSave: function () { MessageToast.show("Salva: TODO"); },
 
     _statusText: function (sCode) {
-  var c = String(sCode || "").trim().toUpperCase();
-  var m = {
-    ST: "In attesa / Da approvare",
-    AP: "Approvato",
-    RJ: "Respinto",
-    CH: "Modificato"
-  };
-  return m[c] || c || "";
-},
+      var c = String(sCode || "").trim().toUpperCase();
+      var m = {
+        ST: "In attesa / Da approvare",
+        AP: "Approvato",
+        RJ: "Respinto",
+        CH: "Modificato"
+      };
+      return m[c] || c || "";
+    },
 
-// =========================
-// ADD/DELETE ROWS (Screen3) - MDC Table (detail>/RecordsAll -> detail>/Records)
-// + legame Screen4: cache dettagli vuota per idx + selected parent in vm
-// =========================
-PARENT_TABLE_ID: "mdcTable3",
+    // =========================
+    // ADD/DELETE ROWS (Screen3) - MDC Table
+    // =========================
+    PARENT_TABLE_ID: "mdcTable3",
 
-onAddRow: function () {
-  var oDetail = this.getView().getModel("detail");
-  if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+    onAddRow: function () {
+      var oDetail = this.getView().getModel("detail");
+      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
 
-  var aAll = oDetail.getProperty("/RecordsAll") || [];
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
 
-  // idx stabile (NON usare l'indice array)
-  var iMax = -1;
-  (aAll || []).forEach(function (r) {
-    var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
-    if (!isNaN(n) && n > iMax) iMax = n;
-  });
-  var iNewIdx = iMax + 1;
-
-  // GUID + "-new"
-  var sGuidNew = this._genGuidNew();
-
-  // record padre (Screen3)
-  var oNewRow = {
-    idx: iNewIdx,
-
-    // metto TUTTE e 3 per compatibilità con codice esistente
-    GUID: sGuidNew,
-    Guid: sGuidNew,
-    guidKey: sGuidNew,
-
-    Fibra: "",
-
-    Stato: "ST",
-    StatoText: this._statusText("ST"),
-    __status: "ST",
-
-    __canEdit: true,
-    __canApprove: false,
-    __canReject: false,
-    __readOnly: false,
-
-    __isNew: true,
-    __state: "NEW"
-  };
-
-  // inizializza campi dinamici MMCT (evita undefined, soprattutto per MultiCombo -> [])
-  var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-  (aCfg01 || []).forEach(function (f) {
-    if (!f || !f.ui) return;
-    var k = String(f.ui).trim();
-    if (!k) return;
-    if (k.toUpperCase() === "STATO") k = "Stato";
-    if (oNewRow[k] !== undefined) return;
-    oNewRow[k] = f.multiple ? [] : "";
-  });
-
-  // aggiungi in testa
-  aAll.push(oNewRow);
-  oDetail.setProperty("/RecordsAll", aAll);
-
-  // legame con Screen4: salva parent selezionato + crea bucket dettagli vuoto per questo idx
-  this._setSelectedParentForScreen4(oNewRow);
-  this._ensureScreen4CacheForParentIdx(iNewIdx, sGuidNew);
-
-  // aggiorna Records + rebind
-  this._applyClientFilters();
-
-  // selezione: prova a selezionare la prima riga visibile (best-effort)
-  setTimeout(function () {
-    this._selectFirstRowMdc();
-  }.bind(this), 0);
-
-  MessageToast.show("Riga aggiunta");
-},
-
-onDeleteRows: function () {
-  var oDetail = this.getView().getModel("detail");
-  if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-
-  var aSel = this._getSelectedParentObjectsFromMdc();
-  if (!aSel.length) return MessageToast.show("Seleziona almeno una riga da eliminare");
-
-  // idx da rimuovere
-  var aIdxToRemove = aSel
-    .map(function (r) { return parseInt(r && r.idx, 10); })
-    .filter(function (n) { return !isNaN(n) && n >= 0; });
-
-  if (!aIdxToRemove.length) return MessageToast.show("Nessun idx valido nelle righe selezionate");
-
-  // (opzionale) traccia delete backend (solo non-new)
-  var aDeletedParents = oDetail.getProperty("/__deletedParents") || [];
-  aSel.forEach(function (r) {
-    var g = (r && (r.GUID || r.Guid || r.guidKey)) || "";
-    if (g && String(g).indexOf("-new") < 0) aDeletedParents.push(r);
-  });
-  oDetail.setProperty("/__deletedParents", aDeletedParents);
-
-  // rimuovi da RecordsAll
-  var aAll = oDetail.getProperty("/RecordsAll") || [];
-  var aRemaining = (aAll || []).filter(function (r) {
-    var n = parseInt(r && r.idx, 10);
-    return aIdxToRemove.indexOf(n) < 0;
-  });
-  oDetail.setProperty("/RecordsAll", aRemaining);
-
-  // pulisci cache Screen4 per quei padri
-  this._purgeScreen4CacheByParentIdx(aIdxToRemove);
-
-  // se il selected parent è stato eliminato -> reset
-  var oSel = this._getSelectedParentForScreen4();
-  var iSelIdx = oSel ? parseInt(oSel.idx, 10) : NaN;
-  if (!isNaN(iSelIdx) && aIdxToRemove.indexOf(iSelIdx) >= 0) {
-    this._setSelectedParentForScreen4(null);
-  }
-
-  // aggiorna Records + rebind
-  this._applyClientFilters();
-
-  // clear selection
-  this._clearSelectionMdc();
-
-  MessageToast.show("Righe eliminate");
-},
-
-/* ===========================
- * Helpers selezione MDC
- * =========================== */
-_getSelectedParentObjectsFromMdc: function () {
-  var oMdc = this.byId(this.PARENT_TABLE_ID);
-  var aObj = [];
-
-  // 1) MDC Table (se disponibile)
-  try {
-    if (oMdc && typeof oMdc.getSelectedContexts === "function") {
-      var aCtx = oMdc.getSelectedContexts() || [];
-      aCtx.forEach(function (c) {
-        var o = c && c.getObject && c.getObject();
-        if (o) aObj.push(o);
+      // idx stabile (NON usare l'indice array)
+      var iMax = -1;
+      (aAll || []).forEach(function (r) {
+        var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
+        if (!isNaN(n) && n > iMax) iMax = n;
       });
-      if (aObj.length) return aObj;
-    }
-  } catch (e) { }
+      var iNewIdx = iMax + 1;
 
-  // 2) Inner table fallback
-  var oInner = this._getInnerTableFromMdc(oMdc);
+      // GUID + "-new"
+      var sGuidNew = this._genGuidNew();
 
-  // sap.ui.table.Table
-  try {
-    if (oInner && typeof oInner.getSelectedIndices === "function" && typeof oInner.getContextByIndex === "function") {
-      var aIdx = oInner.getSelectedIndices() || [];
-      aIdx.forEach(function (i) {
-        var c = oInner.getContextByIndex(i);
-        var o = c && c.getObject && c.getObject();
-        if (o) aObj.push(o);
+      // record padre (Screen3)
+      var oNewRow = {
+        idx: iNewIdx,
+
+        // metto TUTTE e 3 per compatibilità con codice esistente
+        GUID: sGuidNew,
+        Guid: sGuidNew,
+        guidKey: sGuidNew,
+
+        Fibra: "",
+
+        Stato: "ST",
+        StatoText: this._statusText("ST"),
+        __status: "ST",
+
+        __canEdit: true,
+        __canApprove: false,
+        __canReject: false,
+        __readOnly: false,
+
+        __isNew: true,
+        __state: "NEW"
+      };
+
+      // inizializza campi dinamici MMCT (evita undefined, soprattutto per MultiCombo -> [])
+      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
+      (aCfg01 || []).forEach(function (f) {
+        if (!f || !f.ui) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        if (k.toUpperCase() === "STATO") k = "Stato";
+        if (oNewRow[k] !== undefined) return;
+        oNewRow[k] = f.multiple ? [] : "";
       });
-      if (aObj.length) return aObj;
-    }
-  } catch (e2) { }
 
-  // sap.m.Table / ListBase
-  try {
-    if (oInner && typeof oInner.getSelectedItems === "function") {
-      var aItems = oInner.getSelectedItems() || [];
-      aItems.forEach(function (it) {
-        var c = it && it.getBindingContext && (it.getBindingContext("detail") || it.getBindingContext());
-        var o = c && c.getObject && c.getObject();
-        if (o) aObj.push(o);
+      // aggiungi in testa
+      aAll.push(oNewRow);
+      oDetail.setProperty("/RecordsAll", aAll);
+
+      // legame con Screen4: salva parent selezionato + crea bucket dettagli vuoto per idx
+      this._setSelectedParentForScreen4(oNewRow);
+      this._ensureScreen4CacheForParentIdx(iNewIdx, sGuidNew);
+
+      // aggiorna Records + rebind
+      this._applyClientFilters();
+
+      // selezione: prova a selezionare la prima riga visibile (best-effort)
+      setTimeout(function () {
+        this._selectFirstRowMdc();
+      }.bind(this), 0);
+
+      MessageToast.show("Riga aggiunta");
+    },
+
+    onDeleteRows: function () {
+      var oDetail = this.getView().getModel("detail");
+      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+
+      var aSel = this._getSelectedParentObjectsFromMdc();
+      if (!aSel.length) return MessageToast.show("Seleziona almeno una riga da eliminare");
+
+      // idx da rimuovere
+      var aIdxToRemove = aSel
+        .map(function (r) { return parseInt(r && r.idx, 10); })
+        .filter(function (n) { return !isNaN(n) && n >= 0; });
+
+      if (!aIdxToRemove.length) return MessageToast.show("Nessun idx valido nelle righe selezionate");
+
+      // (opzionale) traccia delete backend (solo non-new)
+      var aDeletedParents = oDetail.getProperty("/__deletedParents") || [];
+      aSel.forEach(function (r) {
+        var g = (r && (r.GUID || r.Guid || r.guidKey)) || "";
+        if (g && String(g).indexOf("-new") < 0) aDeletedParents.push(r);
       });
-      if (aObj.length) return aObj;
-    }
-  } catch (e3) { }
+      oDetail.setProperty("/__deletedParents", aDeletedParents);
 
-  // single selection fallback
-  try {
-    if (oInner && typeof oInner.getSelectedItem === "function") {
-      var it2 = oInner.getSelectedItem();
-      if (it2) {
-        var c2 = it2.getBindingContext && (it2.getBindingContext("detail") || it2.getBindingContext());
-        var o2 = c2 && c2.getObject && c2.getObject();
-        if (o2) aObj.push(o2);
+      // rimuovi da RecordsAll
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+      var aRemaining = (aAll || []).filter(function (r) {
+        var n = parseInt(r && r.idx, 10);
+        return aIdxToRemove.indexOf(n) < 0;
+      });
+      oDetail.setProperty("/RecordsAll", aRemaining);
+
+      // pulisci cache Screen4 per quei padri
+      this._purgeScreen4CacheByParentIdx(aIdxToRemove);
+
+      // se il selected parent è stato eliminato -> reset
+      var oSel = this._getSelectedParentForScreen4();
+      var iSelIdx = oSel ? parseInt(oSel.idx, 10) : NaN;
+      if (!isNaN(iSelIdx) && aIdxToRemove.indexOf(iSelIdx) >= 0) {
+        this._setSelectedParentForScreen4(null);
       }
-    }
-  } catch (e4) { }
 
-  return aObj;
-},
+      // aggiorna Records + rebind
+      this._applyClientFilters();
 
-_clearSelectionMdc: function () {
-  var oMdc = this.byId(this.PARENT_TABLE_ID);
+      // clear selection
+      this._clearSelectionMdc();
 
-  try {
-    if (oMdc && typeof oMdc.clearSelection === "function") {
-      oMdc.clearSelection();
-      return;
-    }
-  } catch (e) { }
+      MessageToast.show("Righe eliminate");
+    },
 
-  var oInner = this._getInnerTableFromMdc(oMdc);
+    /* ===========================
+     * Helpers selezione MDC
+     * =========================== */
+    _getSelectedParentObjectsFromMdc: function () {
+      var oMdc = this.byId(this.PARENT_TABLE_ID);
+      var aObj = [];
 
-  try {
-    if (oInner && typeof oInner.clearSelection === "function") {
-      oInner.clearSelection();
-      return;
-    }
-  } catch (e2) { }
+      // 1) MDC Table (se disponibile)
+      try {
+        if (oMdc && typeof oMdc.getSelectedContexts === "function") {
+          var aCtx = oMdc.getSelectedContexts() || [];
+          aCtx.forEach(function (c) {
+            var o = c && c.getObject && c.getObject();
+            if (o) aObj.push(o);
+          });
+          if (aObj.length) return aObj;
+        }
+      } catch (e) { }
 
-  try {
-    if (oInner && typeof oInner.removeSelections === "function") {
-      oInner.removeSelections(true);
-      return;
-    }
-  } catch (e3) { }
-},
+      // 2) Inner table fallback
+      var oInner = this._getInnerTableFromMdc(oMdc);
 
-_selectFirstRowMdc: function () {
-  var oMdc = this.byId(this.PARENT_TABLE_ID);
-  var oInner = this._getInnerTableFromMdc(oMdc);
+      // sap.ui.table.Table
+      try {
+        if (oInner && typeof oInner.getSelectedIndices === "function" && typeof oInner.getContextByIndex === "function") {
+          var aIdx = oInner.getSelectedIndices() || [];
+          aIdx.forEach(function (i) {
+            var c = oInner.getContextByIndex(i);
+            var o = c && c.getObject && c.getObject();
+            if (o) aObj.push(o);
+          });
+          if (aObj.length) return aObj;
+        }
+      } catch (e2) { }
 
-  // sap.ui.table.Table
-  try {
-    if (oInner && typeof oInner.setSelectedIndex === "function") {
-      oInner.setSelectedIndex(0);
-      return;
-    }
-  } catch (e) { }
+      // sap.m.Table / ListBase
+      try {
+        if (oInner && typeof oInner.getSelectedItems === "function") {
+          var aItems = oInner.getSelectedItems() || [];
+          aItems.forEach(function (it) {
+            var c = it && it.getBindingContext && (it.getBindingContext("detail") || it.getBindingContext());
+            var o = c && c.getObject && c.getObject();
+            if (o) aObj.push(o);
+          });
+          if (aObj.length) return aObj;
+        }
+      } catch (e3) { }
 
-  // sap.m.Table / ListBase
-  try {
-    if (oInner && typeof oInner.getItems === "function" && typeof oInner.setSelectedItem === "function") {
-      var it = (oInner.getItems() || [])[0];
-      if (it) oInner.setSelectedItem(it, true);
-      return;
-    }
-  } catch (e2) { }
-},
+      // single selection fallback
+      try {
+        if (oInner && typeof oInner.getSelectedItem === "function") {
+          var it2 = oInner.getSelectedItem();
+          if (it2) {
+            var c2 = it2.getBindingContext && (it2.getBindingContext("detail") || it2.getBindingContext());
+            var o2 = c2 && c2.getObject && c2.getObject();
+            if (o2) aObj.push(o2);
+          }
+        }
+      } catch (e4) { }
 
-/* ===========================
- * Legame Screen3 -> Screen4 (cache + selected parent)
- * =========================== */
-_setSelectedParentForScreen4: function (oParentOrNull) {
-  var oVm = this._ensureVmCache();
-  oVm.setProperty("/selectedScreen3Record", oParentOrNull || null);
-  this.getOwnerComponent().setModel(oVm, "vm");
-},
+      return aObj;
+    },
 
-_getSelectedParentForScreen4: function () {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  return oVm ? oVm.getProperty("/selectedScreen3Record") : null;
-},
+    _clearSelectionMdc: function () {
+      var oMdc = this.byId(this.PARENT_TABLE_ID);
 
-_ensureScreen4CacheForParentIdx: function (iIdx, sGuid) {
-  var oVm = this._ensureVmCache();
-  var sK = this._getCacheKeySafe(); // vendor||material (encoded)
+      try {
+        if (oMdc && typeof oMdc.clearSelection === "function") {
+          oMdc.clearSelection();
+          return;
+        }
+      } catch (e) { }
 
-  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
-  if (!mAll[sK]) mAll[sK] = {};
-  if (!mAll[sK][String(iIdx)]) mAll[sK][String(iIdx)] = []; // dettagli vuoti
+      var oInner = this._getInnerTableFromMdc(oMdc);
 
-  oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+      try {
+        if (oInner && typeof oInner.clearSelection === "function") {
+          oInner.clearSelection();
+          return;
+        }
+      } catch (e2) { }
 
-  // (opzionale) mappa parent guid per idx
-  var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
-  if (!mP[sK]) mP[sK] = {};
-  mP[sK][String(iIdx)] = sGuid || "";
-  oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
-},
+      try {
+        if (oInner && typeof oInner.removeSelections === "function") {
+          oInner.removeSelections(true);
+          return;
+        }
+      } catch (e3) { }
+    },
 
-_purgeScreen4CacheByParentIdx: function (aIdx) {
-  var oVm = this._ensureVmCache();
-  var sK = this._getCacheKeySafe();
+    _selectFirstRowMdc: function () {
+      var oMdc = this.byId(this.PARENT_TABLE_ID);
+      var oInner = this._getInnerTableFromMdc(oMdc);
 
-  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
-  if (mAll[sK]) {
-    (aIdx || []).forEach(function (n) { delete mAll[sK][String(n)]; });
-    oVm.setProperty("/cache/screen4DetailsByKey", mAll);
-  }
+      // sap.ui.table.Table
+      try {
+        if (oInner && typeof oInner.setSelectedIndex === "function") {
+          oInner.setSelectedIndex(0);
+          return;
+        }
+      } catch (e) { }
 
-  var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
-  if (mP[sK]) {
-    (aIdx || []).forEach(function (n) { delete mP[sK][String(n)]; });
-    oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
-  }
-},
+      // sap.m.Table / ListBase
+      try {
+        if (oInner && typeof oInner.getItems === "function" && typeof oInner.setSelectedItem === "function") {
+          var it = (oInner.getItems() || [])[0];
+          if (it) oInner.setSelectedItem(it, true);
+          return;
+        }
+      } catch (e2) { }
+    },
 
-/* ===========================
- * GUID GENERATION + "-new"
- * =========================== */
-_genGuidNew: function () {
-  var base = "";
+    /* ===========================
+     * Legame Screen3 -> Screen4 (cache + selected parent)
+     * =========================== */
+    _setSelectedParentForScreen4: function (oParentOrNull) {
+      var oVm = this._ensureVmCache();
+      oVm.setProperty("/selectedScreen3Record", oParentOrNull || null);
+      this.getOwnerComponent().setModel(oVm, "vm");
+    },
 
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    base = crypto.randomUUID().replace(/-/g, "");
-  } else if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    var a = new Uint8Array(16);
-    crypto.getRandomValues(a);
-    base = Array.prototype.map.call(a, function (b) {
-      return b.toString(16).padStart(2, "0");
-    }).join("");
-  } else {
-    base = (Date.now().toString(16) + Math.random().toString(16).slice(2)).replace(/\./g, "");
-  }
+    _getSelectedParentForScreen4: function () {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      return oVm ? oVm.getProperty("/selectedScreen3Record") : null;
+    },
 
-  return base + "-new";
-},
+    _ensureScreen4CacheForParentIdx: function (iIdx, sGuid) {
+      var oVm = this._ensureVmCache();
+      var sK = this._getCacheKeySafe(); // vendor||material (encoded)
 
+      var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+      if (!mAll[sK]) mAll[sK] = {};
+      if (!mAll[sK][String(iIdx)]) mAll[sK][String(iIdx)] = []; // dettagli vuoti
+
+      oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+
+      // (opzionale) mappa parent guid per idx
+      var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+      if (!mP[sK]) mP[sK] = {};
+      mP[sK][String(iIdx)] = sGuid || "";
+      oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+    },
+
+    _purgeScreen4CacheByParentIdx: function (aIdx) {
+      var oVm = this._ensureVmCache();
+      var sK = this._getCacheKeySafe();
+
+      var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+      if (mAll[sK]) {
+        (aIdx || []).forEach(function (n) { delete mAll[sK][String(n)]; });
+        oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+      }
+
+      var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+      if (mP[sK]) {
+        (aIdx || []).forEach(function (n) { delete mP[sK][String(n)]; });
+        oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+      }
+    },
+
+    /* ===========================
+     * GUID GENERATION + "-new"
+     * =========================== */
+    _genGuidNew: function () {
+      var base = "";
+
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        base = crypto.randomUUID().replace(/-/g, "");
+      } else if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+        var a = new Uint8Array(16);
+        crypto.getRandomValues(a);
+        base = Array.prototype.map.call(a, function (b) {
+          return b.toString(16).padStart(2, "0");
+        }).join("");
+      } else {
+        base = (Date.now().toString(16) + Math.random().toString(16).slice(2)).replace(/\./g, "");
+      }
+
+      return base + "-new";
+    },
 
     // =========================
     // NavBack
@@ -2083,4 +1775,3 @@ _genGuidNew: function () {
   });
 
 });
- 

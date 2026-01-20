@@ -16,6 +16,15 @@ sap.ui.define([
   "sap/ui/core/Item",
   "sap/ui/mdc/p13n/StateUtil",
   "sap/m/VBox",
+  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/domains",
+  "apptracciabilita/apptracciabilita/util/statusUtil",
+  "apptracciabilita/apptracciabilita/util/mmctUtil",
+  "apptracciabilita/apptracciabilita/util/mdcTableUtil",
+  "apptracciabilita/apptracciabilita/util/p13nUtil",
+  "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
+
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
   Controller,
@@ -34,12 +43,17 @@ sap.ui.define([
   Item,
   StateUtil,
   VBox,
+  Common,
+  VmCache,
+  Domains,
+  StatusUtil,
+  MmctUtil,
+  MdcTableUtil,
+  P13nUtil,
+  CellTemplateUtil,
   MockData
 ) {
   "use strict";
-
-  function ts() { return new Date().toISOString(); }
-  function deepClone(x) { try { return JSON.parse(JSON.stringify(x)); } catch (e) { return x; } }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
 
@@ -128,27 +142,19 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       } catch (e) {  }
     },
 
-    // =========================
-    // LOG
-    // =========================
-    _log: function () {
-      var a = Array.prototype.slice.call(arguments);
-      a.unshift("[S4] " + ts());
-      console.log.apply(console, a);
-    },
+    
+_log: function () {
+  var a = Array.prototype.slice.call(arguments);
+  a.unshift("[S4] " + Common.ts());
+  console.log.apply(console, a);
+},
 
-    // =========================
-    // DEBUG (MDC / INNER TABLE)
-    // =========================
-    _dbg: function () {
-      // metti a false se vuoi spegnere tutto
-      if (this._DBG === false) return;
-
-      var a = Array.prototype.slice.call(arguments);
-      a.unshift("[S4DBG] " + ts());
-      console.log.apply(console, a);
-    },
-
+_dbg: function () {
+  if (this._DBG === false) return;
+  var a = Array.prototype.slice.call(arguments);
+  a.unshift("[S4DBG] " + Common.ts());
+  console.log.apply(console, a);
+},
     _setupDebugMdcHooks: function () {
       try {
         var oMdc = this.byId("mdcTable4");
@@ -230,110 +236,30 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       });
     },
 
-    // =========================
-    // Approved flag -> readOnly
-    // =========================
-    _toStableString: function (v) {
-      if (v === null || v === undefined) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "number" || typeof v === "boolean") return String(v);
-      try { return JSON.stringify(v); } catch (e) { return String(v); }
-    },
 
-    _getApprovedFlag: function (r) {
-      if (!r) return 0;
-      var v = r.Approved ?? r.APPROVED ?? r.approved ?? r.FLAG_APPROVED ?? r.FlagApproved;
-      if (v === true) return 1;
-      if (v === false) return 0;
-      var n = parseInt(String(v || "0"), 10);
-      return isNaN(n) ? 0 : n;
-    },
+    _toStableString: Common.toStableString,
+    _getApprovedFlag: StatusUtil.getApprovedFlag,
 
     // =========================
     // IMPOSTAZIONE / MULTIPLE
     // =========================
-    _getSettingFlags: function (c) {
-      var s = String((c && (c.Impostazione ?? c.IMPOSTAZIONE)) || "").trim().toUpperCase();
-      return {
-        required: s === "O",
-        locked: s === "B",
-        hidden: s === "N"
-      };
-    },
-
-    _isMultipleField: function (c) {
-      var s = String((c && (c.MultipleVal ?? c.MULTIPLEVAL)) || "").trim().toUpperCase();
-      return s === "X";
-    },
+    _getSettingFlags: MmctUtil.getSettingFlags,
+    _isMultipleField: MmctUtil.isMultipleField,
 
     // =========================
     // DOMAINS
     // =========================
     _domainHasValues: function (sDomain) {
-      if (!sDomain) return false;
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var a = (oVm && oVm.getProperty("/domainsByName/" + sDomain)) || [];
-      return Array.isArray(a) && a.length > 0;
+    return Domains.domainHasValues(this.getOwnerComponent(), sDomain);
     },
-
-    // =========================
-    // PERMESSI / STATO
-    // =========================
-    _rankStato: function (st) {
-      st = String(st || "").trim().toUpperCase();
-      if (st === "AP") return 4;
-      if (st === "CH") return 3;
-      if (st === "RJ") return 2;
-      return 1; // ST default
-    },
-
-    _mergeStatus: function (a, b) {
-      return (this._rankStato(b) > this._rankStato(a)) ? b : a;
-    },
-
-    _canEdit: function (role, status) {
-      role = String(role || "").trim().toUpperCase();
-      status = String(status || "").trim().toUpperCase();
-      if (role === "S") return false;
-      if (role === "I") return false;
-      if (role === "E") return status !== "AP";
-      return false;
-    },
-
-    _canApprove: function (role, status) {
-      role = String(role || "").trim().toUpperCase();
-      status = String(status || "").trim().toUpperCase();
-      return role === "I" && (status === "ST" || status === "CH");
-    },
-
-    _canReject: function (role, status) {
-      role = String(role || "").trim().toUpperCase();
-      status = String(status || "").trim().toUpperCase();
-      return role === "I" && (status === "ST" || status === "CH");
-    },
-
+    _rankStato: StatusUtil.rankStato,
+    _mergeStatus: StatusUtil.mergeStatus,
+    _canEdit: StatusUtil.canEdit,
+    _canApprove: StatusUtil.canApprove,
+    _canReject: StatusUtil.canReject,
     _normStatoRow: function (r) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
-
-      if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-        return sForceStato;
-      }
-
-      var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
-      if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
-
-      var ap = this._getApprovedFlag(r);
-      if (ap === 1) return "AP";
-
-      var rej = parseInt(String(r.Rejected || r.REJECTED || "0"), 10) || 0;
-      if (rej > 0) return "RJ";
-
-      var pend = parseInt(String(r.ToApprove || r.TOAPPROVE || "0"), 10) || 0;
-      if (pend > 0) return "ST";
-
-      return "ST";
+    var oVm = this.getOwnerComponent().getModel("vm");
+    return StatusUtil.normStatoRow(r, oVm);
     },
 
     _updateVmRecordStatus: function (sCacheKey, sGuidKeySel, sFibraSel, sRole, sStatus) {
@@ -538,78 +464,22 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
     // CACHE VM
     // =========================
     _ensureVmCache: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      if (!oVm) oVm = new JSONModel({});
-
-      if (!oVm.getProperty("/cache")) oVm.setProperty("/cache", {});
-      if (!oVm.getProperty("/cache/dataRowsByKey")) oVm.setProperty("/cache/dataRowsByKey", {});
-      if (!oVm.getProperty("/cache/recordsByKey")) oVm.setProperty("/cache/recordsByKey", {});
-      if (!oVm.getProperty("/mdcCfg")) oVm.setProperty("/mdcCfg", {});
-
-      this.getOwnerComponent().setModel(oVm, "vm");
-      return oVm;
+    return VmCache.ensureVmCache(this.getOwnerComponent());
     },
-
     _getCacheKeySafe: function () {
-      return encodeURIComponent((this._sVendorId || "") + "||" + (this._sMaterial || ""));
+    return VmCache.getCacheKeySafe(this._sVendorId, this._sMaterial);
     },
 
-    // =========================
-    // MMCT
-    // =========================
     _getMmctCfgForCat: function (sCat) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var aUserInfos = (oVm && (oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userInfosMMCT"))) || [];
-      if (!Array.isArray(aUserInfos)) return [];
-
-      var oCat = aUserInfos.find(function (x) { return String(x && x.CatMateriale) === String(sCat); });
-      var aFields = (oCat && oCat.UserMMCTFields && oCat.UserMMCTFields.results) ? oCat.UserMMCTFields.results : [];
-      return Array.isArray(aFields) ? aFields : [];
+    var oVm = this.getOwnerComponent().getModel("vm");
+    return MmctUtil.getMmctCfgForCat(oVm, sCat);
     },
-
-_isX: function (v) {
-  return String(v || "").trim().toUpperCase() === "X";
-},
-
-_parseOrder: function (c) {
-  var n = parseInt(String(c?.Ordinamento ?? c?.ORDINAMENTO ?? "").trim(), 10);
-  return isNaN(n) ? 9999 : n;
-},
-
-_cfgForScreen: function (sCat, sScreen) {
-  var a = this._getMmctCfgForCat(sCat) || [];
-  var sTarget = String(sScreen || "");
-  if (sTarget.length === 1) sTarget = "0" + sTarget;
-
-  var out = (a || [])
-    .filter(function (c) {
-      var lv = String(c.LivelloSchermata || "");
-      if (lv.length === 1) lv = "0" + lv;
-      return lv === sTarget;
-    })
-    .map(function (c) {
-      var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-      if (!ui) return null;
-
-      var flags = this._getSettingFlags(c);
-      if (flags.hidden) return null;
-
-      return {
-        ui: ui,
-        label: (c.Descrizione || c.DESCRIZIONE || ui),
-        domain: String(c.Dominio ?? c.DOMINIO ?? c.Domain ?? c.DOMAIN ?? "").trim(),
-        required: !!flags.required,
-        locked: !!flags.locked,
-        multiple: this._isMultipleField(c),
-        order: this._parseOrder(c),
-        testata2: this._isX(c.Testata2 ?? c.TESTATA2)
-      };
-    }.bind(this))
-    .filter(Boolean);
-
-  out.sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); });
-  return out;
-},
+    _isX: MmctUtil.isX,
+    _parseOrder: MmctUtil.parseOrder,
+    _cfgForScreen: function (sCat, sScreen) {
+    var oVm = this.getOwnerComponent().getModel("vm");
+    return MmctUtil.cfgForScreen(oVm, sCat, sScreen);
+    },
 
 
 
@@ -960,7 +830,7 @@ _loadSelectedRecordRows: function (fnDone) {
 
     // --- 2) SE NON CI SONO RIGHE -> CREA RIGA SYNTHETIC E SALVA IN CACHE ---
     if (!aByGuid.length) {
-      var oSynth = deepClone(oSel || oRec) || {};
+      var oSynth = Common.deepClone(oSel || oRec) || {};
 
       // forza campi guid per farti matchare sempre _rowGuidKey
       oSynth.guidKey = sGuidKey;
@@ -1191,7 +1061,7 @@ if (sCat) {
     // rebuild record list if possible
     var r0 = aAllRows[0] || {};
     var sCat = String(r0.CatMateriale || "").trim();
-    var aCfg01 = sCat ? this._cfgForScreen01(sCat) : [];
+    var aCfg01 = sCat ? this._cfgForScreen(sCat, "01") : [];
     aRecords = this._buildRecords01ForCache(aAllRows, aCfg01);
 
     oVm.setProperty("/cache/dataRowsByKey/" + sKey, aAllRows);
@@ -1306,7 +1176,7 @@ if (sCat) {
       if (oTbl.initialized) await oTbl.initialized();
       oTbl.setModel(oDetail, "detail");
 
-      this._snapshotRows = deepClone(oDetail.getProperty("/RowsAll") || []);
+      this._snapshotRows = Common.deepClone(oDetail.getProperty("/RowsAll") || []);
 
       if (typeof oTbl.rebind === "function") oTbl.rebind();
 
@@ -1349,14 +1219,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
     // =========================
     // FILTER + SORT (global + column)
     // =========================
-    _valToText: function (v) {
-      if (v === null || v === undefined) return "";
-      if (Array.isArray(v)) return v.join(", ");
-      if (typeof v === "object") {
-        try { return JSON.stringify(v); } catch (e) { return String(v); }
-      }
-      return String(v);
-    },
+    _valToText: Common.valToText,
 
     _applyFiltersAndSort: function () {
       var oDetail = this.getView().getModel("detail");
@@ -2214,7 +2077,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var sStatus = String(oDetail.getProperty("/__status") || "ST").trim().toUpperCase();
         this._updateVmRecordStatus(sKey, sGuidKeySel, sFibraSel, sRole, sStatus);
 
-        this._snapshotRows = deepClone(aRowsAll);
+        this._snapshotRows = Common.deepClone(aRowsAll);
         oDetail.setProperty("/__dirty", false);
 
         this._applyUiPermissions();
@@ -2250,7 +2113,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
         var oBase = aRowsAll[0];
 
-        var oNew = deepClone(oBase) || {};
+        var oNew = Common.deepClone(oBase) || {};
         delete oNew.__metadata;
         oNew.__readOnly = false;
 

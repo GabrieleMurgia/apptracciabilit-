@@ -87,6 +87,21 @@
 
           <Toolbar id="tblToolbar4" design="Transparent">
             <ToolbarSpacer id="footerToolbar4sp"/>
+                        <Button
+              id="btnAddRow02"
+              text="Aggiungi riga"
+              type="Emphasized"
+              icon="sap-icon://add"
+              enabled="{detail>/__canAddRow}"
+              press=".onAddRow"/>
+
+            <Button
+              id="btnDeleteRows02"
+              text="Elimina righe"
+              type="Negative"
+              icon="sap-icon://delete"
+              enabled="{detail>/__canAddRow}"
+              press=".onDeleteRows"/>
             <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
             <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
           </Toolbar>

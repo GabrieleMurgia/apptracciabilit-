@@ -331,19 +331,6 @@ this._hdrSortBtns = {};   // { FIELD: Button }
       return "ST";
     },
 
-    _applyGroupStatusToRows: function (aRows, status, bReadOnly) {
-      var st = String(status || "ST").trim().toUpperCase();
-      (aRows || []).forEach(function (r) {
-        if (!r) return;
-        r.Stato = st;
-        if (st === "AP") { r.Approved = 1; r.ToApprove = 0; r.Rejected = 0; }
-        if (st === "RJ") { r.Approved = 0; r.ToApprove = 0; r.Rejected = 1; }
-        if (st === "ST") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-        if (st === "CH") { r.Approved = 0; r.ToApprove = 1; r.Rejected = 0; }
-        r.__readOnly = !!bReadOnly;
-      });
-    },
-
     _updateVmRecordStatus: function (sCacheKey, sGuidKeySel, sFibraSel, sRole, sStatus) {
       var oVm = this._ensureVmCache();
       var aRecs = oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || [];

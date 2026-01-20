@@ -1625,115 +1625,7 @@ _applyExportClientFiltersAndSort: function (aData) {
 
   return aData;
 },
-_mergeScreen4CacheIntoRawRows: function (aRaw) {
-  aRaw = Array.isArray(aRaw) ? aRaw.slice() : [];
 
-  var oVm = this._ensureVmCache();
-  var sK = this._getCacheKeySafe();
-
-  // ✅ più robusto: leggo l’oggetto e poi indicizzo (evito path strani con %)
-  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
-  var mDetailsByIdx = mAll[sK] || {};
-
-  if (!mDetailsByIdx || typeof mDetailsByIdx !== "object") return aRaw;
-
-  var oDetail = this.getView().getModel("detail");
-  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
-
-  var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
-  var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
-
-  var a01Keys = (a01 || []).map(function (f) {
-    var k = String((f && f.ui) || "").trim();
-    if (k.toUpperCase() === "STATO") k = "Stato";
-    return k;
-  }).filter(Boolean);
-
-  var a02Keys = (a02 || []).map(function (f) {
-    var k = String((f && f.ui) || "").trim();
-    if (k.toUpperCase() === "STATO") k = "Stato";
-    return k;
-  }).filter(Boolean);
-
-  function rowKeyFromRaw(r) {
-    var g = r && (r.Guid || r.GUID || r.guidKey);
-    var f = r && (r.Fibra || r.FIBRA);
-    return String(g || "") + "||" + String(f || "");
-  }
-
-  function buildRowFrom(parent, detail, tpl) {
-    var rNew = deepClone(tpl || {});
-    var g = (parent && (parent.GUID || parent.Guid || parent.guidKey)) || "";
-    var f = (parent && parent.Fibra) || "";
-
-    rNew.GUID = rNew.GUID || g;
-    rNew.Guid = rNew.Guid || g;
-    rNew.guidKey = rNew.guidKey || g;
-    rNew.Fibra = f;
-
-    // Screen3 (01) dal parent
-    a01Keys.forEach(function (p) {
-      if (parent[p] !== undefined) rNew[p] = parent[p];
-    });
-
-    // Screen4 (02) dal dettaglio
-    a02Keys.forEach(function (p) {
-      if (detail && detail[p] !== undefined) rNew[p] = detail[p];
-    });
-
-    // extra fields dal dettaglio (senza sovrascrivere)
-    Object.keys(detail || {}).forEach(function (kk) {
-      if (kk.indexOf("__") === 0) return;
-      if (rNew[kk] === undefined) rNew[kk] = detail[kk];
-    });
-
-    return rNew;
-  }
-
-  Object.keys(mDetailsByIdx).forEach(function (sIdx) {
-    var aDet = mDetailsByIdx[sIdx];
-    if (!Array.isArray(aDet)) return;
-
-    var oParent = aParents.find(function (p) {
-      return String(p && p.idx) === String(sIdx);
-    });
-    if (!oParent) return;
-
-    var k = rowKeyFromRaw({
-      Guid: (oParent.GUID || oParent.Guid || oParent.guidKey),
-      Fibra: oParent.Fibra
-    });
-
-    var aBase = aRaw.filter(function (r) { return rowKeyFromRaw(r) === k; });
-    var tpl = aBase[0] ? deepClone(aBase[0]) : {};
-
-    // ✅ se parent nuovo e cache vuota => almeno 1 riga
-    if (!aDet.length && oParent.__isNew) aDet = [ { __isNew: true } ];
-
-    // ✅ se cache ancora vuota: NON tocco il backend (così non “sparisce” nulla)
-    if (!aDet.length) return;
-
-    // ✅ Se in cache ho righe marcate __isNew -> è DELTA: APPENDO solo le nuove
-    var aNewOnly = aDet.filter(function (d) { return d && d.__isNew; });
-    var bDelta = aNewOnly.length > 0;
-
-    if (bDelta) {
-      aNewOnly.forEach(function (d) {
-        aRaw.push(buildRowFrom(oParent, d, tpl));
-      });
-      return;
-    }
-
-    // ✅ Altrimenti assumo “snapshot completo”: REPLACE del gruppo
-    aRaw = aRaw.filter(function (r) { return rowKeyFromRaw(r) !== k; });
-    aDet.forEach(function (d) {
-      aRaw.push(buildRowFrom(oParent, d, tpl));
-    });
-
-  }.bind(this));
-
-  return aRaw;
-},
 
 
 _getExportCacheKey: function () {
@@ -1743,26 +1635,6 @@ _getExportCacheKey: function () {
 
   var sBaseKey = this._getCacheKeySafe(); // vendor||material encoded
   return (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
-},
-
-_getRawRowsForExport: function () {
-  return new Promise(function (resolve) {
-    var oVm = this._ensureVmCache();
-    var sKey = this._getExportCacheKey();
-
-    var aRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
-    if (Array.isArray(aRows) && aRows.length) {
-      resolve(aRows);
-      return;
-    }
-
-    // fallback: rileggo dal backend e aggiorno cache
-    this._reloadDataFromBackend(function (aResults) {
-      aResults = Array.isArray(aResults) ? aResults : [];
-      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
-      resolve(aResults);
-    });
-  }.bind(this));
 },
 
     onSave: function () { MessageToast.show("Salva: TODO"); },

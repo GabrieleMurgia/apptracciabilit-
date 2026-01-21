@@ -202,17 +202,17 @@ sap.ui.define([
       var sMockMaterialsFile = "mock/MaterialDataSet.json";
       var sMockDataSetFile = "mock/DataSet.json";
 
-      var bMockS0 = false;
-      var bMockS1 = false;
-      var bMockS2 = false;
-      var bMockS3 = false;
-      var bMockS4 = false;
+      var bMockS0 = true;
+      var bMockS1 = true;
+      var bMockS2 = true;
+      var bMockS3 = true;
+      var bMockS4 = true;
 
       var iVendorIdx = 0;
       var sForceStato = "";
 
       // tipo utente mock
-      var sMockUserType = ""; // "E" / "I" / "S"
+      var sMockUserType = "E"; // "E" / "I" / "S"
 
       // override userType
       var sOverrideUserTypeWhenReal = "E"; // es: "I"
@@ -239,7 +239,7 @@ sap.ui.define([
       // MOCK S0: VM completo senza OData (da file)
       // =========================================================
       if (bMockS0) {
-        debugger
+        
         BusyIndicator.show(0);
 
         MockData.applyVmFromFile(oVm, {
@@ -312,7 +312,7 @@ sap.ui.define([
             success: function (oData) {
               BusyIndicator.hide();
 
-              debugger
+              
 
               if (!oData) {
                 console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);
@@ -410,6 +410,7 @@ sap.ui.define([
                 auth: buildAuth(sUserType),
 
                 mock: oVm.getProperty("/mock") || {},
+                
 
                 userDomains: aDomains,
                 userCategories: aMMCT,

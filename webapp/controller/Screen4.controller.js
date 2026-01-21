@@ -113,7 +113,7 @@ sap.ui.define([
     onOpenSort: function () {
       this.onToggleHeaderSort();
     },
-    onToggleHeaderSort: function () {
+/*     onToggleHeaderSort: function () {
       var oUi = this.getView().getModel("ui");
       if (!oUi) return;
 
@@ -123,8 +123,16 @@ sap.ui.define([
       
       var oTbl = this.byId("mdcTable4");
       this._applyInlineHeaderFilterSort(oTbl);
-    },
+    }, */
 
+    onToggleHeaderSort: function () {
+  var oUi = this.getView().getModel("ui");
+  if (!oUi) return;
+
+  oUi.setProperty("/showHeaderSort", !oUi.getProperty("/showHeaderSort"));
+
+  this._injectHeaderFilters("toggleSort");
+},
 
     onExit: function () {
       try {
@@ -263,15 +271,11 @@ _dbg: function () {
       var aRecs = oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || [];
       if (!Array.isArray(aRecs) || !aRecs.length) return;
 
-/*       var idx = aRecs.findIndex(function (r) {
-        return String(r && r.guidKey || "") === String(sGuidKeySel || "") &&
-               String(r && r.Fibra || "") === String(sFibraSel || "");
-      }); */
       var idx = aRecs.findIndex(function (r) {
   var gOk = String(r && r.guidKey || "") === String(sGuidKeySel || "");
   if (!gOk) return false;
 
-  // ✅ se Fibra non la usi più, non bloccare il match
+
   if (!sFibraSel) return true;
 
   return String(r && r.Fibra || "") === String(sFibraSel || "");
@@ -315,9 +319,8 @@ _dbg: function () {
         oDetail.setProperty("/__canApprove", false);
         oDetail.setProperty("/__canReject", false);
 
-        /* var sKey = this._getCacheKeySafe(); */
+    
         var sKey = this._getDataCacheKey();
-
         var sGuid = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibra = this._toStableString(oDetail.getProperty("/Fibra"));
       }
@@ -400,7 +403,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
       this._applyUiPermissions();
       this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
-            this._resetHeaderCaches(); 
+      this._resetHeaderCaches(); 
 
       this._loadSelectedRecordRows(function () {
         this._bindRowsAndColumns();
@@ -436,7 +439,6 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         .filter(function (c) { return String(c.LivelloSchermata || "").padStart(2, "0") === "02"; })
         .map(function (c) {
           var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-          /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
           if (!ui) return null;
 
           var label = (c.Descrizione || c.DESCRIZIONE || ui);
@@ -460,7 +462,6 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         .filter(function (c) { return String(c.LivelloSchermata || "").padStart(2, "0") === "01"; })
         .map(function (c) {
           var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-          /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
           if (!ui) return null;
 
           var label = (c.Descrizione || c.DESCRIZIONE || ui);
@@ -608,7 +609,6 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
       (aAllRows || []).forEach(function (r) {
         var sGuidKey = this._rowGuidKey(r);
         var sFibra = this._rowFibra(r);
-       /*  var sKey = sGuidKey + "||" + sFibra; */
        var sKey = sGuidKey; 
 
 
@@ -656,7 +656,6 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
 _loadSelectedRecordRows: function (fnDone) {
   var oVm = this._ensureVmCache();
-  /* var sKey = this._getCacheKeySafe(); */
   var sKey = this._getDataCacheKey();
 
 
@@ -730,16 +729,11 @@ _loadSelectedRecordRows: function (fnDone) {
     }
 
     // --- patch selected record into aRecords if missing ---
-/*     if (!aRecords[iIdx] && oSel) {
-      aRecords[iIdx] = oSel;
-      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
-    } */
    if (oSel) {
   aRecords[iIdx] = oSel;
   oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
 }
 
-    /* var oRec = aRecords[iIdx] || aRecords[0] || oSel || null; */
     var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
     if (!oRec) {
       this._log("[S4][_loadSelectedRecordRows] NO oRec -> EMPTY", { cacheKey: sKey, from: from });
@@ -789,8 +783,8 @@ _loadSelectedRecordRows: function (fnDone) {
       var sF = sRecFibra || pickFibra(oSel) || "";
       oSynth.Fibra = sF;
 
-      // stato “editable” per fornitore
-      if (!oSynth.Stato){/* oSynth.Stato = "CH"; */}
+      
+      if (!oSynth.Stato){}
       if (oSynth.Approved == null) oSynth.Approved = 0;
       if (oSynth.ToApprove == null) oSynth.ToApprove = 1;
       if (oSynth.Rejected == null) oSynth.Rejected = 0;
@@ -822,24 +816,7 @@ _loadSelectedRecordRows: function (fnDone) {
     }
 
     // --- 4) filter by fibra (solo se valorizzata) ---
-/*     var aSelected = aByGuid;
-    if (sFibra) {
-      aSelected = aByGuid.filter(function (r) {
-        var f = this._toStableString(this._rowFibra(r)) || pickFibra(r);
-        return this._toStableString(f) === this._toStableString(sFibra);
-      }.bind(this));
-    }
 
-    if (!aSelected.length) {
-      // se la fibra ti ammazza tutto, torna a byGuid
-      aSelected = aByGuid;
-      this._log("[S4][_loadSelectedRecordRows] fibra filter killed rows -> fallback to byGuid", {
-        cacheKey: sKey,
-        guidKey: sGuidKey,
-        fibra: sFibra,
-        byGuidLen: aByGuid.length
-      });
-    } */
    var aSelected = aByGuid; // <- patch solo per GUID
 
     // --- ROLE/STATUS ---
@@ -859,7 +836,6 @@ _loadSelectedRecordRows: function (fnDone) {
     oDetail.setProperty("/__role", sRole);
     oDetail.setProperty("/__status", groupStatus);
     oDetail.setProperty("/__canEdit", bCanEdit);
-    /* oDetail.setProperty("/__canAddRow", (sRole === "E" && groupStatus !== "AP")); */
     oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, groupStatus));
     oDetail.setProperty("/__canApprove", this._canApprove(sRole, groupStatus));
     oDetail.setProperty("/__canReject", this._canReject(sRole, groupStatus));
@@ -959,7 +935,6 @@ if (sCat) {
 
     // righe
     oDetail.setProperty("/guidKey", sGuidKey);
-    /* oDetail.setProperty("/Fibra", sFibra); */
     oDetail.setProperty("/Fibra", ""); // patch solo GUID
     oDetail.setProperty("/RowsAll", aSelected);
     oDetail.setProperty("/Rows", aSelected);
@@ -1017,7 +992,7 @@ if (sCat) {
     after("backend");
   }.bind(this));
 },
-    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
+/*     _applyInlineHeaderFilterSort: async function (oMdcTbl) {
       if (!oMdcTbl) return;
       if (oMdcTbl.initialized) await oMdcTbl.initialized();
 
@@ -1161,7 +1136,7 @@ if (sCat) {
 
       this._refreshInlineSortIcons();
       this._setInnerHeaderHeight(oMdcTbl);
-    },
+    }, */
         _getInnerTableFromMdc: function (oMdcTbl) {
       return MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
     },
@@ -1214,13 +1189,6 @@ _getDataCacheKey: function () {
         if (!sKey) return;
 
         var sHeader = (f.label || sKey) + (f.required ? " *" : "");
-
-/*         oTbl.addColumn(new MdcColumn({
-          header: sHeader,
-          visible: true,
-          dataProperty: sKey,
-          template: this._createCellTemplate(sKey, f)
-        })); */
 
         var mProps = MdcColumn.getMetadata().getAllProperties(); // utile se vuoi compatibilità versioni
 
@@ -1403,7 +1371,6 @@ if (this._sortState && this._sortState.key) {
     _setInnerHeaderHeight: function (oInnerOrMdc, bShow) {
     MdcTableUtil.setInnerHeaderHeight(oInnerOrMdc, bShow);
     },
-
     _getCfg02Map: function () {
       var oDetail = this.getView().getModel("detail");
       var aCfg02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
@@ -1907,7 +1874,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oDetail.setProperty("/__dirty", true);
 
         var oVm = this._ensureVmCache();
-        /* var sKey = this._getCacheKeySafe(); */
         var sKey = this._getDataCacheKey();
 
         var sGuidKeySel = this._toStableString(oDetail.getProperty("/guidKey"));
@@ -1916,9 +1882,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-/*         aCacheAll = aCacheAll.filter(function (r) {
-          return !(this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel);
-        }.bind(this)); */
                 aCacheAll = aCacheAll.filter(function (r) {
   return this._rowGuidKey(r) !== sGuidKeySel;
 }.bind(this));
@@ -2054,7 +2017,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         if (!Array.isArray(aRowsAll)) aRowsAll = [];
 
         var oVm = this._ensureVmCache();
-        /* var sKey = this._getCacheKeySafe(); */
         var sKey = this._getDataCacheKey();
 
 
@@ -2064,9 +2026,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-/*         aCacheAll = aCacheAll.filter(function (r) {
-          return !(this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel);
-        }.bind(this)); */
         aCacheAll = aCacheAll.filter(function (r) {
   return this._rowGuidKey(r) !== sGuidKeySel;
 }.bind(this));
@@ -2152,7 +2111,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oDetail.setProperty("/__dirty", true);
 
         var oVm = this._ensureVmCache();
-        /* var sKey = this._getCacheKeySafe(); */
         var sKey = this._getDataCacheKey();
 
 
@@ -2164,7 +2122,6 @@ if (oMdc && typeof oMdc.initialized === "function") {
 
         aCacheAll.forEach(function (r) {
           if (this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel) {
-            /* r.Stato = "CH"; */
             r.Approved = 0;
             r.Rejected = 0;
             r.ToApprove = 1;

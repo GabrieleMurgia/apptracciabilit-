@@ -43,7 +43,8 @@ sap.ui.define([], function () {
       })
       .map(function (c) {
         var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
-        /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
+        var label = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim();
+        if (!label) label = (c.Descrizione || c.DESCRIZIONE || ui);
         if (!ui) return null;
 
         var flags = getSettingFlags(c);
@@ -57,7 +58,8 @@ sap.ui.define([], function () {
 
         return {
           ui: ui,
-          label: (c.Descrizione || c.DESCRIZIONE || ui),
+          label: label, 
+          /* label: (c.Descrizione || c.DESCRIZIONE || ui), */
           domain: domain,
           required: !!flags.required,
           locked: !!flags.locked,

@@ -99,6 +99,8 @@ sap.ui.define([
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       var bMockS2 = !!mock.mockS2;
 
+      debugger
+
       this._log("_loadMaterials mock?", { mockS2: bMockS2, mock: mock });
 
       // =========================
@@ -160,7 +162,6 @@ sap.ui.define([
         new Filter("UserID", FilterOperator.EQ, sUserId2)
       ];
       
-      debugger
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {

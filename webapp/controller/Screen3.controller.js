@@ -611,38 +611,34 @@ sap.ui.define([
     // =========================
     // NAV BUTTON (prima colonna)
     // =========================
-    onGoToScreen4FromRow: function (oEvent) {
-      try {
-        var oBtn = oEvent.getSource();
-        var oCtx = oBtn && oBtn.getBindingContext && (
-          oBtn.getBindingContext("detail") || oBtn.getBindingContext()
-        );
+onGoToScreen4FromRow: function (oEvent) {
+  try {
+    var oBtn = oEvent.getSource();
+    var oCtx = oBtn && oBtn.getBindingContext && (oBtn.getBindingContext("detail") || oBtn.getBindingContext());
+    if (!oCtx) return;
 
-        if (!oCtx) return;
+    var oRow = oCtx.getObject && oCtx.getObject();
 
-        var oRow = oCtx.getObject && oCtx.getObject();
-        this._setSelectedParentForScreen4(oRow);
-        this._ensureScreen4CacheForParentIdx(iIdx, this._toStableString(oRow.guidKey || oRow.GUID || oRow.Guid));
-        var iIdx = (oRow && oRow.idx != null) ? parseInt(oRow.idx, 10) : NaN;
+    var iIdx = (oRow && oRow.idx != null) ? parseInt(oRow.idx, 10) : NaN;
+    if (isNaN(iIdx) && oCtx.getPath) {
+      var mm = String(oCtx.getPath() || "").match(/\/(\d+)\s*$/);
+      if (mm) iIdx = parseInt(mm[1], 10);
+    }
+    if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
-        if (isNaN(iIdx) && oCtx.getPath) {
-          var sPath = String(oCtx.getPath() || "");
-          var mm = sPath.match(/\/(\d+)\s*$/);
-          if (mm) iIdx = parseInt(mm[1], 10);
-        }
-        if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
+    this._setSelectedParentForScreen4(oRow);
+    this._ensureScreen4CacheForParentIdx(iIdx, this._toStableString(oRow.guidKey || oRow.GUID || oRow.Guid));
 
-        this.getOwnerComponent().getRouter().navTo("Screen4", {
-          vendorId: encodeURIComponent(this._sVendorId),
-          material: encodeURIComponent(this._sMaterial),
-          recordKey: encodeURIComponent(String(iIdx)),
-          mode: this._sMode || "A"
-        });
-      } catch (e) {
-        console.error("onGoToScreen4FromRow ERROR", e);
-      }
-    },
-
+    this.getOwnerComponent().getRouter().navTo("Screen4", {
+      vendorId: encodeURIComponent(this._sVendorId),
+      material: encodeURIComponent(this._sMaterial),
+      recordKey: encodeURIComponent(String(iIdx)),
+      mode: this._sMode || "A"
+    });
+  } catch (e) {
+    console.error("onGoToScreen4FromRow ERROR", e);
+  }
+},
     // =========================
     // P13N force visible (delegate su util)
     // =========================

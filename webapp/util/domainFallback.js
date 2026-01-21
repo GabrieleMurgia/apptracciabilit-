@@ -54,7 +54,7 @@ sap.ui.define([], function () {
       if (!f || f.MultipleVal !== "X") return f;
 
       const dom = String(f.Dominio || "").trim();
-      const syntheticKey = "__MOCK__" + String(f.Fieldname || f.UiFieldname || "FIELD");
+      const syntheticKey = "__MOCK__" + String(f.UiFieldLabel || f.UiFieldLabel || "FIELD");
       const key = dom || syntheticKey;
 
       const existing = outDomains[key];

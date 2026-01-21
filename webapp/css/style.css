@@ -8,6 +8,11 @@
     padding: 0 50px;
 }
 
+.FirstTitle{
+  font-size: 30px!important;
+  margin: 20px!important;
+}
+
 .left20{
     position: relative;
     /* left: 50px; */

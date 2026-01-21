@@ -261,10 +261,20 @@ _dbg: function () {
       var aRecs = oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || [];
       if (!Array.isArray(aRecs) || !aRecs.length) return;
 
-      var idx = aRecs.findIndex(function (r) {
+/*       var idx = aRecs.findIndex(function (r) {
         return String(r && r.guidKey || "") === String(sGuidKeySel || "") &&
                String(r && r.Fibra || "") === String(sFibraSel || "");
-      });
+      }); */
+      var idx = aRecs.findIndex(function (r) {
+  var gOk = String(r && r.guidKey || "") === String(sGuidKeySel || "");
+  if (!gOk) return false;
+
+  // ✅ se Fibra non la usi più, non bloccare il match
+  if (!sFibraSel) return true;
+
+  return String(r && r.Fibra || "") === String(sFibraSel || "");
+});
+
       if (idx < 0) return;
 
       var rec = aRecs[idx];
@@ -303,7 +313,9 @@ _dbg: function () {
         oDetail.setProperty("/__canApprove", false);
         oDetail.setProperty("/__canReject", false);
 
-        var sKey = this._getCacheKeySafe();
+        /* var sKey = this._getCacheKeySafe(); */
+        var sKey = this._getDataCacheKey();
+
         var sGuid = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibra = this._toStableString(oDetail.getProperty("/Fibra"));
       }
@@ -420,6 +432,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         .filter(function (c) { return String(c.LivelloSchermata || "").padStart(2, "0") === "02"; })
         .map(function (c) {
           var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
+          /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
           if (!ui) return null;
 
           var label = (c.Descrizione || c.DESCRIZIONE || ui);
@@ -443,6 +456,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         .filter(function (c) { return String(c.LivelloSchermata || "").padStart(2, "0") === "01"; })
         .map(function (c) {
           var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
+          /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
           if (!ui) return null;
 
           var label = (c.Descrizione || c.DESCRIZIONE || ui);
@@ -590,7 +604,9 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
       (aAllRows || []).forEach(function (r) {
         var sGuidKey = this._rowGuidKey(r);
         var sFibra = this._rowFibra(r);
-        var sKey = sGuidKey + "||" + sFibra;
+       /*  var sKey = sGuidKey + "||" + sFibra; */
+       var sKey = sGuidKey; 
+
 
         var stRow = (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH")
           ? sForce
@@ -636,7 +652,9 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
 _loadSelectedRecordRows: function (fnDone) {
   var oVm = this._ensureVmCache();
-  var sKey = this._getCacheKeySafe();
+  /* var sKey = this._getCacheKeySafe(); */
+  var sKey = this._getDataCacheKey();
+
 
   var aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
   var aRecords = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
@@ -708,19 +726,17 @@ _loadSelectedRecordRows: function (fnDone) {
     }
 
     // --- patch selected record into aRecords if missing ---
-    if (!aRecords[iIdx] && oSel) {
+/*     if (!aRecords[iIdx] && oSel) {
       aRecords[iIdx] = oSel;
       oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
-      this._log("[S4][_loadSelectedRecordRows] patched record from selectedScreen3Record", {
-        cacheKey: sKey,
-        recIdx: iIdx,
-        guidKey: pickGuid(oSel),
-        fibra: pickFibra(oSel),
-        cat: pickCat(oSel) || ""
-      });
-    }
+    } */
+   if (oSel) {
+  aRecords[iIdx] = oSel;
+  oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
+}
 
-    var oRec = aRecords[iIdx] || aRecords[0] || oSel || null;
+    /* var oRec = aRecords[iIdx] || aRecords[0] || oSel || null; */
+    var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
     if (!oRec) {
       this._log("[S4][_loadSelectedRecordRows] NO oRec -> EMPTY", { cacheKey: sKey, from: from });
       oDetail.setProperty("/RowsAll", []);
@@ -802,7 +818,7 @@ _loadSelectedRecordRows: function (fnDone) {
     }
 
     // --- 4) filter by fibra (solo se valorizzata) ---
-    var aSelected = aByGuid;
+/*     var aSelected = aByGuid;
     if (sFibra) {
       aSelected = aByGuid.filter(function (r) {
         var f = this._toStableString(this._rowFibra(r)) || pickFibra(r);
@@ -819,7 +835,8 @@ _loadSelectedRecordRows: function (fnDone) {
         fibra: sFibra,
         byGuidLen: aByGuid.length
       });
-    }
+    } */
+   var aSelected = aByGuid; // <- patch solo per GUID
 
     // --- ROLE/STATUS ---
     var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
@@ -938,7 +955,8 @@ if (sCat) {
 
     // righe
     oDetail.setProperty("/guidKey", sGuidKey);
-    oDetail.setProperty("/Fibra", sFibra);
+    /* oDetail.setProperty("/Fibra", sFibra); */
+    oDetail.setProperty("/Fibra", ""); // patch solo GUID
     oDetail.setProperty("/RowsAll", aSelected);
     oDetail.setProperty("/Rows", aSelected);
     oDetail.setProperty("/RowsCount", aSelected.length);
@@ -996,7 +1014,12 @@ if (sCat) {
   }.bind(this));
 },
 
-
+_getDataCacheKey: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var bMock = !!(mock.mockS3 || mock.mockS4); // dataset comune
+  return (bMock ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
+},
 
 
 
@@ -1695,16 +1718,21 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oDetail.setProperty("/__dirty", true);
 
         var oVm = this._ensureVmCache();
-        var sKey = this._getCacheKeySafe();
+        /* var sKey = this._getCacheKeySafe(); */
+        var sKey = this._getDataCacheKey();
+
         var sGuidKeySel = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibraSel = this._toStableString(oDetail.getProperty("/Fibra"));
 
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-        aCacheAll = aCacheAll.filter(function (r) {
+/*         aCacheAll = aCacheAll.filter(function (r) {
           return !(this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel);
-        }.bind(this));
+        }.bind(this)); */
+                aCacheAll = aCacheAll.filter(function (r) {
+  return this._rowGuidKey(r) !== sGuidKeySel;
+}.bind(this));
 
         aCacheAll = aCacheAll.concat(aRemain);
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
@@ -1837,7 +1865,9 @@ if (oMdc && typeof oMdc.initialized === "function") {
         if (!Array.isArray(aRowsAll)) aRowsAll = [];
 
         var oVm = this._ensureVmCache();
-        var sKey = this._getCacheKeySafe();
+        /* var sKey = this._getCacheKeySafe(); */
+        var sKey = this._getDataCacheKey();
+
 
         var sGuidKeySel = this._toStableString(oDetail.getProperty("/guidKey"));
         var sFibraSel = this._toStableString(oDetail.getProperty("/Fibra"));
@@ -1845,9 +1875,12 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-        aCacheAll = aCacheAll.filter(function (r) {
+/*         aCacheAll = aCacheAll.filter(function (r) {
           return !(this._rowGuidKey(r) === sGuidKeySel && this._rowFibra(r) === sFibraSel);
-        }.bind(this));
+        }.bind(this)); */
+        aCacheAll = aCacheAll.filter(function (r) {
+  return this._rowGuidKey(r) !== sGuidKeySel;
+}.bind(this));
 
         aCacheAll = aCacheAll.concat(aRowsAll);
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
@@ -1930,7 +1963,9 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oDetail.setProperty("/__dirty", true);
 
         var oVm = this._ensureVmCache();
-        var sKey = this._getCacheKeySafe();
+        /* var sKey = this._getCacheKeySafe(); */
+        var sKey = this._getDataCacheKey();
+
 
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];

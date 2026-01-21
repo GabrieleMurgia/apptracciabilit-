@@ -43,6 +43,7 @@ sap.ui.define([], function () {
       })
       .map(function (c) {
         var ui = String(c.UiFieldname || c.UIFIELDNAME || "").trim();
+        /* var ui = String(c.UiFieldLabel || c.UIFIELDLABEL || "").trim(); */
         if (!ui) return null;
 
         var flags = getSettingFlags(c);

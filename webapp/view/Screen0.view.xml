@@ -39,6 +39,7 @@
                     id="textIntro0"
                     text="Seleziona il flusso di lavoro"
                     textAlign="Center"
+                    class="FirstTitle"
                      />
 
                 <HBox

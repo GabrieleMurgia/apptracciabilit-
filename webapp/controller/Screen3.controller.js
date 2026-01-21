@@ -557,7 +557,7 @@ sap.ui.define([
       (aAllRows || []).forEach(function (r) {
         var sGuidKey = this._rowGuidKey(r);
         var sFibra = this._rowFibra(r);
-        var sKey = sGuidKey + "||" + sFibra;
+        var sKey = sGuidKey /* + "||" + sFibra; */
 
         var stRow = StatusUtil.normStatoRow(r, oVm);
 
@@ -621,6 +621,8 @@ sap.ui.define([
         if (!oCtx) return;
 
         var oRow = oCtx.getObject && oCtx.getObject();
+        this._setSelectedParentForScreen4(oRow);
+        this._ensureScreen4CacheForParentIdx(iIdx, this._toStableString(oRow.guidKey || oRow.GUID || oRow.Guid));
         var iIdx = (oRow && oRow.idx != null) ? parseInt(oRow.idx, 10) : NaN;
 
         if (isNaN(iIdx) && oCtx.getPath) {
@@ -1544,33 +1546,33 @@ sap.ui.define([
       oDetail.setProperty("/RecordsAll", aRemaining);
 
       // ==== PATCH: elimina anche dalla cache VM (recordsByKey + dataRowsByKey) ====
-var oVm = this._ensureVmCache();
-var sKeyCache = this._getExportCacheKey(); // usa la stessa key con REAL|/MOCK| di Screen3
+      var oVm = this._ensureVmCache();
+      var sKeyCache = this._getExportCacheKey(); // usa la stessa key con REAL|/MOCK| di Screen3
 
-// 1) set delle chiavi GUID||FIBRA da eliminare (per pulire dataRowsByKey)
-var mDelPair = {}, mDelGuid = {};
-aSel.forEach(function (p) {
-  var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
-  var f = this._toStableString(p && p.Fibra);
-  if (g && f) mDelPair[g + "||" + f] = true;
-  else if (g) mDelGuid[g] = true; // se fibra vuota -> elimina tutte le righe con quel GUID
-}.bind(this));
+      // 1) set delle chiavi GUID||FIBRA da eliminare (per pulire dataRowsByKey)
+      var mDelPair = {}, mDelGuid = {};
+      aSel.forEach(function (p) {
+      var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
+      var f = this._toStableString(p && p.Fibra);
+      if (g && f) mDelPair[g + "||" + f] = true;
+      else if (g) mDelGuid[g] = true; // se fibra vuota -> elimina tutte le righe con quel GUID
+      }.bind(this));
 
-// 2) recordsByKey: rimuovi i parent (idx) dalla cache
-var aRecsCache = oVm.getProperty("/cache/recordsByKey/" + sKeyCache) || [];
-oVm.setProperty("/cache/recordsByKey/" + sKeyCache, (aRecsCache || []).filter(function (r) {
-  var n = parseInt(r && r.idx, 10);
-  return aIdxToRemove.indexOf(n) < 0;
-}));
+      // 2) recordsByKey: rimuovi i parent (idx) dalla cache
+      var aRecsCache = oVm.getProperty("/cache/recordsByKey/" + sKeyCache) || [];
+      oVm.setProperty("/cache/recordsByKey/" + sKeyCache, (aRecsCache || []).filter(function (r) {
+      var n = parseInt(r && r.idx, 10);
+      return aIdxToRemove.indexOf(n) < 0;
+      }));
 
-// 3) dataRowsByKey: rimuovi le righe raw collegate (GUID/Fibra) dalla cache
-var aRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
-oVm.setProperty("/cache/dataRowsByKey/" + sKeyCache, (aRowsCache || []).filter(function (r) {
-  var g = this._rowGuidKey(r);
-  var f = this._rowFibra(r);
-  return !(mDelPair[g + "||" + f] || mDelGuid[g]);
-}.bind(this)));
-// ==== /PATCH ====
+      // 3) dataRowsByKey: rimuovi le righe raw collegate (GUID/Fibra) dalla cache
+      var aRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
+      oVm.setProperty("/cache/dataRowsByKey/" + sKeyCache, (aRowsCache || []).filter(function (r) {
+      var g = this._rowGuidKey(r);
+      var f = this._rowFibra(r);
+      return !(mDelPair[g + "||" + f] || mDelGuid[g]);
+      }.bind(this)));
+      // ==== /PATCH ====
 
 
       // pulisci cache Screen4 per quei padri

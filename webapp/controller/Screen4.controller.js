@@ -6,6 +6,7 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
+  "sap/m/Button",
   "sap/ui/mdc/table/Column",
   "sap/m/HBox",
   "sap/m/Text",
@@ -33,6 +34,7 @@ sap.ui.define([
   FilterOperator,
   BusyIndicator,
   MessageToast,
+  Button,
   MdcColumn,
   HBox,
   Text,
@@ -351,6 +353,7 @@ _dbg: function () {
     // Route
     // =========================
     _onRouteMatched: function (oEvent) {
+
       var oArgs = oEvent.getParameter("arguments") || {};
       this._sMode = oArgs.mode || "A";
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
@@ -397,6 +400,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
 
       this._applyUiPermissions();
       this._logTable("TABLE STATE @ before _loadSelectedRecordRows");
+            this._resetHeaderCaches(); 
 
       this._loadSelectedRecordRows(function () {
         this._bindRowsAndColumns();
@@ -1013,7 +1017,154 @@ if (sCat) {
     after("backend");
   }.bind(this));
 },
+    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
+      if (!oMdcTbl) return;
+      if (oMdcTbl.initialized) await oMdcTbl.initialized();
 
+      var oInner = this._getInnerTableFromMdc(oMdcTbl);
+      if (!oInner || typeof oInner.getColumns !== "function") {
+        this._log("InlineFS: inner table non trovata o non compatibile");
+        return;
+      }
+
+      var aMdcCols = (oMdcTbl.getColumns && oMdcTbl.getColumns()) || [];
+      var aInnerCols = oInner.getColumns() || [];
+
+      function normInnerKey(col) {
+        var k = "";
+        try {
+          if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
+          if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
+        } catch (e) { }
+
+        k = String(k || "").trim();
+        if (k.indexOf(">") >= 0) k = k.split(">").pop(); 
+        return String(k || "").trim();
+      }
+
+      var mInnerByKey = {};
+      aInnerCols.forEach(function (c) {
+        var k = normInnerKey(c);
+        if (!k) return;
+        mInnerByKey[k] = c;
+        mInnerByKey[k.toUpperCase()] = c;
+      });
+
+      if (!this._inlineFS) {
+        this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
+      }
+      if (!this._inlineFS.sortBtns) this._inlineFS.sortBtns = {};
+      if (!this._inlineFS.filterInputs) this._inlineFS.filterInputs = {};
+      if (!this._inlineFS.headerTitles) this._inlineFS.headerTitles = {};
+      if (!this._inlineFS.headerRows) this._inlineFS.headerRows = {};
+      if (!this._inlineFS.headerBoxes) this._inlineFS.headerBoxes = {};
+
+      var oUiModel = this.getView().getModel("ui");
+
+      function fallbackInnerByIndex(iMdc) {
+        var col = aInnerCols[iMdc] || null;
+        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
+
+        col = aInnerCols[iMdc + 1] || null;
+        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
+
+        return null;
+      }
+
+      for (var i = 0; i < aMdcCols.length; i++) {
+        var mdcCol = aMdcCols[i];
+
+        var sField =
+  (mdcCol.getDataProperty && mdcCol.getDataProperty()) ||
+  (mdcCol.getSortProperty && mdcCol.getSortProperty()) ||
+  (mdcCol.getFilterProperty && mdcCol.getFilterProperty()) ||
+  "";
+
+        sField = String(sField || "").trim();
+        if (!sField) continue; 
+
+        var sHeader = (typeof mdcCol.getHeader === "function" && mdcCol.getHeader()) || sField;
+
+        var innerCol = mInnerByKey[sField] || mInnerByKey[sField.toUpperCase()] || null;
+        if (!innerCol) innerCol = fallbackInnerByIndex(i);
+
+        if (!innerCol) continue;
+
+        // --- Sort Button (riuso) ---
+        var oSortBtn = this._inlineFS.sortBtns[sField];
+        if (!oSortBtn) {
+          oSortBtn = new Button({
+            type: "Transparent",
+            icon: "sap-icon://sort",
+            visible: "{ui>/showHeaderSort}",
+            press: this._onInlineColSortPress.bind(this)
+          });
+          oSortBtn.data("field", sField);
+          this._inlineFS.sortBtns[sField] = oSortBtn;
+        } else {
+          if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
+        }
+
+        // --- Filter Input ---
+        var oInp = this._inlineFS.filterInputs[sField];
+        if (!oInp) {
+          oInp = new Input({
+            width: "100%",
+            placeholder: "Filtra...",
+            visible: "{ui>/showHeaderFilters}",
+            liveChange: this._onInlineColFilterLiveChange.bind(this)
+          });
+          oInp.data("field", sField);
+          this._inlineFS.filterInputs[sField] = oInp;
+        } else {
+          if (oInp.bindProperty) oInp.bindProperty("visible", "ui>/showHeaderFilters");
+        }
+
+        var wantedVal = String((this._inlineFS.filters && this._inlineFS.filters[sField]) || "");
+        if (oInp.getValue && oInp.getValue() !== wantedVal) oInp.setValue(wantedVal);
+
+        // --- Title ---
+        var oTitle = this._inlineFS.headerTitles[sField];
+        if (!oTitle) {
+          oTitle = new Text({ text: (typeof sHeader === "string" ? sHeader : sField), wrapping: false });
+          this._inlineFS.headerTitles[sField] = oTitle;
+        } else if (oTitle.setText) {
+          oTitle.setText(typeof sHeader === "string" ? sHeader : sField);
+        }
+
+        // --- Header row + box ---
+        var oH = this._inlineFS.headerRows[sField];
+        if (!oH) {
+          oH = new HBox({
+            justifyContent: "SpaceBetween",
+            alignItems: "Center",
+            items: [oTitle, oSortBtn]
+          });
+          this._inlineFS.headerRows[sField] = oH;
+        }
+
+        var oV = this._inlineFS.headerBoxes[sField];
+        if (!oV) {
+          oV = new VBox({ items: [oH, oInp] });
+          this._inlineFS.headerBoxes[sField] = oV;
+        }
+
+        // assicuro che veda il model "ui"
+        if (oUiModel) oV.setModel(oUiModel, "ui");
+
+        // GridTable (sap.ui.table.Column) -> setLabel
+        // ResponsiveTable (sap.m.Column)  -> setHeader
+        MdcTableUtil.setInnerColumnHeader(innerCol, oV);
+
+        if (innerCol.data) innerCol.data("__inlineFS", true);
+      }
+
+      this._refreshInlineSortIcons();
+      this._setInnerHeaderHeight(oMdcTbl);
+    },
+        _getInnerTableFromMdc: function (oMdcTbl) {
+      return MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
+    },
 _getDataCacheKey: function () {
   var oVm = this.getOwnerComponent().getModel("vm");
   var mock = (oVm && oVm.getProperty("/mock")) || {};
@@ -1064,13 +1215,30 @@ _getDataCacheKey: function () {
 
         var sHeader = (f.label || sKey) + (f.required ? " *" : "");
 
-        oTbl.addColumn(new MdcColumn({
+/*         oTbl.addColumn(new MdcColumn({
           header: sHeader,
           visible: true,
           dataProperty: sKey,
-          propertyKey: sKey,
           template: this._createCellTemplate(sKey, f)
-        }));
+        })); */
+
+        var mProps = MdcColumn.getMetadata().getAllProperties(); // utile se vuoi compatibilità versioni
+
+var oSettings = {
+  header: sHeader,
+  visible: true,
+  dataProperty: sKey,
+  sortProperty: sKey,
+  filterProperty: sKey,
+  template: this._createCellTemplate(sKey, f)
+};
+
+// SOLO se esiste nella tua versione (nel tuo caso: NON esiste, quindi non verrà settata)
+if (mProps.propertyKey) oSettings.propertyKey = sKey;
+
+oTbl.addColumn(new MdcColumn(oSettings));
+
+
       }.bind(this));
 
       this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
@@ -1338,6 +1506,10 @@ if (this._sortState && this._sortState.key) {
 
     // --- SORT BUTTON (nuovo) ---
     var oSortBtn = this._hdrSortBtns[sKey];
+    if (oSortBtn && (oSortBtn.bIsDestroyed || (oSortBtn.isDestroyed && oSortBtn.isDestroyed()))) {
+  delete this._hdrSortBtns[sKey];
+  oSortBtn = null;
+}
     if (!oSortBtn) {
       oSortBtn = new sap.m.Button({
         type: "Transparent",
@@ -1372,6 +1544,23 @@ if (this._sortState && this._sortState.key) {
   }
 
   return this._hdrFilter.boxesByKey[sKey];
+},
+_resetHeaderCaches: function () {
+  try {
+    // distruggi ciò che c’è in cache (se ancora vivo)
+    if (this._hdrFilter && this._hdrFilter.boxesByKey) {
+      Object.keys(this._hdrFilter.boxesByKey).forEach(function (k) {
+        var p = this._hdrFilter.boxesByKey[k];
+        try { if (p && p.box && !p.box.bIsDestroyed) p.box.destroy(); } catch (e) {}
+      }.bind(this));
+    }
+  } catch (e) {}
+
+  this._hdrFilter = { boxesByKey: {}, seenLast: {} };
+  this._hdrSortBtns = {};
+
+  // se non vuoi usare l’altro sistema "inlineFS", azzera anche quello
+  this._inlineFS = null;
 },
 _onHeaderSortPress: function (oEvt) {
   var oBtn = oEvt.getSource();

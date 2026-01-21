@@ -18,6 +18,12 @@ sap.ui.define([], function () {
     return isNaN(n) ? 0 : n;
   }
 
+  function canAddRow (sRole, sStatus) {
+  sRole = String(sRole || "").trim().toUpperCase();
+  sStatus = String(sStatus || "").trim().toUpperCase();
+  return (sRole === "E" && sStatus !== "AP");
+  }
+
   function rankStato(st) {
     st = String(st || "").trim().toUpperCase();
     if (st === "AP") return 4;
@@ -78,6 +84,7 @@ sap.ui.define([], function () {
     canEdit: canEdit,
     canApprove: canApprove,
     canReject: canReject,
-    normStatoRow: normStatoRow
+    normStatoRow: normStatoRow,
+    canAddRow:canAddRow
   };
 });

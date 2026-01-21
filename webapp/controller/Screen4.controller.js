@@ -838,7 +838,8 @@ _loadSelectedRecordRows: function (fnDone) {
     oDetail.setProperty("/__role", sRole);
     oDetail.setProperty("/__status", groupStatus);
     oDetail.setProperty("/__canEdit", bCanEdit);
-    oDetail.setProperty("/__canAddRow", (sRole === "E" && groupStatus !== "AP"));
+    /* oDetail.setProperty("/__canAddRow", (sRole === "E" && groupStatus !== "AP")); */
+    oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, groupStatus));
     oDetail.setProperty("/__canApprove", this._canApprove(sRole, groupStatus));
     oDetail.setProperty("/__canReject", this._canReject(sRole, groupStatus));
 
@@ -1899,6 +1900,8 @@ if (oMdc && typeof oMdc.initialized === "function") {
         oNew.ToApprove = 1;
 
         oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        oNew.__isNew = true; // bypass "blocco campi=B" solo per righe nuove
+
 
         (aCfg02 || []).forEach(function (f) {
           if (!f || !f.ui || !f.multiple) return;

@@ -8,18 +8,13 @@ sap.ui.define([
 ], function (HBox, Text, Input, ComboBox, MultiComboBox, Item) {
   "use strict";
 
-  /**
-   * Copia della tua _createCellTemplate con 1 estensione: hookDirtyOnEdit opzionale.
-   * opts:
-   * - domainHasValuesFn(domain)->bool
-   * - hookDirtyOnEditFn(ctrl) (opzionale)
-   */
   function createCellTemplate(sKey, oMeta, opts) {
     opts = opts || {};
     var domainHasValuesFn = opts.domainHasValuesFn;
 
     var bRequired = !!(oMeta && oMeta.required);
     var bLocked = !!(oMeta && oMeta.locked);
+    var sNewRowExpr = "${detail>__isNew}"; // bypass lock per righe nuove
     var bMultiple = !!(oMeta && oMeta.multiple);
 
     var sDomain = String((oMeta && oMeta.domain) || "").trim();
@@ -47,7 +42,8 @@ sap.ui.define([
       if (bMultiple) {
         oEditCtrl = new MultiComboBox({
           visible: "{= !" + sReadOnlyExpr + " }",
-          enabled: !bLocked,
+          /* enabled: !bLocked, */
+          enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,// locked=B -> abilita solo se riga nuova
           allowCustomValues: false,
           selectedKeys: sValueBind,
           valueState: sValueState,
@@ -60,7 +56,8 @@ sap.ui.define([
       } else {
         oEditCtrl = new ComboBox({
           visible: "{= !" + sReadOnlyExpr + " }",
-          enabled: !bLocked,
+          /* enabled: !bLocked, */
+          enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> abilita solo se riga nuova
           allowCustomValues: false,
           selectedKey: sValueBind,
           valueState: sValueState,
@@ -74,7 +71,8 @@ sap.ui.define([
     } else {
       oEditCtrl = new Input({
         visible: "{= !" + sReadOnlyExpr + " }",
-        editable: !bLocked,
+        /* editable: !bLocked, */
+        editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> editabile solo se riga nuova
         value: sValueBind,
         valueState: sValueState,
         valueStateText: sValueStateText

@@ -94,7 +94,11 @@ sap.ui.define([
         _mmct: { cat: "", s01: [], s02: [] },
 
         __q: "",
-        __statusFilter: ""
+        __statusFilter: "",
+        __canEdit: false,
+        __canAddRow: false,
+        __canApprove: false,
+        __canReject: false
       });
       this.getView().setModel(oDetail, "detail");
 
@@ -184,7 +188,7 @@ sap.ui.define([
         filterInputs: {},
         headerTitles: {},
         headerRows: {},
-        headerBoxes: {}
+        headerBoxes: {},
       };
 
       var oInp = this.byId("inputFilter3");
@@ -493,6 +497,7 @@ sap.ui.define([
         success: function (oData) {
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
+          if(oData){}
 
           if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
             a.forEach(function (r) { if (r) r.Stato = sForceStato; });
@@ -1057,8 +1062,24 @@ sap.ui.define([
       oDetail.setProperty("/RecordsAll", a);
       oDetail.setProperty("/Records", a);
       oDetail.setProperty("/RecordsCount", a.length);
-      this._refreshHeader3Fields();
+      
+        // >>> calcolo permessi globali Screen3
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
 
+  // “stato complessivo”: AP solo se tutto è AP (se ti basta solo il role, vedi nota sotto)
+  var sAgg = "ST";
+  a.forEach(function (r) {
+    var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
+    sAgg = StatusUtil.mergeStatus(sAgg, st);
+  });
+
+  oDetail.setProperty("/__role", sRole);
+  oDetail.setProperty("/__status", sAgg);
+  oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
+
+
+      this._refreshHeader3Fields();
       this._snapshotRecords = deepClone(a);
 
       var oTbl = this.byId("mdcTable3");
@@ -1521,6 +1542,36 @@ sap.ui.define([
         return aIdxToRemove.indexOf(n) < 0;
       });
       oDetail.setProperty("/RecordsAll", aRemaining);
+
+      // ==== PATCH: elimina anche dalla cache VM (recordsByKey + dataRowsByKey) ====
+var oVm = this._ensureVmCache();
+var sKeyCache = this._getExportCacheKey(); // usa la stessa key con REAL|/MOCK| di Screen3
+
+// 1) set delle chiavi GUID||FIBRA da eliminare (per pulire dataRowsByKey)
+var mDelPair = {}, mDelGuid = {};
+aSel.forEach(function (p) {
+  var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
+  var f = this._toStableString(p && p.Fibra);
+  if (g && f) mDelPair[g + "||" + f] = true;
+  else if (g) mDelGuid[g] = true; // se fibra vuota -> elimina tutte le righe con quel GUID
+}.bind(this));
+
+// 2) recordsByKey: rimuovi i parent (idx) dalla cache
+var aRecsCache = oVm.getProperty("/cache/recordsByKey/" + sKeyCache) || [];
+oVm.setProperty("/cache/recordsByKey/" + sKeyCache, (aRecsCache || []).filter(function (r) {
+  var n = parseInt(r && r.idx, 10);
+  return aIdxToRemove.indexOf(n) < 0;
+}));
+
+// 3) dataRowsByKey: rimuovi le righe raw collegate (GUID/Fibra) dalla cache
+var aRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
+oVm.setProperty("/cache/dataRowsByKey/" + sKeyCache, (aRowsCache || []).filter(function (r) {
+  var g = this._rowGuidKey(r);
+  var f = this._rowFibra(r);
+  return !(mDelPair[g + "||" + f] || mDelGuid[g]);
+}.bind(this)));
+// ==== /PATCH ====
+
 
       // pulisci cache Screen4 per quei padri
       this._purgeScreen4CacheByParentIdx(aIdxToRemove);

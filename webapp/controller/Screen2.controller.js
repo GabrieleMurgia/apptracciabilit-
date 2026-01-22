@@ -1,4 +1,3 @@
-
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
@@ -14,19 +13,16 @@ sap.ui.define([
   function ts() { return new Date().toISOString(); }
 
   function safeStr(x) { return (x === null || x === undefined) ? "" : String(x); }
+  function lc(x) { return safeStr(x).toLowerCase(); }
 
   function looksLikeMatCode(s) {
     s = safeStr(s).trim();
     if (!s) return false;
-    if (/\s/.test(s)) return false;             
+    if (/\s/.test(s)) return false;
     if (!/^[A-Za-z0-9._-]+$/.test(s)) return false;
-    // tipico MATNR/custom code: abbastanza lungo
     return s.length >= 6;
   }
 
-  // Heuristic: scegli la chiave più “probabile” per DataSet
-  // - di default: Materiale
-  // - se DescMateriale sembra un codice (e Materiale pure) e sono diversi, usa DescMateriale
   function chooseMaterialKey(m) {
     var mat = safeStr(m && m.Materiale).trim();
     var desc = safeStr(m && m.DescMateriale).trim();
@@ -34,13 +30,54 @@ sap.ui.define([
     if (!mat) return desc;
     if (!desc) return mat;
 
-    // se desc non è un “codice”, non usarlo come key
     if (!looksLikeMatCode(desc)) return mat;
-
-    // se mat sembra un codice ma è diverso, spesso DataSet usa la variante
     if (looksLikeMatCode(mat) && desc !== mat) return desc;
 
     return mat;
+  }
+
+  // ✅ crea una riga coerente (MOCK + BACKEND) e i campi supporto filtri
+  function buildRow(m) {
+    var keyForDataSet = chooseMaterialKey(m);
+
+    var material = safeStr(keyForDataSet).trim();
+    var materialOrig = safeStr(m.Materiale).trim();
+    var desc = safeStr(m.DescMateriale).trim();
+    var season = safeStr(m.Stagione).trim();
+    var status = safeStr(m.MatStatus).trim();
+
+    var open = safeStr(m.Open).trim();
+    var rejected = Number(m.Rejected) || 0;
+    var pending = Number(m.ToApprove) || 0;
+    var approved = Number(m.Approved) || 0;
+
+    var searchAll = [
+      material, materialOrig, desc,
+      season, status,
+      open, rejected, pending, approved
+    ].join(" ");
+
+    return {
+      Material: material,
+      MaterialOriginal: materialOrig,
+      MaterialDescription: desc,
+
+      Stagione: season,
+      MatStatus: status,
+
+      OpenPo: open === "X" ? 1 : 0,
+      Open: open,
+      Rejected: rejected,
+      Pending: pending,
+      ToApprove: pending,
+      Approved: approved,
+
+      // supporto filtri testuali case-insensitive
+      StagioneLC: lc(season),
+      MaterialLC: lc(material),
+      MaterialOriginalLC: lc(materialOrig),
+      SearchAllLC: lc(searchAll)
+    };
   }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
@@ -60,7 +97,6 @@ sap.ui.define([
         CurrentVendorName: "",
         MatCategories: [],
         SelectedMatCat: "",
-        MaterialFilter: "",
         Materials: []
       });
       this.getView().setModel(oModel);
@@ -99,43 +135,26 @@ sap.ui.define([
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       var bMockS2 = !!mock.mockS2;
 
-      debugger
-
       this._log("_loadMaterials mock?", { mockS2: bMockS2, mock: mock });
 
       // =========================
-      // MOCK Screen2 -> file generico MaterialDataSet.json
+      // MOCK Screen2
       // =========================
       if (bMockS2) {
         var sVendorWanted = MockData.padVendor(this._sVendorId);
         var sUserId = String((oVm && oVm.getProperty("/userId")) || "E_ZEMAF").trim();
 
         BusyIndicator.show(0);
-
         this._log("[MOCK FILE] loading MaterialDataSet.json", { userId: sUserId, vendorId: sVendorWanted });
 
         MockData.loadMaterialDataSetGeneric().then(function (aAll) {
-          // filtro per UserID + Fornitore
-          var aFiltered = aAll
+          // se vuoi filtrare qui, fallo (ora lasciamo tutto)
+          var aFiltered = aAll;
 
-          var aMaterials = aFiltered.map(function (m) {
-            var keyForDataSet = chooseMaterialKey(m);
-            return {
-              Material: keyForDataSet,
-              MaterialOriginal: safeStr(m.Materiale).trim(),
-              MaterialDescription: safeStr(m.DescMateriale).trim(),
-              OpenPo: (m.Open === "X" ? 1 : 0),
-              Open: m.Open,
-              Rejected: m.Rejected,
-              Pending: m.ToApprove,
-              ToApprove: m.ToApprove,
-              Approved: m.Approved
-            };
-          });
-
+          var aMaterials = aFiltered.map(buildRow);
           oViewModel.setProperty("/Materials", aMaterials);
-          this._applyFilters();
 
+          this._applyFilters();
         }.bind(this)).catch(function (err) {
           console.error("[Screen2][MOCK FILE] ERROR", err);
           MessageToast.show("MOCK MaterialDataSet.json NON TROVATO o non leggibile");
@@ -161,28 +180,14 @@ sap.ui.define([
         new Filter("Fornitore", FilterOperator.EQ, sVendorId),
         new Filter("UserID", FilterOperator.EQ, sUserId2)
       ];
-      
+
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
           BusyIndicator.hide();
 
           var aResults = (oData && oData.results) || [];
-
-          var aMaterials = aResults.map(function (m) {
-            var keyForDataSet = chooseMaterialKey(m);
-            return {
-              Material: keyForDataSet,
-              MaterialOriginal: safeStr(m.Materiale).trim(),
-              MaterialDescription: safeStr(m.DescMateriale).trim(),
-              OpenPo: m.Open === "X" ? 1 : 0,
-              Open: m.Open,
-              Rejected: m.Rejected,
-              Pending: m.ToApprove,
-              ToApprove: m.ToApprove,
-              Approved: m.Approved
-            };
-          });
+          var aMaterials = aResults.map(buildRow);
 
           oViewModel.setProperty("/Materials", aMaterials);
           that._applyFilters();
@@ -205,7 +210,10 @@ sap.ui.define([
       if (!oBinding) return;
 
       var bOnlyIncomplete = this.byId("switchOnlyIncomplete2").getState();
-      var sTextFilter = this.byId("inputMaterialFilter2").getValue();
+
+      var sSeasonText = (this.byId("inputSeasonFilter2").getValue() || "").trim().toLowerCase();
+      var sMaterialOnly = (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase();
+      var sGeneral = (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase();
 
       var aFilters = [];
 
@@ -220,15 +228,22 @@ sap.ui.define([
         }));
       }
 
-      if (sTextFilter) {
+      if (sSeasonText) {
+        aFilters.push(new Filter("StagioneLC", FilterOperator.Contains, sSeasonText));
+      }
+
+      if (sMaterialOnly) {
         aFilters.push(new Filter({
           filters: [
-            new Filter("Material", FilterOperator.Contains, sTextFilter),
-            new Filter("MaterialDescription", FilterOperator.Contains, sTextFilter),
-            new Filter("MaterialOriginal", FilterOperator.Contains, sTextFilter)
+            new Filter("MaterialLC", FilterOperator.Contains, sMaterialOnly),
+            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly)
           ],
           and: false
         }));
+      }
+
+      if (sGeneral) {
+        aFilters.push(new Filter("SearchAllLC", FilterOperator.Contains, sGeneral));
       }
 
       oBinding.filter(aFilters, "Application");
@@ -237,11 +252,11 @@ sap.ui.define([
     onMaterialPress: function (oEvent) {
       var oItem = oEvent.getSource().getSelectedItem();
       var oCtx = oItem.getBindingContext();
+
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
       var sMaterialOrig = oCtx.getProperty("MaterialOriginal");
 
-      // cache per Screen3 (nome/desc da MaterialDataSet)
       try {
         var oVm = this.getOwnerComponent().getModel("vm");
         if (oVm) {

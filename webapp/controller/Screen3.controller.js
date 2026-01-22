@@ -1770,6 +1770,206 @@ onGoToScreen4FromRow: function (oEvent) {
 
       return base + "-new";
     },
+    _collectLinesForSave: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
+
+  // Screen4 details cache: /cache/screen4DetailsByKey/<vendor||material>/<idx> = []
+  var oVm = this._ensureVmCache();
+  var sK = this._getCacheKeySafe(); // vendor||material (encoded)
+  var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+  var mByIdx = (mAll && mAll[sK]) ? mAll[sK] : {};
+
+  // vendor/material normalize
+  var sVendor = this._normalizeVendor10(this._sVendorId);
+  var sMat = String(this._sMaterial || "").trim();
+
+  var out = [];
+
+  function isEmpty(v) {
+    if (v == null) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "string") return v.trim() === "";
+    return false;
+  }
+
+  function mergeParentIntoChild(child, parent) {
+    var o = Object.assign({}, child || {});
+    Object.keys(parent || {}).forEach(function (k) {
+      if (!k) return;
+      if (k.indexOf("__") === 0) return;
+      if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+      if (o[k] === undefined || isEmpty(o[k])) {
+        o[k] = parent[k];
+      }
+    });
+    return o;
+  }
+
+  aParents.forEach(function (p) {
+    var iIdx = (p && p.idx != null) ? parseInt(p.idx, 10) : NaN;
+    var aDet = (!isNaN(iIdx) && mByIdx && mByIdx[String(iIdx)]) ? (mByIdx[String(iIdx)] || []) : [];
+
+    if (Array.isArray(aDet) && aDet.length) {
+      aDet.forEach(function (d) {
+        var merged = mergeParentIntoChild(d, p);
+        out.push(this._sanitizeLineForPost(merged, sVendor, sMat));
+      }.bind(this));
+    } else {
+      // nessun dettaglio: mando almeno la riga “parent”
+      out.push(this._sanitizeLineForPost(p, sVendor, sMat));
+    }
+  }.bind(this));
+
+  return out;
+},
+
+_sanitizeLineForPost: function (r, sVendor10, sMaterial) {
+  r = r || {};
+
+  // Copia pulita: rimuovo campi UI e normalizzo arrays/null
+  var o = {};
+  Object.keys(r).forEach(function (k) {
+    if (!k) return;
+    if (k.indexOf("__") === 0) return;
+    if (k === "idx" || k === "guidKey" || k === "StatoText" || k === "__metadata") return;
+
+    var v = r[k];
+
+    // Multi -> stringa (backend tipicamente vuole string)
+    if (Array.isArray(v)) v = v.join(";");
+
+    // DateTime noti -> null se vuoti (per evitare type error OData)
+    if ((k === "InizioVal" || k === "FineVal" || k === "DataIns" || k === "DataMod") && (v === "" || v === undefined)) {
+      v = null;
+    }
+
+    o[k] = (v === undefined ? "" : v);
+  });
+
+  // Forza campi chiave minimi
+  if (!o.Fornitore) o.Fornitore = sVendor10;
+  if (!o.Materiale) o.Materiale = sMaterial;
+
+  // GUID: se è un "-new" mando null così backend lo genera
+  var g = (o.Guid != null ? o.Guid : (o.GUID != null ? o.GUID : (o.GuidKey != null ? o.GuidKey : "")));
+  g = String(g || "");
+  if (!g || g.indexOf("-new") >= 0) g = null;
+
+  // backend usa "Guid" (non "GUID")
+  o.Guid = g;
+  if (o.GUID !== undefined) delete o.GUID;
+  if (o.GuidKey !== undefined) delete o.GuidKey;
+
+  // UserID anche sulla linea (come da mail)
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+  o.UserID = sUserId;
+
+  return o;
+},
+
+_extractPostResponseLines: function (oData) {
+  // Deep insert response tipica: PostDataCollection.results
+  if (!oData) return [];
+  if (oData.PostDataCollection && Array.isArray(oData.PostDataCollection.results)) return oData.PostDataCollection.results;
+  if (Array.isArray(oData.PostDataCollection)) return oData.PostDataCollection;
+  return [];
+},
+
+_invalidateScreen3Cache: function () {
+  var oVm = this._ensureVmCache();
+  var sKey = this._getExportCacheKey(); // REAL|... / MOCK|...
+
+  // svuoto cache così _loadDataOnce forza reload backend
+  oVm.setProperty("/cache/dataRowsByKey/" + sKey, []);
+  oVm.setProperty("/cache/recordsByKey/" + sKey, []);
+},
+
+_normalizeVendor10: function (v) {
+  var s = String(v || "").trim();
+  if (/^\d+$/.test(s) && s.length < 10) s = ("0000000000" + s).slice(-10);
+  return s;
+},
+
+_readODataError: function (oError) {
+  try {
+    // oError.responseText spesso ha JSON: { error: { message: { value: "..." } } }
+    var s = oError && (oError.responseText || oError.response && oError.response.body);
+    if (!s) return "";
+    var j = JSON.parse(s);
+    return j && j.error && j.error.message && (j.error.message.value || j.error.message) || "";
+  } catch (e) {
+    return "";
+  }
+},
+onSave: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var bMock = !!(mock && mock.mockS3);
+
+  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+  var oModel = this.getOwnerComponent().getModel();
+
+  // 1) Costruisco le righe da salvare (merge Screen3+Screen4) SEMPRE
+  var aLines = this._collectLinesForSave();
+
+  debugger
+  if (!aLines.length) {
+    MessageToast.show("Nessuna riga da salvare");
+    return;
+  }
+
+  // 2) Payload secondo specifica backend SEMPRE
+  var oPayload = {
+    UserID: sUserId,
+    PostDataCollection: aLines
+  };
+
+  // >>> qui vedi SEMPRE cosa stai per inviare (mock o non mock)
+  console.log("[S3] Payload /PostDataSet", JSON.parse(JSON.stringify(oPayload)));
+
+  // 3) Se MOCK: NON chiamare la POST, ma mostra messaggio alla fine
+  if (bMock) {
+    MessageToast.show("MOCK attivo: POST non eseguita (payload in Console)");
+    return;
+  }
+
+  // 4) Reale: eseguo la POST
+  BusyIndicator.show(0);
+
+  oModel.create("/PostDataSet", oPayload, {
+    urlParameters: { "sap-language": "IT" },
+    success: function (oData) {
+      BusyIndicator.hide();
+
+      var aResp = this._extractPostResponseLines(oData);
+      var aErr = (aResp || []).filter(function (r) {
+        var es = String(r && r.Esito || "").trim().toUpperCase();
+        return es && es !== "OK";
+      });
+
+      if (aErr.length) {
+        MessageToast.show("Errore salvataggio: " + ((aErr[0] && aErr[0].Message) || "verifica i dati"));
+      } else {
+        MessageToast.show("Salvataggio completato");
+      }
+
+      this._invalidateScreen3Cache();
+      this._loadDataOnce();
+    }.bind(this),
+
+    error: function (oError) {
+      BusyIndicator.hide();
+      var msg = this._readODataError(oError) || "Errore in salvataggio (vedi Console)";
+      console.error("[S3] POST ERROR", oError);
+      MessageToast.show(msg);
+    }.bind(this)
+  });
+},
+
+
 
     // =========================
     // NavBack

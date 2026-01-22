@@ -12,74 +12,66 @@
         <customHeader>
             <Toolbar id="toolbar2">
                 <Bar id="bar2">
-            <contentLeft>
-            
-            <Image id="imageLogo2" src="IMG/Valentino.png" decorative="false" width="200px"/>
-            <Button
-                    id="buttonBack2"
-                    icon="sap-icon://nav-back"
-                    press=".onNavBack" />
-            </contentLeft>
+                    <contentLeft>
+                        <Image id="imageLogo2" src="IMG/Valentino.png" decorative="false" width="200px"/>
+                        <Button
+                            id="buttonBack2"
+                            icon="sap-icon://nav-back"
+                            press=".onNavBack" />
+                    </contentLeft>
 
-        <contentMiddle>
-             
-                <Title
-                    id="title2"
-                    text="Dati aggregati per materiale" />
-        </contentMiddle>
+                    <contentMiddle>
+                        <Title
+                            id="title2"
+                            text="Dati aggregati per materiale" />
+                    </contentMiddle>
 
-        <contentRight>
-            <HBox id ="hbox3" width="200px"/>
-        </contentRight>
-        </Bar>
-
-
+                    <contentRight>
+                        <HBox id ="hbox3" width="200px"/>
+                    </contentRight>
+                </Bar>
             </Toolbar>
         </customHeader>
 
         <subHeader>
             <Toolbar id="toolbarFilters2">
-                <Label
-                    id="labelVendor2"
-                    text="Fornitore:" />
-                <Text
-                    id="textVendor2"
-                    text="{/CurrentVendorName}" />
+                <Label id="labelVendor2" text="Fornitore:" />
+                <Text id="textVendor2" text="{/CurrentVendorName}" />
 
                 <ToolbarSpacer id="toolbarSpacerFilters2" />
 
-                <Label
-                    id="labelOnlyIncomplete2"
-                    text="Solo dati incompleti" />
+                <Label id="labelOnlyIncomplete2" text="Solo dati incompleti" />
                 <Switch
                     id="switchOnlyIncomplete2"
                     state="true"
                     change=".onFilterChanged" />
 
-                <Label
-                    id="labelMatCat2"
-                    text="Categoria prodotto" />
-                <Select
-                    id="selectMatCat2"
-                    selectedKey="{/SelectedMatCat}"
-                    change=".onFilterChanged">
-                    <items>
-                        <core:Item
-                            id="itemMatCatAll2"
-                            key=""
-                            text="Tutte" />
-                    </items>
-                </Select>
+                <!-- filtro Stagione -->
+                <Label id="labelSeasonFilter2" text="Stagione" />
+                <SearchField
+                    id="inputSeasonFilter2"
+                    width="8rem"
+                    liveChange=".onFilterChanged"
+                    search=".onFilterChanged"
+                    placeholder="Es. 44..." />
 
-                <Label
-                    id="labelMaterialFilter2"
-                    text="Materiale" />
+                <!-- filtro Materiale -->
+                <Label id="labelMaterialOnly2" text="Materiale" />
+                <SearchField
+                    id="inputMaterialOnly2"
+                    width="12rem"
+                    liveChange=".onFilterChanged"
+                    search=".onFilterChanged"
+                    placeholder="Codice materiale..." />
+
+                <!-- filtro generale su tutte le proprietà -->
+                <Label id="labelGeneralFilter2" text="Filtro generale" />
                 <SearchField
                     id="inputMaterialFilter2"
                     width="15rem"
                     liveChange=".onFilterChanged"
                     search=".onFilterChanged"
-                    placeholder="Cerca per codice o descrizione..." />
+                    placeholder="Cerca in tutte le colonne..." />
             </Toolbar>
         </subHeader>
 
@@ -87,9 +79,7 @@
             <Table
                 id="tableMaterials2"
                 mode="SingleSelectMaster"
-                items="{
-                    path: '/Materials'
-                }"
+                items="{ path: '/Materials' }"
                 itemPress=".onMaterialPress">
 
                 <headerToolbar>
@@ -105,20 +95,33 @@
                     <Column id="columnMaterial2">
                         <Text id="textColumnMaterial2" text="Materiale" />
                     </Column>
+
                     <Column id="columnMaterialDesc2">
                         <Text id="textColumnMaterialDesc2" text="Descrizione" />
                     </Column>
+
+                    <Column id="columnSeason2">
+                        <Text id="textColumnSeason2" text="Stagione" />
+                    </Column>
+
                     <Column id="columnOpenPo2">
                         <Text id="textColumnOpenPo2" text="Aperti" />
                     </Column>
+
                     <Column id="columnRejected2">
                         <Text id="textColumnRejected2" text="Rifiutati" />
                     </Column>
+
                     <Column id="columnPending2">
                         <Text id="textColumnPending2" text="In attesa approvazione" />
                     </Column>
+
                     <Column id="columnApproved2">
                         <Text id="textColumnApproved2" text="Approvati" />
+                    </Column>
+
+                    <Column id="columnMatStatus2" hAlign="Center">
+                        <Text id="textColumnMatStatus2" text="Stato" />
                     </Column>
                 </columns>
 
@@ -136,9 +139,14 @@
                                 id="textMaterialDescription2"
                                 text="{MaterialDescription}" />
 
+                            <Text
+                                id="textSeason2"
+                                text="{Stagione}" />
+
                             <core:Icon
-    id="iconOpenPo2"
-    src="{= ${Open} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }" color="{= ${Open} === 'X' ? 'green' : 'red' }" />
+                                id="iconOpenPo2"
+                                src="{= ${Open} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
+                                color="{= ${Open} === 'X' ? 'green' : 'red' }" />
 
                             <ObjectNumber
                                 id="objectNumberRejected2"
@@ -154,6 +162,13 @@
                                 id="objectNumberApproved2"
                                 number="{Approved}"
                                 state="Success" />
+
+                            <Button
+                                id="btnMatStatus2"
+                                enabled="true"
+                                icon="{= ${MatStatus} === 'LOCK' ? 'sap-icon://locked' : 'sap-icon://unlocked' }"
+                                type="{= ${MatStatus} === 'LOCK' ? 'Reject' : 'Accept' }"
+                                tooltip="{= ${MatStatus} === 'LOCK' ? 'Bloccato' : 'Rilasciato' }" />
                         </cells>
                     </ColumnListItem>
                 </items>

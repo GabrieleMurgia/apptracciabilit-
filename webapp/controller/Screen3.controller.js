@@ -241,6 +241,118 @@ sap.ui.define([
       this.onToggleHeaderSort();
     },
 
+    _getCodAgg: function (o) {
+  // tollerante su naming
+  return String(
+    o && (o.CodAgg != null ? o.CodAgg : (o.CODAGG != null ? o.CODAGG : ""))
+  ).trim().toUpperCase();
+},
+
+/* _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
+  if (!oParent) return;
+
+  var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
+  var f = this._toStableString(oParent && (oParent.Fibra || oParent.FIBRA));
+  if (!g) return;
+
+  // match GUID+Fibra se presente, altrimenti tutte le righe del GUID
+  var aMatch = (aRowsCache || []).filter(function (r) {
+    var rg = this._rowGuidKey(r);
+    var rf = this._rowFibra(r);
+    if (f) return (rg === g && rf === f);
+    return (rg === g);
+  }.bind(this));
+
+  // prendo SOLO le righe RAW con CodAgg = N
+  var aToDelete = (aMatch || []).filter(function (r) {
+    return this._getCodAgg(r) === "N";
+  }.bind(this));
+
+  // fallback: se non ho righe raw ma il parent *davvero* ha CodAgg N, tombalo comunque
+  if (!aToDelete.length && this._getCodAgg(oParent) === "N") {
+    aToDelete = [oParent];
+  }
+
+  // se non ho niente con N -> non devo mandare delete
+  if (!aToDelete.length) return;
+
+  var aStash = oDetail.getProperty("/__deletedLinesForPost") || [];
+
+  aToDelete.forEach(function (r) {
+    var x = deepClone(r) || {};
+    if (x.CODAGG !== undefined) delete x.CODAGG;
+    x.CodAgg = "D";
+    x.__deletedAt = new Date().toISOString();
+    aStash.push(x);
+  });
+
+  // dedupe (Guid||Fibra||id riga se esiste)
+  var seen = {};
+  aStash = aStash.filter(function (r) {
+    var kg = String(r.Guid != null ? r.Guid : (r.GUID != null ? r.GUID : (r.guidKey != null ? r.guidKey : "")));
+    var kf = String(r.Fibra != null ? r.Fibra : (r.FIBRA != null ? r.FIBRA : ""));
+    var kid = String(r.ItmGuid || r.ItemGuid || r.Riga || r.Posizione || "");
+    var k = kg + "||" + kf + "||" + kid;
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+
+  oDetail.setProperty("/__deletedLinesForPost", aStash);
+}, */
+
+_stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
+  if (!oParent) return;
+
+  var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
+  if (!g) return;
+
+  // match SOLO GUID (tutte le righe del GUID)
+  var aMatch = (aRowsCache || []).filter(function (r) {
+    return this._rowGuidKey(r) === g;
+  }.bind(this));
+
+  // prendo SOLO le righe RAW con CodAgg = N
+  var aToDelete = (aMatch || []).filter(function (r) {
+    return this._getCodAgg(r) === ""; // N,I,D,''
+  }.bind(this));
+
+  // fallback: se non ho righe raw ma il parent ha CodAgg N, tombalo comunque
+  if (!aToDelete.length && this._getCodAgg(oParent) === "") { // N,I,D,''
+    aToDelete = [oParent];
+  }
+
+  // se non ho niente con N -> non devo mandare delete
+  if (!aToDelete.length) return;
+
+  var aStash = oDetail.getProperty("/__deletedLinesForPost") || [];
+
+  aToDelete.forEach(function (r) {
+    var x = deepClone(r) || {};
+
+    if (x.CODAGG !== undefined) delete x.CODAGG;
+    x.CodAgg = "D";
+    x.__deletedAt = new Date().toISOString();
+
+    aStash.push(x);
+  });
+
+  // dedupe SOLO GUID (+ eventuale id riga se esiste)
+/*   var seen = {};
+  aStash = aStash.filter(function (r) {
+    var kg = String(r.Guid != null ? r.Guid : (r.GUID != null ? r.GUID : (r.guidKey != null ? r.guidKey : "")));
+    var kid = String(r.ItmGuid || r.ItemGuid || r.Riga || r.Posizione || "");
+    var k = kg + "||" + kid;
+
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  }); */
+
+  oDetail.setProperty("/__deletedLinesForPost", aStash);
+},
+
+
     // =========================
     // Utils (delegate su util)
     // =========================
@@ -327,6 +439,8 @@ sap.ui.define([
 
       if (Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length) {
         this._hydrateMmctFromRows(aRows);
+        this._formatIncomingRowsMultiSeparators(aRows);
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
         this._bindRecords(aRecs);
         return;
       }
@@ -335,6 +449,8 @@ sap.ui.define([
         this._log("_reloadDataFromBackend returned", aResults.length);
 
         this._hydrateMmctFromRows(aResults);
+
+         this._formatIncomingRowsMultiSeparators(aResults);
 
         var aRecordsBuilt = this._buildRecords01(aResults);
 
@@ -1426,7 +1542,7 @@ onGoToScreen4FromRow: function (oEvent) {
       return (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
     },
 
-    onSave: function () { MessageToast.show("Salva: TODO"); },
+    
 
     _statusText: function (sCode) {
       var c = String(sCode || "").trim().toUpperCase();
@@ -1560,6 +1676,12 @@ onGoToScreen4FromRow: function (oEvent) {
       var n = parseInt(r && r.idx, 10);
       return aIdxToRemove.indexOf(n) < 0;
       }));
+
+      var aRowsCacheBefore = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
+aSel.forEach(function (p) {
+  // se CodAgg == N => metto in pancia righe raw con CodAgg=D
+  this._stashDeleteForPostFromCache(p, aRowsCacheBefore, oDetail);
+}.bind(this));
 
       // 3) dataRowsByKey: rimuovi le righe raw collegate (GUID/Fibra) dalla cache
       var aRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
@@ -1825,7 +1947,7 @@ onGoToScreen4FromRow: function (oEvent) {
   return out;
 },
 
-_sanitizeLineForPost: function (r, sVendor10, sMaterial) {
+/* _sanitizeLineForPost: function (r, sVendor10, sMaterial) {
   r = r || {};
 
   // Copia pulita: rimuovo campi UI e normalizzo arrays/null
@@ -1868,7 +1990,69 @@ _sanitizeLineForPost: function (r, sVendor10, sMaterial) {
   o.UserID = sUserId;
 
   return o;
+}, */
+
+_getMultiFieldsMap: function () {
+  var oDetail = this.getView().getModel("detail");
+  var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
+  var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
+
+  var m = {};
+  [a01, a02].forEach(function (arr) {
+    (arr || []).forEach(function (f) {
+      if (!f || !f.ui || !f.multiple) return;
+      var k = String(f.ui).trim();
+      if (k.toUpperCase() === "STATO") k = "Stato";
+      m[k] = true;
+    });
+  });
+
+  return m;
 },
+
+_normalizeMultiString: function (v, sSepOut) {
+  if (v == null) return v;
+
+  // se arriva già come array (MultiComboBox), unifico
+  if (Array.isArray(v)) {
+    return v
+      .map(function (x) { return String(x || "").trim(); })
+      .filter(Boolean)
+      .join(sSepOut);
+  }
+
+  var s = String(v || "").trim();
+  if (!s) return "";
+
+  // se non contiene separatori, lascio com’è
+  if (s.indexOf(";") < 0 && s.indexOf("|") < 0) return s;
+
+  // split robusto su ; e |
+  return s
+    .split(/[;|]+/)
+    .map(function (x) { return String(x || "").trim(); })
+    .filter(Boolean)
+    .join(sSepOut);
+},
+
+_formatIncomingRowsMultiSeparators: function (aRows) {
+  var mMulti = this._getMultiFieldsMap();
+  var aKeys = Object.keys(mMulti);
+  if (!aKeys.length) return;
+
+  (aRows || []).forEach(function (r) {
+    if (!r) return;
+
+    aKeys.forEach(function (k) {
+      var v = r[k];
+      // INGRESSO: backend/mock usa "|" -> UI deve vedere ";"
+      if (typeof v === "string" && v.indexOf("|") >= 0) {
+        r[k] = this._normalizeMultiString(v, ";");
+      }
+    }.bind(this));
+  }.bind(this));
+},
+
 
 _extractPostResponseLines: function (oData) {
   // Deep insert response tipica: PostDataCollection.results
@@ -1912,33 +2096,205 @@ onSave: function () {
   var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
   var oModel = this.getOwnerComponent().getModel();
 
-  // 1) Costruisco le righe da salvare (merge Screen3+Screen4) SEMPRE
-  var aLines = this._collectLinesForSave();
+  var oDetail = this.getView().getModel("detail");
+  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
 
-  debugger
+  // === chiavi vendor/material normalizzate ===
+  var sVendor10 = this._normalizeVendor10(this._sVendorId);
+  var sMaterial = String(this._sMaterial || "").trim();
+
+  // === canonical dataset completo (lo aggiorna Screen4) ===
+  var oVmCache = this._ensureVmCache();
+  var sCacheKey = this._getExportCacheKey(); // "REAL|..." / "MOCK|..."
+  var aRawAll = oVmCache.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+  if (!Array.isArray(aRawAll)) aRawAll = [];
+
+  // === keys Screen3 (campi parent da propagare su tutte le righe raw) ===
+  var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
+  var aParentKeys = (aS01 || [])
+    .map(function (f) {
+      var k = f && f.ui ? String(f.ui).trim() : "";
+      if (!k) return "";
+      if (k.toUpperCase() === "STATO") k = "Stato";
+      return k;
+    })
+    .filter(Boolean);
+
+  // sempre utili
+  if (aParentKeys.indexOf("Fibra") < 0) aParentKeys.push("Fibra");
+  if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
+
+  function norm(v) { return String(v == null ? "" : v).trim(); }
+
+  function isEmpty(v) {
+    if (v == null) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "string") return v.trim() === "";
+    return false;
+  }
+
+  function guidOf(x) {
+    // IMPORTANT: include guidKey (lowercase) + altri alias
+    return norm(x && (
+      x.Guid != null ? x.Guid :
+      (x.GUID != null ? x.GUID :
+      (x.guidKey != null ? x.guidKey :
+      (x.GuidKey != null ? x.GuidKey :
+      (x.ItmGuid != null ? x.ItmGuid :
+      (x.ItemGuid != null ? x.ItemGuid : ""))))))
+    );
+  }
+
+  function fibraOf(x) {
+    return norm(x && (x.Fibra != null ? x.Fibra : (x.FIBRA != null ? x.FIBRA : "")));
+  }
+
+  // indicizzo raw per GUID (così prendo tutte le righe Screen4/linee)
+  var mRawByGuid = {};
+  aRawAll.forEach(function (r) {
+    var g = guidOf(r);
+    if (!g) return;
+    if (!mRawByGuid[g]) mRawByGuid[g] = [];
+    mRawByGuid[g].push(r);
+  });
+
+  var mMulti = this._getMultiFieldsMap();
+
+  // sanitizzazione finale: tengo TUTTI i campi business, tolgo roba UI/meta
+  var sanitizeForPost = function (rAny) {
+    var r = rAny || {};
+    var o = {};
+    var normalizeMulti = this._normalizeMultiString.bind(this);
+    Object.keys(r).forEach(function (k) {
+      if (!k) return;
+      if (k.indexOf("__") === 0) return;
+      if (k === "__metadata" || k === "AllData") return;
+      if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+      var v = r[k];
+
+      // Multi -> stringa (backend tipicamente vuole string)
+      if (mMulti[k]) {
+    v = normalizeMulti(v, "|");
+  } else if (Array.isArray(v)) {
+    v = v.join(";");
+  }
+
+      // DateTime noti -> null se vuoti
+      if ((k === "InizioVal" || k === "FineVal" || k === "DataIns" || k === "DataMod") && (v === "" || v === undefined)) {
+        v = null;
+      }
+
+      o[k] = (v === undefined ? "" : v);
+    });
+
+    // forza chiavi minime
+    if (!o.Fornitore) o.Fornitore = sVendor10;
+    if (!o.Materiale) o.Materiale = sMaterial;
+
+    // Guid: se "-new" -> null (backend genera)
+    var g = guidOf(r) || guidOf(o);
+    if (!g || g.indexOf("-new") >= 0) g = null;
+
+    // backend usa "Guid"
+    o.Guid = g;
+
+    // pulizia alias (evito proprietà non previste)
+    if (o.GUID !== undefined) delete o.GUID;
+    if (o.GuidKey !== undefined) delete o.GuidKey;
+    if (o.guidKey !== undefined) delete o.guidKey;
+
+    // UserID anche sulla linea
+    o.UserID = sUserId;
+
+    return o;
+  }.bind(this);
+
+  // === BUILD lines: per ogni parent prendo tutte le righe raw del GUID e ci applico sopra i campi Screen3 ===
+  var aLines = [];
+  (aParents || []).forEach(function (p) {
+    var gP = guidOf(p);
+    var fP = fibraOf(p);
+
+    // se ho raw per quel guid => prendo quelle (completo Screen4)
+    var aRows = (gP && mRawByGuid[gP]) ? mRawByGuid[gP] : [];
+
+    // se non ho raw (nuovo parent appena creato e non passato da S4) => creo riga synthetic dal parent
+    if (!aRows.length) aRows = [deepClone(p) || {}];
+
+    aRows.forEach(function (r0) {
+      var r = deepClone(r0) || {};
+
+      // 1) Propaga SEMPRE i campi Screen3 su tutte le righe (anche se il raw aveva valore)
+      aParentKeys.forEach(function (k) {
+        if (p && p[k] !== undefined) r[k] = p[k];
+      });
+
+      // 2) Per gli altri campi del parent: fill se nel raw mancano/sono vuoti
+      Object.keys(p || {}).forEach(function (k) {
+        if (!k) return;
+        if (k.indexOf("__") === 0) return;
+        if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+        if (r[k] === undefined || isEmpty(r[k])) r[k] = p[k];
+      });
+
+      // 3) Stato coerente
+      var stP = norm(p && (p.__status || p.Stato));
+      if (isEmpty(r.Stato) && stP) r.Stato = stP;
+
+      // 4) GUID coerente (se il raw non lo aveva)
+      if (!guidOf(r) && gP) {
+        // non forzo formato, copio solo se c’è
+        r.Guid = gP;
+      }
+
+      // 5) Fibra coerente
+      if (isEmpty(r.Fibra) && fP) r.Fibra = fP;
+
+      // 6) chiavi minime
+      if (!r.Fornitore) r.Fornitore = sVendor10;
+      if (!r.Materiale) r.Materiale = sMaterial;
+      r.UserID = sUserId;
+
+      aLines.push(sanitizeForPost(r));
+    });
+  });
+
+var aDeleted = (oDetail && oDetail.getProperty("/__deletedLinesForPost")) || [];
+if (Array.isArray(aDeleted) && aDeleted.length) {
+  aDeleted.forEach(function (rDel) {
+    var x = deepClone(rDel) || {};
+    if (x.CODAGG !== undefined) delete x.CODAGG;
+    x.CodAgg = "D";
+    aLines.push(sanitizeForPost(x));
+  });
+}
+
   if (!aLines.length) {
     MessageToast.show("Nessuna riga da salvare");
     return;
   }
 
-  // 2) Payload secondo specifica backend SEMPRE
   var oPayload = {
     UserID: sUserId,
-    PostDataCollection: aLines
+    PostDataCollection: aLines.filter(i => i.CodAgg != 'N')
   };
 
-  // >>> qui vedi SEMPRE cosa stai per inviare (mock o non mock)
-  console.log("[S3] Payload /PostDataSet", JSON.parse(JSON.stringify(oPayload)));
+  // LOG payload completo
+  console.log("[S3] Payload /PostDataSet (UNIFIED)", JSON.parse(JSON.stringify(oPayload)));
 
-  // 3) Se MOCK: NON chiamare la POST, ma mostra messaggio alla fine
   if (bMock) {
     MessageToast.show("MOCK attivo: POST non eseguita (payload in Console)");
     return;
   }
 
-  // 4) Reale: eseguo la POST
   BusyIndicator.show(0);
+  BusyIndicator.hide(0);
+  debugger
 
+
+
+  return
   oModel.create("/PostDataSet", oPayload, {
     urlParameters: { "sap-language": "IT" },
     success: function (oData) {
@@ -1958,6 +2314,7 @@ onSave: function () {
 
       this._invalidateScreen3Cache();
       this._loadDataOnce();
+      oDetail.setProperty("/__deletedLinesForPost", []);
     }.bind(this),
 
     error: function (oError) {
@@ -1968,6 +2325,7 @@ onSave: function () {
     }.bind(this)
   });
 },
+
 
 
 

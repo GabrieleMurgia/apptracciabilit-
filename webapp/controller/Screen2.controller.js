@@ -10,6 +10,37 @@ sap.ui.define([
 ], function (Controller, History, JSONModel, Filter, FilterOperator, BusyIndicator, MessageToast, MockData) {
   "use strict";
 
+function getODataErrorMessage(oError) {
+  try {
+    if (oError && oError.responseText) {
+      var o = JSON.parse(oError.responseText);
+      var v = o && o.error && o.error.message && (o.error.message.value || o.error.message);
+      if (v) return String(v);
+    }
+    if (oError && oError.message) return String(oError.message);
+  } catch (e) { /* ignore */ }
+  return "Errore imprevisto";
+}
+
+function recomputeSupportFields(row) {
+  var searchAll = [
+    safeStr(row.Material),
+    safeStr(row.MaterialOriginal),
+    safeStr(row.MaterialDescription),
+    safeStr(row.Stagione),
+    safeStr(row.MatStatus),
+    safeStr(row.Open),
+    safeStr(row.Rejected),
+    safeStr(row.Pending),
+    safeStr(row.Approved)
+  ].join(" ");
+
+  row.StagioneLC = lc(row.Stagione);
+  row.MaterialLC = lc(row.Material);
+  row.MaterialOriginalLC = lc(row.MaterialOriginal);
+  row.SearchAllLC = lc(searchAll);
+}
+
   function ts() { return new Date().toISOString(); }
 
   function safeStr(x) { return (x === null || x === undefined) ? "" : String(x); }
@@ -81,6 +112,109 @@ sap.ui.define([
   }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
+
+    onMatStatusPress: function (oEvent) {
+  var oBtn = oEvent.getSource();
+  var oCtx = oBtn.getBindingContext(); // contesto JSONModel della riga
+  if (!oCtx) return;
+
+  var oRow = oCtx.getObject() || {};
+  var sPath = oCtx.getPath(); // es: "/Materials/3"
+
+  // valori da inviare
+  var sVendor = safeStr(this._sVendorId).trim();
+  // se vuoi padding vendor e hai MockData.padVendor, usa questo:
+  if (MockData && typeof MockData.padVendor === "function") {
+    sVendor = MockData.padVendor(sVendor);
+  }
+
+  var sMateriale = safeStr(oRow.MaterialOriginal || oRow.Material).trim();
+  var sStagione = safeStr(oRow.Stagione).trim();
+
+  // toggle status
+  var sCurr = safeStr(oRow.MatStatus).trim();
+  var sNewStatus = (sCurr === "LOCK") ? "RELE" : "LOCK";
+
+  var oPayload = {
+    Fornitore: sVendor,
+    Materiale: sMateriale,
+    Stagione: sStagione,
+    MatStatus: sNewStatus
+  };
+
+  // se sei in MOCK, aggiorna localmente (così non “rompe” in test)
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var bMockS2 = !!mock.mockS2;
+  if (bMockS2) {
+    var oJson = this.getView().getModel();
+    oJson.setProperty(sPath + "/MatStatus", sNewStatus);
+
+    var r = oJson.getProperty(sPath);
+    recomputeSupportFields(r);
+    oJson.refresh(true);
+
+    MessageToast.show("MOCK: stato aggiornato a " + sNewStatus);
+    return;
+  }
+
+  var oODataModel = this.getOwnerComponent().getModel();  // OData v2
+  var oJsonModel = this.getView().getModel();
+
+  // evita doppio click
+  oBtn.setEnabled(false);
+  BusyIndicator.show(0);
+
+  oODataModel.create("/MaterialStatusSet", oPayload, {
+    success: function (oData) {
+      BusyIndicator.hide();
+      oBtn.setEnabled(true);
+
+      // fallback: se il backend non rimanda MatStatus, uso quello inviato
+      var sReturnedStatus = safeStr((oData && oData.MatStatus) || sNewStatus).trim();
+
+      oJsonModel.setProperty(sPath + "/MatStatus", sReturnedStatus);
+
+      // se torna la stagione aggiornata
+      if (oData && oData.Stagione !== undefined) {
+        oJsonModel.setProperty(sPath + "/Stagione", safeStr(oData.Stagione).trim());
+      }
+
+      // opzionale: se il backend rimanda anche questi campi, li aggiorno
+      if (oData && oData.Open !== undefined) {
+        var open = safeStr(oData.Open).trim();
+        oJsonModel.setProperty(sPath + "/Open", open);
+        oJsonModel.setProperty(sPath + "/OpenPo", open === "X" ? 1 : 0);
+      }
+      if (oData && oData.Rejected !== undefined) {
+        oJsonModel.setProperty(sPath + "/Rejected", Number(oData.Rejected) || 0);
+      }
+      if (oData && oData.ToApprove !== undefined) {
+        var pend = Number(oData.ToApprove) || 0;
+        oJsonModel.setProperty(sPath + "/Pending", pend);
+        oJsonModel.setProperty(sPath + "/ToApprove", pend);
+      }
+      if (oData && oData.Approved !== undefined) {
+        oJsonModel.setProperty(sPath + "/Approved", Number(oData.Approved) || 0);
+      }
+
+      // ricalcolo campi filtro
+      var row = oJsonModel.getProperty(sPath);
+      recomputeSupportFields(row);
+      oJsonModel.refresh(true);
+
+      MessageToast.show("Stato aggiornato con successo");
+    },
+    error: function (oError) {
+      BusyIndicator.hide();
+      oBtn.setEnabled(true);
+
+      console.error("[Screen2] MaterialStatusSet POST error", oError);
+      MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError));
+    }
+  });
+},
+
 
     _log: function () {
       var a = Array.prototype.slice.call(arguments);
@@ -184,6 +318,7 @@ sap.ui.define([
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
 
           var aResults = (oData && oData.results) || [];
@@ -250,6 +385,10 @@ sap.ui.define([
     },
 
     onMaterialPress: function (oEvent) {
+        var oSrc = oEvent.getParameter("srcControl");
+  if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
+    return; // click su bottone: non navigo
+  }
       var oItem = oEvent.getSource().getSelectedItem();
       var oCtx = oItem.getBindingContext();
 

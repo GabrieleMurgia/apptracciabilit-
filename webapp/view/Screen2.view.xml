@@ -166,6 +166,7 @@
                             <Button
                                 id="btnMatStatus2"
                                 enabled="true"
+                                press=".onMatStatusPress"
                                 icon="{= ${MatStatus} === 'LOCK' ? 'sap-icon://locked' : 'sap-icon://unlocked' }"
                                 type="{= ${MatStatus} === 'LOCK' ? 'Reject' : 'Accept' }"
                                 tooltip="{= ${MatStatus} === 'LOCK' ? 'Bloccato' : 'Rilasciato' }" />

@@ -14,7 +14,7 @@ sap.ui.define([
 
     var bRequired = !!(oMeta && oMeta.required);
     var bLocked = !!(oMeta && oMeta.locked);
-    var sNewRowExpr = "${detail>__isNew}"; // bypass lock per righe nuove
+    var sNewRowExpr = "${detail>__isNew}"; 
     var bMultiple = !!(oMeta && oMeta.multiple);
 
     var sDomain = String((oMeta && oMeta.domain) || "").trim();

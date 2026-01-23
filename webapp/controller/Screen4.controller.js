@@ -819,6 +819,8 @@ _loadSelectedRecordRows: function (fnDone) {
 
    var aSelected = aByGuid; // <- patch solo per GUID
 
+   debugger;
+
     // --- ROLE/STATUS ---
     var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
 
@@ -1188,6 +1190,8 @@ _getDataCacheKey: function () {
         var sKey = String(f.ui || "").trim();
         if (!sKey) return;
 
+        
+
         var sHeader = (f.label || sKey) + (f.required ? " *" : "");
 
         var mProps = MdcColumn.getMetadata().getAllProperties(); // utile se vuoi compatibilità versioni
@@ -1425,6 +1429,7 @@ if (this._sortState && this._sortState.key) {
           oCtrl = new ComboBox({
             width: "100%",
             visible: sVisibleBind,
+            selectionChange:(e)=>{},
             allowCustomValues: false,
             placeholder: "filtra..."
           });
@@ -1434,6 +1439,7 @@ if (this._sortState && this._sortState.key) {
           });
 
           oCtrl.attachChange(function () {
+            
             var sk = String(oCtrl.getSelectedKey() || "").trim();
             this._dbg("HDR change", { key: sKey, selectedKey: sk });
             if (sk) this._colFilters[sKey] = { type: "key", value: sk };

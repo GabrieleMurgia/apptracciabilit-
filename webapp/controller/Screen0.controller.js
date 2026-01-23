@@ -212,10 +212,10 @@ sap.ui.define([
       var sForceStato = "";
 
       // tipo utente mock
-      var sMockUserType = "E"; // "E" / "I" / "S"
+      var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = "E"; // es: "I"
+      var sOverrideUserTypeWhenReal = ""; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;

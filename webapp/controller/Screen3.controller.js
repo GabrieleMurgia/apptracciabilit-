@@ -611,6 +611,7 @@ _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
           if(oData){}
@@ -1586,6 +1587,8 @@ onGoToScreen4FromRow: function (oEvent) {
 
         Fibra: "",
 
+        CodAgg: "I",
+
         Stato: "ST",
         StatoText: this._statusText("ST"),
         __status: "ST",
@@ -2088,6 +2091,20 @@ _readODataError: function (oError) {
     return "";
   }
 },
+
+ uuidv4: function() {
+/*   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4))).toString(16)
+  ); */
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+
+  // btoa vuole una stringa "binary" (0–255)
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+
+  return btoa(bin); 
+},
 onSave: function () {
   var oVm = this.getOwnerComponent().getModel("vm");
   var mock = (oVm && oVm.getProperty("/mock")) || {};
@@ -2109,7 +2126,6 @@ onSave: function () {
   var aRawAll = oVmCache.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
   if (!Array.isArray(aRawAll)) aRawAll = [];
 
-  // === keys Screen3 (campi parent da propagare su tutte le righe raw) ===
   var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
   var aParentKeys = (aS01 || [])
     .map(function (f) {
@@ -2120,8 +2136,13 @@ onSave: function () {
     })
     .filter(Boolean);
 
+  // Stato lo lasciamo in propagazione forzata
+  if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
+
+  // Fibra la togliamo dalla propagazione forzata
+  aParentKeys = aParentKeys.filter(function (k) { return k !== "Fibra"; });
+
   // sempre utili
-  if (aParentKeys.indexOf("Fibra") < 0) aParentKeys.push("Fibra");
   if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
 
   function norm(v) { return String(v == null ? "" : v).trim(); }
@@ -2149,6 +2170,27 @@ onSave: function () {
     return norm(x && (x.Fibra != null ? x.Fibra : (x.FIBRA != null ? x.FIBRA : "")));
   }
 
+  // ==========================================================
+  // >>> FIX GUID GRUPPO: stesso Guid per tutte le righe Screen4 dello stesso parent
+  // ==========================================================
+  var mGroupGuidByParent = {};
+
+  function parentKeyOf(p) {
+    return String(p && (p.guidKey || p.GUID || p.Guid || p.idx) || "").trim();
+  }
+
+  function getGroupGuid(p) {
+    // se il parent ha già un guid “vero” (non -new), uso quello
+    var g = guidOf(p);
+    if (g && g.indexOf("-new") < 0) return g;
+
+    // altrimenti genero 1 guid e lo riuso per tutte le righe del parent
+    var pk = parentKeyOf(p);
+    if (!mGroupGuidByParent[pk]) mGroupGuidByParent[pk] = this.uuidv4();
+    return mGroupGuidByParent[pk];
+  }
+  // ==========================================================
+
   // indicizzo raw per GUID (così prendo tutte le righe Screen4/linee)
   var mRawByGuid = {};
   aRawAll.forEach(function (r) {
@@ -2165,6 +2207,7 @@ onSave: function () {
     var r = rAny || {};
     var o = {};
     var normalizeMulti = this._normalizeMultiString.bind(this);
+
     Object.keys(r).forEach(function (k) {
       if (!k) return;
       if (k.indexOf("__") === 0) return;
@@ -2173,12 +2216,11 @@ onSave: function () {
 
       var v = r[k];
 
-      // Multi -> stringa (backend tipicamente vuole string)
       if (mMulti[k]) {
-    v = normalizeMulti(v, "|");
-  } else if (Array.isArray(v)) {
-    v = v.join(";");
-  }
+        v = normalizeMulti(v, "|");
+      } else if (Array.isArray(v)) {
+        v = v.join(";");
+      }
 
       // DateTime noti -> null se vuoti
       if ((k === "InizioVal" || k === "FineVal" || k === "DataIns" || k === "DataMod") && (v === "" || v === undefined)) {
@@ -2216,6 +2258,14 @@ onSave: function () {
     var gP = guidOf(p);
     var fP = fibraOf(p);
 
+    // >>> FIX: calcolo 1 Guid di gruppo per questo parent
+    var gGroup = getGroupGuid.call(this, p);
+
+    // (opzionale ma utile) aggiorno anche il parent in memoria
+    p.Guid = gGroup;
+    p.GUID = gGroup;
+    p.guidKey = gGroup;
+
     // se ho raw per quel guid => prendo quelle (completo Screen4)
     var aRows = (gP && mRawByGuid[gP]) ? mRawByGuid[gP] : [];
 
@@ -2224,6 +2274,11 @@ onSave: function () {
 
     aRows.forEach(function (r0) {
       var r = deepClone(r0) || {};
+
+      // >>> FIX: forza Guid uguale per tutte le righe del parent
+      r.Guid = gGroup;
+      r.GUID = gGroup;
+      r.guidKey = gGroup;
 
       // 1) Propaga SEMPRE i campi Screen3 su tutte le righe (anche se il raw aveva valore)
       aParentKeys.forEach(function (k) {
@@ -2238,14 +2293,22 @@ onSave: function () {
         if (r[k] === undefined || isEmpty(r[k])) r[k] = p[k];
       });
 
+      // Fibra gestita a parte (no overwrite con "")
+      if (!isEmpty(p.Fibra)) {
+        // se il parent ha Fibra, vince lui
+        r.Fibra = p.Fibra;
+      } else if (isEmpty(r.Fibra) && !isEmpty(fP)) {
+        // altrimenti tieni raw (Screen4), e se raw è vuoto fai fallback al parent normalizzato
+        r.Fibra = fP;
+      }
+
       // 3) Stato coerente
       var stP = norm(p && (p.__status || p.Stato));
       if (isEmpty(r.Stato) && stP) r.Stato = stP;
 
-      // 4) GUID coerente (se il raw non lo aveva)
-      if (!guidOf(r) && gP) {
-        // non forzo formato, copio solo se c’è
-        r.Guid = gP;
+      // 4) GUID coerente (se il raw non lo aveva) -> ORA è già forzato da gGroup, quindi solo safety
+      if (!guidOf(r) && gGroup) {
+        r.Guid = gGroup;
       }
 
       // 5) Fibra coerente
@@ -2257,28 +2320,39 @@ onSave: function () {
       r.UserID = sUserId;
 
       aLines.push(sanitizeForPost(r));
-    });
-  });
+    }.bind(this));
+  }.bind(this));
 
-var aDeleted = (oDetail && oDetail.getProperty("/__deletedLinesForPost")) || [];
-if (Array.isArray(aDeleted) && aDeleted.length) {
-  aDeleted.forEach(function (rDel) {
-    var x = deepClone(rDel) || {};
-    if (x.CODAGG !== undefined) delete x.CODAGG;
-    x.CodAgg = "D";
-    aLines.push(sanitizeForPost(x));
-  });
-}
+  var aDeleted = (oDetail && oDetail.getProperty("/__deletedLinesForPost")) || [];
+  if (Array.isArray(aDeleted) && aDeleted.length) {
+    aDeleted.forEach(function (rDel) {
+      var x = deepClone(rDel) || {};
+      if (x.CODAGG !== undefined) delete x.CODAGG;
+      x.CodAgg = "D";
+      aLines.push(sanitizeForPost(x));
+    });
+  }
 
   if (!aLines.length) {
     MessageToast.show("Nessuna riga da salvare");
     return;
   }
 
+  // >>> FIX: NON generare più Guid per riga (li hai già forzati sopra)
   var oPayload = {
     UserID: sUserId,
-    PostDataCollection: aLines.filter(i => i.CodAgg != 'N')
+    PostDataCollection: aLines
+      .filter(function (i) { return i.CodAgg !== "N"; })
+      .map(function (l) {
+        var x = Object.assign({}, l);
+        delete x.ToApprove;
+        delete x.Rejected;
+        delete x.Approved;
+        return x;
+      })
   };
+
+  debugger;
 
   // LOG payload completo
   console.log("[S3] Payload /PostDataSet (UNIFIED)", JSON.parse(JSON.stringify(oPayload)));
@@ -2290,11 +2364,8 @@ if (Array.isArray(aDeleted) && aDeleted.length) {
 
   BusyIndicator.show(0);
   BusyIndicator.hide(0);
+
   debugger
-
-
-
-  return
   oModel.create("/PostDataSet", oPayload, {
     urlParameters: { "sap-language": "IT" },
     success: function (oData) {
@@ -2325,6 +2396,7 @@ if (Array.isArray(aDeleted) && aDeleted.length) {
     }.bind(this)
   });
 },
+
 
 
 

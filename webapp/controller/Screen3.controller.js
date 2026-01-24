@@ -6,6 +6,7 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
+  "sap/m/MessageBox",
   "sap/m/Button",
   "sap/ui/mdc/table/Column",
   "sap/m/HBox",
@@ -38,6 +39,7 @@ sap.ui.define([
   FilterOperator,
   BusyIndicator,
   MessageToast,
+  MessageBox,
   Button,
   MdcColumn,
   HBox,
@@ -119,6 +121,101 @@ sap.ui.define([
         this._logTable("TABLE STATE @ after onInit");
       }.bind(this), 0);
     },
+    _isEmptyRequiredValue: function (v) {
+  if (v == null) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "string") return v.trim() === "";
+  return false;
+},
+
+_isBaseCodAgg: function (o) {
+  var ca = this._getCodAgg(o);
+  return ca === "" || ca === "N";
+},
+
+_getRequiredMapFromMmct: function () {
+  var oDetail = this.getView().getModel("detail");
+  var a01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
+  var a02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
+
+  var req01 = {};
+  var req02 = {};
+
+  (a01 || []).forEach(function (f) {
+    if (f && f.ui && f.required) {
+      var k = String(f.ui).trim();
+      if (k.toUpperCase() === "STATO") k = "Stato";
+      req01[k] = f;
+    }
+  });
+
+  (a02 || []).forEach(function (f) {
+    if (f && f.ui && f.required) {
+      var k = String(f.ui).trim();
+      if (k.toUpperCase() === "STATO") k = "Stato";
+      req02[k] = f;
+    }
+  });
+
+  return { req01: req01, req02: req02 };
+},
+
+_validateRequiredBeforePost: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
+
+  var oVm = this._ensureVmCache();
+  var sCacheKey = this._getExportCacheKey();
+  var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+  if (!Array.isArray(aRawAll)) aRawAll = [];
+
+  var maps = this._getRequiredMapFromMmct();
+  var req01 = maps.req01;
+  var req02 = maps.req02;
+
+  var errors = [];
+
+  function pushErr(scope, guid, field, label) {
+    errors.push({
+      scope: scope,
+      guid: guid || "",
+      field: field || "",
+      label: label || field || ""
+    });
+  }
+
+  aParents.forEach(function (p) {
+    var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
+
+    // --- required parent (Screen01)
+    Object.keys(req01).forEach(function (k) {
+      var meta = req01[k];
+      var v = p ? p[k] : undefined;
+      if (this._isEmptyRequiredValue(v)) {
+        pushErr("S3", g, k, meta.label || k);
+      }
+    }.bind(this));
+
+    // --- required details (Screen02): tutte le righe del GUID (escludo D)
+    var aDet = (aRawAll || []).filter(function (r) {
+      return this._rowGuidKey(r) === g && this._getCodAgg(r) !== "D";
+    }.bind(this));
+
+    aDet.forEach(function (r) {
+      Object.keys(req02).forEach(function (k) {
+        var meta = req02[k];
+        var v = r ? r[k] : undefined;
+        if (this._isEmptyRequiredValue(v)) {
+          pushErr("S4", g, k, meta.label || k);
+        }
+      }.bind(this));
+    }.bind(this));
+  }.bind(this));
+
+  return { ok: errors.length === 0, errors: errors };
+},
+
+
 
     // =========================
     // LOG
@@ -373,11 +470,68 @@ _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
       return Domains.domainHasValues(this.getOwnerComponent(), sDomain);
     },
 
-    _createCellTemplate: function (sKey, oMeta) {
-      return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
-        domainHasValuesFn: this._domainHasValues.bind(this)
-      });
-    },
+_createCellTemplate: function (sKey, oMeta) {
+  return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+    domainHasValuesFn: this._domainHasValues.bind(this),
+    hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
+  });
+},
+_touchCodAggParent: function (p) {
+  if (!p) return;
+
+  var ca = this._getCodAgg(p);
+  var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
+
+  if (isNew) {
+    p.CodAgg = "I";
+    return;
+  }
+
+  // ✅ consegna: se I -> U, base -> U
+  if (ca === "" || ca === "N" || ca === "I") p.CodAgg = "U";
+
+  // ✅ IMPORTANT: aggiorno anche le righe raw collegate (stesso guid) se erano base
+  var g = this._toStableString(p.guidKey || p.Guid || p.GUID);
+  if (!g) return;
+
+  var oVm = this._ensureVmCache();
+  var sKey = this._getExportCacheKey();
+  var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+  if (!Array.isArray(aRaw)) aRaw = [];
+
+  aRaw.forEach(function (r) {
+    if (this._rowGuidKey(r) !== g) return;
+
+    var rc = this._getCodAgg(r);
+    var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
+
+    if (rIsNew) { r.CodAgg = "I"; return; }
+
+    if (rc === "" || rc === "N" || rc === "I") r.CodAgg = "U";
+  }.bind(this));
+
+  oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+},
+
+_hookDirtyOnEdit: function (oCtrl) {
+  if (!oCtrl) return;
+
+  try {
+    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+  } catch (e) {}
+
+  var fn = function () {
+    var ctx = (oCtrl.getBindingContext && (oCtrl.getBindingContext("detail") || oCtrl.getBindingContext())) || null;
+    var p = ctx && ctx.getObject && ctx.getObject();
+    if (p) this._touchCodAggParent(p);
+  }.bind(this);
+
+  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
+  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
+  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
+},
+
 
     _createStatusCellTemplate: function (sKey) {
       var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
@@ -1561,7 +1715,81 @@ onGoToScreen4FromRow: function (oEvent) {
     // =========================
     PARENT_TABLE_ID: "mdcTable3",
 
-    onAddRow: function () {
+    _toArrayMulti: function (v) {
+  if (Array.isArray(v)) return v.slice();
+  var s = String(v || "").trim();
+  if (!s) return [];
+  return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+},
+
+_pickTemplateGuidForNewParent: function () {
+  // 1) se user ha selezionato UNA riga in Screen3, uso quella
+  var aSel = this._getSelectedParentObjectsFromMdc ? this._getSelectedParentObjectsFromMdc() : [];
+  if (Array.isArray(aSel) && aSel.length === 1) {
+    var gSel = this._toStableString(aSel[0] && (aSel[0].guidKey || aSel[0].GID || aSel[0].GUID || aSel[0].Guid));
+    if (gSel) return gSel;
+  }
+
+  // 2) fallback: prima riga base (CodAgg N / "")
+  var oVm = this._ensureVmCache();
+  var sKey = this._getExportCacheKey();
+  var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+  if (!Array.isArray(aRaw)) aRaw = [];
+
+  var r0 = aRaw.find(function (r) {
+    return this._isBaseCodAgg(r) && this._rowGuidKey(r);
+  }.bind(this));
+
+  return r0 ? this._rowGuidKey(r0) : "";
+},
+
+_getTemplateRowsByGuid: function (guidTpl) {
+  var oVm = this._ensureVmCache();
+  var sKey = this._getExportCacheKey();
+  var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+  if (!Array.isArray(aRaw)) aRaw = [];
+
+  // solo righe BASE del template guid
+  var aTpl = aRaw.filter(function (r) {
+    return this._rowGuidKey(r) === guidTpl && this._isBaseCodAgg(r);
+  }.bind(this));
+
+  // se non trovo base, fallback: tutte le righe del guid
+  if (!aTpl.length) {
+    aTpl = aRaw.filter(function (r) {
+      return this._rowGuidKey(r) === guidTpl;
+    }.bind(this));
+  }
+
+  return aTpl;
+},
+
+_cloneLockedFields: function (src, aCfg, scope) {
+  // scope = "S01" o "S02" (solo per debug)
+  src = src || {};
+  var out = {};
+
+  (aCfg || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = String(f.ui).trim();
+    if (!k) return;
+    if (k.toUpperCase() === "STATO") k = "Stato";
+
+    // se locked -> copia, altrimenti vuoto
+    if (f.locked) {
+      var v = src[k];
+      if (f.multiple) out[k] = this._toArrayMulti(v);
+      else out[k] = (v == null ? "" : v);
+    } else {
+      out[k] = f.multiple ? [] : "";
+    }
+  }.bind(this));
+
+  return out;
+},
+
+
+/*     onAddRow: function () {
       var oDetail = this.getView().getModel("detail");
       if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
 
@@ -1628,7 +1856,144 @@ onGoToScreen4FromRow: function (oEvent) {
       }.bind(this), 0);
 
       MessageToast.show("Riga aggiunta");
-    },
+    }, */
+    
+    onAddRow: function () {
+  var oDetail = this.getView().getModel("detail");
+  if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+
+  if (!oDetail.getProperty("/__canAddRow")) {
+    MessageToast.show("Non hai permessi per aggiungere righe");
+    return;
+  }
+
+  var aAll = oDetail.getProperty("/RecordsAll") || [];
+
+  // nuovo idx
+  var iMax = -1;
+  (aAll || []).forEach(function (r) {
+    var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
+    if (!isNaN(n) && n > iMax) iMax = n;
+  });
+  var iNewIdx = iMax + 1;
+
+  // nuovo guid
+  var sGuidNew = this._genGuidNew();
+
+  // ---- TEMPLATE (CodAgg N / "")
+  var guidTpl = this._pickTemplateGuidForNewParent();
+  var aTplRows = guidTpl ? this._getTemplateRowsByGuid(guidTpl) : [];
+  var tpl0 = aTplRows[0] || {};
+
+  // cfg MMCT
+  var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
+  var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
+
+  // ---- build Parent (Screen3): solo LOCKED presi da tpl0
+  var oLockedParent = this._cloneLockedFields(tpl0, aCfg01, "S01");
+
+  var oNewRow = Object.assign({}, oLockedParent, {
+    idx: iNewIdx,
+
+    GUID: sGuidNew,
+    Guid: sGuidNew,
+    guidKey: sGuidNew,
+
+    // chiavi utili
+    CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
+    Fornitore: tpl0.Fornitore || this._normalizeVendor10(this._sVendorId),
+    Materiale: tpl0.Materiale || String(this._sMaterial || "").trim(),
+
+    Fibra: "",
+
+    CodAgg: "I",
+
+    Stato: "ST",
+    StatoText: this._statusText("ST"),
+    __status: "ST",
+
+    __canEdit: true,
+    __canApprove: false,
+    __canReject: false,
+    __readOnly: false,
+
+    __isNew: true,
+    __state: "NEW"
+  });
+
+  // assicura chiavi mmct presenti
+  (aCfg01 || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = String(f.ui).trim();
+    if (!k) return;
+    if (k.toUpperCase() === "STATO") k = "Stato";
+    if (oNewRow[k] === undefined) oNewRow[k] = f.multiple ? [] : "";
+    if (f.multiple && !Array.isArray(oNewRow[k])) oNewRow[k] = this._toArrayMulti(oNewRow[k]);
+  }.bind(this));
+
+  // ---- build Details (Screen4): N righe clonate (solo LOCKED) con nuovo GUID
+  var aNewDetails = (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
+    var oLockedDet = this._cloneLockedFields(src, aCfg02, "S02");
+
+    var x = Object.assign({}, src, oLockedDet);
+
+    // forza nuovo gruppo
+    x.Guid = sGuidNew;
+    x.GUID = sGuidNew;
+    x.guidKey = sGuidNew;
+
+    x.Fornitore = x.Fornitore || this._normalizeVendor10(this._sVendorId);
+    x.Materiale = x.Materiale || String(this._sMaterial || "").trim();
+    x.CatMateriale = x.CatMateriale || tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "";
+
+    x.CodAgg = "I";
+    x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+    x.__isNew = true;
+
+    x.Approved = 0;
+    x.Rejected = 0;
+    x.ToApprove = 1;
+
+    // multiple -> array
+    (aCfg02 || []).forEach(function (f) {
+      if (!f || !f.ui || !f.multiple) return;
+      var k = String(f.ui).trim();
+      if (!k) return;
+      x[k] = this._toArrayMulti(x[k]);
+    }.bind(this));
+
+    return x;
+  }.bind(this));
+
+  // ---- push parent in UI model
+  aAll = aAll.slice();
+  aAll.push(oNewRow);
+  oDetail.setProperty("/RecordsAll", aAll);
+
+  // ---- aggiorna cache VM: recordsByKey + dataRowsByKey
+  var oVm = this._ensureVmCache();
+  var sCacheKey = this._getExportCacheKey();
+
+  var aRecsCache = oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || [];
+  if (!Array.isArray(aRecsCache)) aRecsCache = [];
+  aRecsCache = aRecsCache.slice();
+  aRecsCache.push(oNewRow);
+  oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRecsCache);
+
+  var aRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+  if (!Array.isArray(aRowsCache)) aRowsCache = [];
+  aRowsCache = aRowsCache.slice().concat(aNewDetails);
+  oVm.setProperty("/cache/dataRowsByKey/" + sCacheKey, aRowsCache);
+
+  // set selected + prepara Screen4
+  this._setSelectedParentForScreen4(oNewRow);
+  this._ensureScreen4CacheForParentIdx(iNewIdx, sGuidNew);
+
+  // aggiorna view
+  this._applyClientFilters();
+
+  MessageToast.show("Riga aggiunta (template CodAgg=N)");
+},
 
     onDeleteRows: function () {
       var oDetail = this.getView().getModel("detail");
@@ -2338,11 +2703,29 @@ onSave: function () {
     return;
   }
 
+  var vr = this._validateRequiredBeforePost();
+if (!vr.ok) {
+  var top = vr.errors.slice(0, 15).map(function (e) {
+    return "- [" + e.scope + "] " + e.label + " (GUID: " + (e.guid || "?") + ")";
+  }).join("\n");
+
+  MessageBox.error(
+    "Compila tutti i campi obbligatori prima di salvare.\n\n" +
+    top +
+    (vr.errors.length > 15 ? ("\n\n... altri " + (vr.errors.length - 15) + " errori") : "")
+  );
+  return;
+}
+
   // >>> FIX: NON generare più Guid per riga (li hai già forzati sopra)
   var oPayload = {
     UserID: sUserId,
     PostDataCollection: aLines
-      .filter(function (i) { return i.CodAgg !== "N"; })
+      /* .filter(function (i) { return i.CodAgg !== "N"; }) */
+      .filter(function (i) {
+    var ca = this._getCodAgg(i);
+    return !(ca === "N" || ca === "");
+  }.bind(this))
       .map(function (l) {
         var x = Object.assign({}, l);
         delete x.ToApprove;

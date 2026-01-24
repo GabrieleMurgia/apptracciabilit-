@@ -168,11 +168,11 @@ sap.ui.define([
         mock: {
           vendorIdx: 0,
           forceStato: "",
-          mockS0: false,
-          mockS1: false,
-          mockS2: false,
-          mockS3: false,
-          mockS4: false,
+          mockS0: true,
+          mockS1: true,
+          mockS2: true,
+          mockS3: true,
+          mockS4: true,
           files: {
             userInfos: "",
             materials: "",
@@ -202,20 +202,20 @@ sap.ui.define([
       var sMockMaterialsFile = "mock/MaterialDataSet.json";
       var sMockDataSetFile = "mock/DataSet.json";
 
-      var bMockS0 = false;
-      var bMockS1 = false;
-      var bMockS2 = false;
-      var bMockS3 = false;
-      var bMockS4 = false;
+      var bMockS0 = true;
+      var bMockS1 = true;
+      var bMockS2 = true;
+      var bMockS3 = true;
+      var bMockS4 = true;
 
       var iVendorIdx = 0;
       var sForceStato = "";
 
       // tipo utente mock
-      var sMockUserType = ""; // "E" / "I" / "S"
+      var sMockUserType = "E"; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = ""; // es: "I"
+      var sOverrideUserTypeWhenReal = "E"; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;

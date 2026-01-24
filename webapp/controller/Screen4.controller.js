@@ -328,20 +328,50 @@ _dbg: function () {
       this._applyUiPermissions();
     },
 
-    _hookDirtyOnEdit: function (oCtrl) {
-      if (!oCtrl) return;
+_getCodAgg: function (o) {
+  return String(o && (o.CodAgg != null ? o.CodAgg : (o.CODAGG != null ? o.CODAGG : ""))).trim().toUpperCase();
+},
 
-      try {
-        if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
-        if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-      } catch (e) {  }
+_touchCodAggRow: function (row) {
+  if (!row) return;
 
-      var fn = this._markDirty.bind(this);
+  var ca = this._getCodAgg(row);
+  var g = String(row.Guid || row.GUID || row.guidKey || "").trim();
 
-      if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
-      if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
-      if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
-    },
+  var isNew = !!row.__isNew || (g.indexOf("-new") >= 0);
+
+  if (isNew) {
+    row.CodAgg = "I";
+    return;
+  }
+
+  // ✅ consegna: se è I -> U, e anche base -> U
+  if (ca === "" || ca === "N" || ca === "I") row.CodAgg = "U";
+},
+
+_hookDirtyOnEdit: function (oCtrl) {
+  if (!oCtrl) return;
+
+  try {
+    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+  } catch (e) { }
+
+  var fn = function () {
+    // 1) dirty UI
+    this._markDirty();
+
+    // 2) CodAgg update sulla riga editata
+    var ctx = (oCtrl.getBindingContext && (oCtrl.getBindingContext("detail") || oCtrl.getBindingContext())) || null;
+    var row = ctx && ctx.getObject && ctx.getObject();
+    if (row) this._touchCodAggRow(row);
+  }.bind(this);
+
+  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
+  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
+  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
+},
+
 
     _createCellTemplate: function (sKey, oMeta) {
     return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
@@ -2077,9 +2107,16 @@ if (oMdc && typeof oMdc.initialized === "function") {
         }
 
         var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-        var oBase = aRowsAll[0];
-
+        var oBase = aRowsAll.find(function(r){
+  var ca = String(r && (r.CodAgg || r.CODAGG || "")).trim().toUpperCase();
+  return ca === "N" || ca === "";
+}) || aRowsAll[0];
+oNew.CodAgg = "I";
+oNew.__isNew = true;
         var oNew = Common.deepClone(oBase) || {};
+
+
+
         delete oNew.__metadata;
         oNew.__readOnly = false;
         oNew.Approved = 0;

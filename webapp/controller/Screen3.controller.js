@@ -132,6 +132,9 @@ _isBaseCodAgg: function (o) {
   var ca = this._getCodAgg(o);
   return ca === "" || ca === "N";
 },
+_isTemplateRow: function (o) {
+  return this._getCodAgg(o) === "N";
+},
 
 _getRequiredMapFromMmct: function () {
   var oDetail = this.getView().getModel("detail");
@@ -185,6 +188,7 @@ _validateRequiredBeforePost: function () {
   }
 
   aParents.forEach(function (p) {
+    if (this._getCodAgg(p) === "N") return;
     var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
 
     // --- required parent (Screen01)
@@ -197,9 +201,14 @@ _validateRequiredBeforePost: function () {
     }.bind(this));
 
     // --- required details (Screen02): tutte le righe del GUID (escludo D)
-    var aDet = (aRawAll || []).filter(function (r) {
+/*     var aDet = (aRawAll || []).filter(function (r) {
       return this._rowGuidKey(r) === g && this._getCodAgg(r) !== "D";
-    }.bind(this));
+    }.bind(this)); */
+
+    var aDet = (aRawAll || []).filter(function (r) {
+  var ca = this._getCodAgg(r);
+  return this._rowGuidKey(r) === g && ca !== "D" && ca !== "N"; 
+}.bind(this));
 
     aDet.forEach(function (r) {
       Object.keys(req02).forEach(function (k) {
@@ -594,7 +603,25 @@ _hookDirtyOnEdit: function (oCtrl) {
       if (Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length) {
         this._hydrateMmctFromRows(aRows);
         this._formatIncomingRowsMultiSeparators(aRows);
+
+        
+
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
+
+var mTplGuid = {};
+(aRows || []).forEach(function (r) {
+  if (this._getCodAgg(r) === "N") mTplGuid[this._rowGuidKey(r)] = true;
+}.bind(this));
+
+if (Array.isArray(aRecs) && aRecs.length) {
+  aRecs = aRecs.filter(function (rec) {
+    var g = this._toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid));
+    return !mTplGuid[g];
+  }.bind(this));
+
+  oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
+}
+
         this._bindRecords(aRecs);
         return;
       }
@@ -652,7 +679,11 @@ _hookDirtyOnEdit: function (oCtrl) {
     },
 
     _hydrateMmctFromRows: function (aRows) {
-      var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
+/*       var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
+ */      
+      var r0 = (Array.isArray(aRows) && aRows.length)
+  ? ((aRows.find(function (r) { return this._getCodAgg(r) !== "N"; }.bind(this))) || (aRows[0] || {}))
+  : {};
       var sCat = String(r0.CatMateriale || "").trim();
 
       var oDetail = this.getView().getModel("detail");
@@ -826,6 +857,12 @@ _hookDirtyOnEdit: function (oCtrl) {
       var a = [];
 
       (aAllRows || []).forEach(function (r) {
+
+        // ✅ TEMPLATE: non deve apparire come parent in Screen3
+  if (this._isTemplateRow(r)) return;
+
+  var sGuidKey = this._rowGuidKey(r);
+
         var sGuidKey = this._rowGuidKey(r);
         var sFibra = this._rowFibra(r);
         var sKey = sGuidKey /* + "||" + sFibra; */
@@ -1722,7 +1759,7 @@ onGoToScreen4FromRow: function (oEvent) {
   return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
 },
 
-_pickTemplateGuidForNewParent: function () {
+/* _pickTemplateGuidForNewParent: function () {
   // 1) se user ha selezionato UNA riga in Screen3, uso quella
   var aSel = this._getSelectedParentObjectsFromMdc ? this._getSelectedParentObjectsFromMdc() : [];
   if (Array.isArray(aSel) && aSel.length === 1) {
@@ -1731,17 +1768,44 @@ _pickTemplateGuidForNewParent: function () {
   }
 
   // 2) fallback: prima riga base (CodAgg N / "")
+var rTpl = aRaw.find(function (r) {
+  return this._getCodAgg(r) === "N" && this._rowGuidKey(r);
+}.bind(this));
+
+if (!rTpl) {
+  rTpl = aRaw.find(function (r) {
+    return this._getCodAgg(r) === "" && this._rowGuidKey(r);
+  }.bind(this));
+}
+
+return rTpl ? this._rowGuidKey(rTpl) : "";
+}, */
+
+_pickTemplateGuidForNewParent: function () {
+  var aSel = this._getSelectedParentObjectsFromMdc ? this._getSelectedParentObjectsFromMdc() : [];
+  if (Array.isArray(aSel) && aSel.length === 1) {
+    var gSel = this._toStableString(aSel[0] && (aSel[0].guidKey || aSel[0].GID || aSel[0].GUID || aSel[0].Guid));
+    if (gSel) return gSel;
+  }
+
   var oVm = this._ensureVmCache();
   var sKey = this._getExportCacheKey();
   var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
   if (!Array.isArray(aRaw)) aRaw = [];
 
-  var r0 = aRaw.find(function (r) {
-    return this._isBaseCodAgg(r) && this._rowGuidKey(r);
+  var rTpl = aRaw.find(function (r) {
+    return this._getCodAgg(r) === "N" && this._rowGuidKey(r);
   }.bind(this));
 
-  return r0 ? this._rowGuidKey(r0) : "";
+  if (!rTpl) {
+    rTpl = aRaw.find(function (r) {
+      return this._getCodAgg(r) === "" && this._rowGuidKey(r);
+    }.bind(this));
+  }
+
+  return rTpl ? this._rowGuidKey(rTpl) : "";
 },
+
 
 _getTemplateRowsByGuid: function (guidTpl) {
   var oVm = this._ensureVmCache();
@@ -1892,7 +1956,7 @@ _cloneLockedFields: function (src, aCfg, scope) {
   // ---- build Parent (Screen3): solo LOCKED presi da tpl0
   var oLockedParent = this._cloneLockedFields(tpl0, aCfg01, "S01");
 
-  var oNewRow = Object.assign({}, oLockedParent, {
+  var oNewRow = deepClone(Object.assign({}, oLockedParent, {
     idx: iNewIdx,
 
     GUID: sGuidNew,
@@ -1919,7 +1983,7 @@ _cloneLockedFields: function (src, aCfg, scope) {
 
     __isNew: true,
     __state: "NEW"
-  });
+  }));
 
   // assicura chiavi mmct presenti
   (aCfg01 || []).forEach(function (f) {
@@ -1935,7 +1999,10 @@ _cloneLockedFields: function (src, aCfg, scope) {
   var aNewDetails = (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
     var oLockedDet = this._cloneLockedFields(src, aCfg02, "S02");
 
-    var x = Object.assign({}, src, oLockedDet);
+    /* var x = Object.assign({}, src, oLockedDet); */
+
+    var x = deepClone(src);          // invece di Object.assign({}, src, ...)
+Object.assign(x, oLockedDet);
 
     // forza nuovo gruppo
     x.Guid = sGuidNew;
@@ -2480,6 +2547,10 @@ onSave: function () {
 
   var oDetail = this.getView().getModel("detail");
   var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
+
+  aParents = (aParents || []).filter(function (p) {
+  return this._getCodAgg(p) !== "N";
+}.bind(this));
 
   // === chiavi vendor/material normalizzate ===
   var sVendor10 = this._normalizeVendor10(this._sVendorId);

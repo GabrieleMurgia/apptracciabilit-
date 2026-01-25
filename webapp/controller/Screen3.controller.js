@@ -167,14 +167,24 @@ _validateRequiredBeforePost: function () {
   var oDetail = this.getView().getModel("detail");
   var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
 
+  // ---- RAW cache (tutto il dataset, incl. dettagli) ----
   var oVm = this._ensureVmCache();
-  var sCacheKey = this._getExportCacheKey();
+  var sCacheKey = this._getExportCacheKey(); // REAL|... / MOCK|...
   var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
   if (!Array.isArray(aRawAll)) aRawAll = [];
 
+  // ---- Screen4 cache per idx (quella che usi in _ensureScreen4CacheForParentIdx) ----
+  var sKSafe = this._getCacheKeySafe(); // vendor||material (encoded)
+  var mAllS4 = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+  var mByIdx = (mAllS4 && mAllS4[sKSafe]) ? mAllS4[sKSafe] : {};
+
+  // mappa guid originale per idx (se l’hai popolata)
+  var mGuidByIdxAll = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+  var mGuidByIdx = (mGuidByIdxAll && mGuidByIdxAll[sKSafe]) ? mGuidByIdxAll[sKSafe] : {};
+
   var maps = this._getRequiredMapFromMmct();
-  var req01 = maps.req01;
-  var req02 = maps.req02;
+  var req01 = maps.req01; // Screen3/S01
+  var req02 = maps.req02; // Screen4/S02
 
   var errors = [];
 
@@ -187,42 +197,80 @@ _validateRequiredBeforePost: function () {
     });
   }
 
-  aParents.forEach(function (p) {
-    if (this._getCodAgg(p) === "N") return;
-    var g = this._toStableString(p && (p.guidKey || p.GUID || p.Guid));
+  function uniqNonEmpty(arr) {
+    var seen = {};
+    return (arr || []).filter(function (x) {
+      x = String(x || "").trim();
+      if (!x) return false;
+      if (seen[x]) return false;
+      seen[x] = true;
+      return true;
+    });
+  }
 
-    // --- required parent (Screen01)
+  aParents.forEach(function (p) {
+    if (!p) return;
+
+    // Escludo template CodAgg=N
+    if (this._getCodAgg(p) === "N") return;
+
+    var iIdx = (p.idx != null) ? String(p.idx) : "";
+
+    // GUID “stabile” del parent (NON dovresti mutare guidKey prima della validazione)
+    var gParent = this._toStableString(p.guidKey || p.GUID || p.Guid);
+
+    // --- required parent (Screen3 / S01)
     Object.keys(req01).forEach(function (k) {
       var meta = req01[k];
       var v = p ? p[k] : undefined;
       if (this._isEmptyRequiredValue(v)) {
-        pushErr("S3", g, k, meta.label || k);
+        pushErr("S3", gParent, k, meta.label || k);
       }
     }.bind(this));
 
-    // --- required details (Screen02): tutte le righe del GUID (escludo D)
-/*     var aDet = (aRawAll || []).filter(function (r) {
-      return this._rowGuidKey(r) === g && this._getCodAgg(r) !== "D";
-    }.bind(this)); */
+    // --- required details (Screen4 / S02)
+    // 1) Provo prima la cache Screen4 per idx (se esiste e ha righe)
+    var aDet = [];
+    var aDetByIdx = (iIdx && Array.isArray(mByIdx[iIdx])) ? mByIdx[iIdx] : null;
+    if (Array.isArray(aDetByIdx) && aDetByIdx.length) {
+      aDet = aDetByIdx;
+    } else {
+      // 2) Fallback: prendo righe raw dal dataset cache (match per GUID)
+      //    - includo anche eventuale guid “originale” da mappa idx->guid
+      var gByIdx = (iIdx && mGuidByIdx && mGuidByIdx[iIdx]) ? String(mGuidByIdx[iIdx]) : "";
+      var aCandidates = uniqNonEmpty([
+        gParent,
+        gByIdx,
+        p.Guid,
+        p.GUID
+      ]);
 
-    var aDet = (aRawAll || []).filter(function (r) {
-  var ca = this._getCodAgg(r);
-  return this._rowGuidKey(r) === g && ca !== "D" && ca !== "N"; 
-}.bind(this));
+      aDet = (aRawAll || []).filter(function (r) {
+        var ca = this._getCodAgg(r);
+        if (ca === "D") return false; // escluso delete
+        if (ca === "N") return false; // escluso template
+        var rg = this._rowGuidKey(r);
+        return aCandidates.indexOf(rg) >= 0;
+      }.bind(this));
+    }
 
-    aDet.forEach(function (r) {
+    // Se per qualche motivo non trovo dettagli, non invento errori: valido solo ciò che ho
+    (aDet || []).forEach(function (r) {
       Object.keys(req02).forEach(function (k) {
         var meta = req02[k];
         var v = r ? r[k] : undefined;
         if (this._isEmptyRequiredValue(v)) {
-          pushErr("S4", g, k, meta.label || k);
+          // GUID “di riferimento” per messaggio: meglio quello parent
+          pushErr("S4", gParent, k, meta.label || k);
         }
       }.bind(this));
     }.bind(this));
+
   }.bind(this));
 
   return { ok: errors.length === 0, errors: errors };
 },
+
 
 
 
@@ -820,10 +868,10 @@ if (Array.isArray(aRecs) && aRecs.length) {
     // =========================
     // RECORDS (Screen3)
     // =========================
-    _rowGuidKey: function (r) {
-      var v = r && (r.Guid || r.GUID);
-      return this._toStableString(v);
-    },
+_rowGuidKey: function (r) {
+  var v = r && (r.Guid || r.GUID || r.guidKey || r.GuidKey);
+  return this._toStableString(v);
+},
 
     _rowFibra: function (r) {
       var v = r && (r.Fibra || r.FIBRA);
@@ -2002,7 +2050,12 @@ _cloneLockedFields: function (src, aCfg, scope) {
     /* var x = Object.assign({}, src, oLockedDet); */
 
     var x = deepClone(src);          // invece di Object.assign({}, src, ...)
-Object.assign(x, oLockedDet);
+    Object.assign(x, oLockedDet);
+
+    var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
+if (fibraSrc != null && String(fibraSrc).trim() !== "") {
+  x.Fibra = fibraSrc;        // <- IMPORTANTISSIMO: mantiene le 2 righe distinte
+}
 
     // forza nuovo gruppo
     x.Guid = sGuidNew;
@@ -2059,7 +2112,7 @@ Object.assign(x, oLockedDet);
   // aggiorna view
   this._applyClientFilters();
 
-  MessageToast.show("Riga aggiunta (template CodAgg=N)");
+  MessageToast.show("Riga aggiunta"); //(template CodAgg=N)
 },
 
     onDeleteRows: function () {
@@ -2367,6 +2420,7 @@ aSel.forEach(function (p) {
   aParents.forEach(function (p) {
     var iIdx = (p && p.idx != null) ? parseInt(p.idx, 10) : NaN;
     var aDet = (!isNaN(iIdx) && mByIdx && mByIdx[String(iIdx)]) ? (mByIdx[String(iIdx)] || []) : [];
+    
 
     if (Array.isArray(aDet) && aDet.length) {
       aDet.forEach(function (d) {
@@ -2538,6 +2592,19 @@ _readODataError: function (oError) {
   return btoa(bin); 
 },
 onSave: function () {
+    var vr = this._validateRequiredBeforePost();
+  if (!vr.ok) {
+  var top = vr.errors.slice(0, 15).map(function (e) {
+    return "- [" + e.scope + "] " + e.label + " (GUID: " + (e.guid || "?") + ")";
+  }).join("\n");
+
+  MessageBox.error(
+    "Compila tutti i campi obbligatori prima di salvare.\n\n" +
+    top +
+    (vr.errors.length > 15 ? ("\n\n... altri " + (vr.errors.length - 15) + " errori") : "")
+  );
+  return;
+}
   var oVm = this.getOwnerComponent().getModel("vm");
   var mock = (oVm && oVm.getProperty("/mock")) || {};
   var bMock = !!(mock && mock.mockS3);
@@ -2698,9 +2765,9 @@ onSave: function () {
     var gGroup = getGroupGuid.call(this, p);
 
     // (opzionale ma utile) aggiorno anche il parent in memoria
-    p.Guid = gGroup;
+ /*    p.Guid = gGroup;
     p.GUID = gGroup;
-    p.guidKey = gGroup;
+    p.guidKey = gGroup; */
 
     // se ho raw per quel guid => prendo quelle (completo Screen4)
     var aRows = (gP && mRawByGuid[gP]) ? mRawByGuid[gP] : [];
@@ -2713,8 +2780,8 @@ onSave: function () {
 
       // >>> FIX: forza Guid uguale per tutte le righe del parent
       r.Guid = gGroup;
-      r.GUID = gGroup;
-      r.guidKey = gGroup;
+/*       r.GUID = gGroup;
+      r.guidKey = gGroup; */
 
       // 1) Propaga SEMPRE i campi Screen3 su tutte le righe (anche se il raw aveva valore)
       aParentKeys.forEach(function (k) {
@@ -2773,20 +2840,6 @@ onSave: function () {
     MessageToast.show("Nessuna riga da salvare");
     return;
   }
-
-  var vr = this._validateRequiredBeforePost();
-if (!vr.ok) {
-  var top = vr.errors.slice(0, 15).map(function (e) {
-    return "- [" + e.scope + "] " + e.label + " (GUID: " + (e.guid || "?") + ")";
-  }).join("\n");
-
-  MessageBox.error(
-    "Compila tutti i campi obbligatori prima di salvare.\n\n" +
-    top +
-    (vr.errors.length > 15 ? ("\n\n... altri " + (vr.errors.length - 15) + " errori") : "")
-  );
-  return;
-}
 
   // >>> FIX: NON generare più Guid per riga (li hai già forzati sopra)
   var oPayload = {

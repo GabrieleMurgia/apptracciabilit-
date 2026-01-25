@@ -455,7 +455,7 @@ _validateRequiredBeforePost: function () {
   oDetail.setProperty("/__deletedLinesForPost", aStash);
 }, */
 
-_stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
+/* _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
   if (!oParent) return;
 
   var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
@@ -492,20 +492,54 @@ _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
   });
 
   // dedupe SOLO GUID (+ eventuale id riga se esiste)
-/*   var seen = {};
-  aStash = aStash.filter(function (r) {
-    var kg = String(r.Guid != null ? r.Guid : (r.GUID != null ? r.GUID : (r.guidKey != null ? r.guidKey : "")));
-    var kid = String(r.ItmGuid || r.ItemGuid || r.Riga || r.Posizione || "");
-    var k = kg + "||" + kid;
+  oDetail.setProperty("/__deletedLinesForPost", aStash);
+}, */
 
-    if (seen[k]) return false;
-    seen[k] = true;
+_stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
+  if (!oParent) return;
+
+  var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
+  if (!g) return;
+
+  // se è un nuovo (non ancora salvato) NON devo mandare delete
+  if (String(g).indexOf("-new") >= 0 || oParent.__isNew) return;
+
+  // match SOLO GUID
+  var aMatch = (aRowsCache || []).filter(function (r) {
+    return this._rowGuidKey(r) === g;
+  }.bind(this));
+
+  // prendo tutte le righe "reali" del guid, escluse template e già cancellate
+  var aToDelete = (aMatch || []).filter(function (r) {
+    var ca = this._getCodAgg(r);
+
+    if (ca === "N") return false; // template mai
+    if (ca === "D") return false; // già delete
+    // se riga nuova locale, non mandare D
+    var rg = this._rowGuidKey(r);
+    if (String(rg).indexOf("-new") >= 0 || r.__isNew) return false;
+
+    // qui dentro prendo sia "" che "U" (e anche "I" se mai esistesse lato backend)
     return true;
-  }); */
+  }.bind(this));
+
+  if (!aToDelete.length) {
+    // fallback: se non ho righe raw, almeno stasho il parent
+    aToDelete = [oParent];
+  }
+
+  var aStash = oDetail.getProperty("/__deletedLinesForPost") || [];
+
+  aToDelete.forEach(function (r) {
+    var x = deepClone(r) || {};
+    if (x.CODAGG !== undefined) delete x.CODAGG;
+    x.CodAgg = "D";
+    x.__deletedAt = new Date().toISOString();
+    aStash.push(x);
+  });
 
   oDetail.setProperty("/__deletedLinesForPost", aStash);
 },
-
 
     // =========================
     // Utils (delegate su util)
@@ -533,21 +567,31 @@ _createCellTemplate: function (sKey, oMeta) {
     hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
   });
 },
-_touchCodAggParent: function (p) {
+/* _touchCodAggParent: function (p) {
   if (!p) return;
 
   var ca = this._getCodAgg(p);
+
+  // NEW: riga creata in UI (guid -new o flag)
   var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
 
+  // Template (CodAgg=N): NON deve mai diventare U
+  if (ca === "N") return;
+
+  // 1) aggiorno parent
   if (isNew) {
     p.CodAgg = "I";
-    return;
+  } else {
+    // base '' oppure I -> U
+    if (ca === "" || ca === "I") {
+      p.CodAgg = "U";
+    }
   }
 
-  // ✅ consegna: se I -> U, base -> U
-  if (ca === "" || ca === "N" || ca === "I") p.CodAgg = "U";
+  // evita doppio campo che crea ambiguità
+  if (p.CODAGG !== undefined) delete p.CODAGG;
 
-  // ✅ IMPORTANT: aggiorno anche le righe raw collegate (stesso guid) se erano base
+  // 2) aggiorno raw collegate (stesso GUID)
   var g = this._toStableString(p.guidKey || p.Guid || p.GUID);
   if (!g) return;
 
@@ -556,21 +600,123 @@ _touchCodAggParent: function (p) {
   var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
   if (!Array.isArray(aRaw)) aRaw = [];
 
+  var changed = false;
+
   aRaw.forEach(function (r) {
+    if (!r) return;
     if (this._rowGuidKey(r) !== g) return;
 
     var rc = this._getCodAgg(r);
     var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
 
-    if (rIsNew) { r.CodAgg = "I"; return; }
+    // non tocco template o cancellati
+    if (rc === "N" || rc === "D") return;
 
-    if (rc === "" || rc === "N" || rc === "I") r.CodAgg = "U";
+    // nuovi restano I
+    if (rIsNew) {
+      if (r.CodAgg !== "I") { r.CodAgg = "I"; changed = true; }
+    } else {
+      // base '' o I -> U
+      if (rc === "" || rc === "I") {
+        if (r.CodAgg !== "U") { r.CodAgg = "U"; changed = true; }
+      }
+    }
+
+    // evita doppio campo
+    if (r.CODAGG !== undefined) { delete r.CODAGG; changed = true; }
   }.bind(this));
 
-  oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+  if (changed) {
+    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+  }
+}, */
+
+_touchCodAggParent: function (p, sPath) {
+  if (!p) return;
+
+  var ca = this._getCodAgg(p);
+
+  // NEW: riga creata in UI (guid -new o flag)
+  var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
+
+  // Template: mai toccare
+  if (ca === "N") return;
+
+  // calcolo nuovo CodAgg per il parent
+  var newCa = ca;
+  if (isNew) {
+    newCa = "I";
+  } else if (ca === "" || ca === "I") {
+    newCa = "U";
+  }
+
+  var parentChanged = (newCa !== ca);
+  if (parentChanged) {
+    p.CodAgg = newCa;
+    if (p.CODAGG !== undefined) delete p.CODAGG;
+
+    // 🔥 forza notifica al JSONModel (MDC + template riusati)
+    try {
+      var oDetail = this.getView().getModel("detail");
+      if (oDetail) {
+        if (sPath && typeof sPath === "string") {
+          oDetail.setProperty(sPath + "/CodAgg", p.CodAgg);
+        }
+
+        // sincronizza anche RecordsAll via idx (perché sPath è su /Records filtrato)
+        var idx = (p.idx != null) ? parseInt(p.idx, 10) : NaN;
+        if (!isNaN(idx)) {
+          var aAll = oDetail.getProperty("/RecordsAll") || [];
+          for (var i = 0; i < aAll.length; i++) {
+            if (parseInt(aAll[i] && aAll[i].idx, 10) === idx) {
+              oDetail.setProperty("/RecordsAll/" + i + "/CodAgg", p.CodAgg);
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2) aggiorno raw collegate (stesso GUID)
+  var g = this._toStableString(p.guidKey || p.Guid || p.GUID);
+  if (!g) return;
+
+  var oVm = this._ensureVmCache();
+  var sKey = this._getExportCacheKey();
+  var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+  if (!Array.isArray(aRaw)) aRaw = [];
+
+  var changed = false;
+
+  aRaw.forEach(function (r) {
+    if (!r) return;
+    if (this._rowGuidKey(r) !== g) return;
+
+    var rc = this._getCodAgg(r);
+    var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
+
+    // non tocco template o cancellati
+    if (rc === "N" || rc === "D") return;
+
+    if (rIsNew) {
+      if (r.CodAgg !== "I") { r.CodAgg = "I"; changed = true; }
+    } else {
+      if (rc === "" || rc === "I") {
+        if (r.CodAgg !== "U") { r.CodAgg = "U"; changed = true; }
+      }
+    }
+
+    if (r.CODAGG !== undefined) { delete r.CODAGG; changed = true; }
+  }.bind(this));
+
+  if (changed) {
+    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+  }
 },
 
-_hookDirtyOnEdit: function (oCtrl) {
+
+/* _hookDirtyOnEdit: function (oCtrl) {
   if (!oCtrl) return;
 
   try {
@@ -579,16 +725,160 @@ _hookDirtyOnEdit: function (oCtrl) {
   } catch (e) {}
 
   var fn = function () {
-    var ctx = (oCtrl.getBindingContext && (oCtrl.getBindingContext("detail") || oCtrl.getBindingContext())) || null;
-    var p = ctx && ctx.getObject && ctx.getObject();
-    if (p) this._touchCodAggParent(p);
+    var ctx = oCtrl.getBindingContext("detail") || oCtrl.getBindingContext();
+var p = ctx && ctx.getObject && ctx.getObject();
+var sPath = ctx && ctx.getPath && ctx.getPath();   // es: "/Records/3"
+if (p) this._touchCodAggParent(p, sPath);
   }.bind(this);
 
   if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
   if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
   if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
-},
+}, */
 
+/* _hookDirtyOnEdit: function (oCtrl) {
+  if (!oCtrl) return;
+
+  try {
+    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+  } catch (e) {}
+
+  var fn = function () {
+    var ctx = oCtrl.getBindingContext("detail") || oCtrl.getBindingContext();
+    if (!ctx) return;
+
+    var p = ctx.getObject && ctx.getObject();
+    var sPath = ctx.getPath && ctx.getPath(); // es: "/Records/3"
+    if (p) this._touchCodAggParent(p, sPath);
+  }.bind(this);
+
+  // IMPORTANTISSIMO: liveChange per Input (altrimenti change scatta solo on blur)
+  if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(fn);
+
+  // fallback classici
+  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
+  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
+  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
+}, */
+_hookDirtyOnEdit: function (oCtrl) {
+  if (!oCtrl) return;
+
+  // ---- anti-doppio-hook (MDC riusa i template)
+  try {
+    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
+    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
+  } catch (e) {}
+
+  // ---- per Input: aggiorna binding anche su liveChange
+  try {
+    if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) {
+      oCtrl.setValueLiveUpdate(true);
+    }
+  } catch (e2) {}
+
+  var that = this;
+
+  // === helpers locali ===
+  function getCtx(ctrl) {
+    return (ctrl && ctrl.getBindingContext && (ctrl.getBindingContext("detail") || ctrl.getBindingContext())) || null;
+  }
+
+  function getModel(ctx) {
+    return (ctx && ctx.getModel && ctx.getModel()) || (that.getView && that.getView().getModel && that.getView().getModel("detail")) || null;
+  }
+
+  function getBindingRelPath(ctrl) {
+    if (!ctrl || !ctrl.getBinding) return "";
+
+    // ordine: value (Input), selectedKey (ComboBox), selectedKeys (MultiComboBox)
+    var b = ctrl.getBinding("value") || ctrl.getBinding("selectedKey") || ctrl.getBinding("selectedKeys");
+    if (!b || !b.getPath) return "";
+
+    var p = b.getPath(); // tipicamente "CampoX"
+    return String(p || "").trim();
+  }
+
+  function readCtrlValue(ctrl) {
+    // Input
+    if (ctrl && typeof ctrl.getValue === "function" && ctrl.getBinding("value")) {
+      return ctrl.getValue();
+    }
+    // ComboBox
+    if (ctrl && typeof ctrl.getSelectedKey === "function" && ctrl.getBinding("selectedKey")) {
+      return ctrl.getSelectedKey();
+    }
+    // MultiComboBox
+    if (ctrl && typeof ctrl.getSelectedKeys === "function" && ctrl.getBinding("selectedKeys")) {
+      return ctrl.getSelectedKeys();
+    }
+    return undefined;
+  }
+
+  function forceUpdateModelIfNeeded(ctrl, evtId) {
+    var ctx = getCtx(ctrl);
+    if (!ctx) return;
+
+    var oModel = getModel(ctx);
+    if (!oModel || !oModel.setProperty) return;
+
+    var rel = getBindingRelPath(ctrl);
+    if (!rel) return;
+
+    // in liveChange di Input, il model a volte non è ancora aggiornato:
+    // qui lo forziamo leggendo il valore dal controllo.
+    // (su change/selectionChange spesso è già aggiornato, ma setProperty è safe)
+    var v = readCtrlValue(ctrl);
+    if (v === undefined) return;
+
+    var basePath = (ctx.getPath && ctx.getPath()) || "";
+    var fullPath = rel.charAt(0) === "/" ? rel : (basePath ? (basePath + "/" + rel) : rel);
+
+    try {
+      oModel.setProperty(fullPath, v);
+    } catch (e) {}
+  }
+
+  // debounce per liveChange (evita chiamate a raffica)
+  function scheduleDirty(ctrl, oEvt) {
+    try {
+      if (ctrl.__dirtyTimer) clearTimeout(ctrl.__dirtyTimer);
+      ctrl.__dirtyTimer = setTimeout(function () {
+        ctrl.__dirtyTimer = null;
+
+        var ctx = getCtx(ctrl);
+        if (!ctx) return;
+
+        var row = ctx.getObject && ctx.getObject();
+        var sPath = ctx.getPath && ctx.getPath(); // es: "/Records/3"
+
+        if (row) {
+          // 🔥 qui è “il change delle celle”: intervieni se vuoi
+          that._touchCodAggParent(row, sPath);
+        }
+      }, (oEvt && oEvt.getId && oEvt.getId() === "liveChange") ? 150 : 0);
+    } catch (e) {}
+  }
+
+  function handler(oEvt) {
+    var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
+
+    // forza update del model dove serve (soprattutto Input liveChange)
+    forceUpdateModelIfNeeded(src, oEvt && oEvt.getId && oEvt.getId());
+
+    // marca riga dirty / CodAgg ecc (debounced su liveChange)
+    scheduleDirty(src, oEvt);
+  }
+
+  // === attach eventi (best-effort, senza rompere se un control non li ha) ===
+  if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(handler);
+  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(handler);
+  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(handler);
+  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(handler);
+
+  // extra: se domani usi altri controlli (es. MultiInput token), sei coperto
+  if (typeof oCtrl.attachTokenUpdate === "function") oCtrl.attachTokenUpdate(handler);
+},
 
     _createStatusCellTemplate: function (sKey) {
       var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;

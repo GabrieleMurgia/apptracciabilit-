@@ -18,7 +18,13 @@ sap.ui.define([
     var bMultiple = !!(oMeta && oMeta.multiple);
 
     var sDomain = String((oMeta && oMeta.domain) || "").trim();
-    var bUseCombo = !!sDomain && (typeof domainHasValuesFn === "function" ? domainHasValuesFn(sDomain) : false);
+   /*  var bUseCombo = !!sDomain && (typeof domainHasValuesFn === "function" ? domainHasValuesFn(sDomain) : false); */
+   var bUseCombo = !!sDomain && (
+  (typeof domainHasValuesFn === "function" && domainHasValuesFn(sDomain)) ||
+  (opts.view && opts.view.getModel("vm") &&
+    Array.isArray(opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain)) &&
+    opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
+);
 
     var sValueBind = "{detail>" + sKey + "}";
     var sReadOnlyExpr = "${detail>__readOnly}";
@@ -32,6 +38,7 @@ sap.ui.define([
     var sValueStateText = (bRequired && !bLocked) ? "Campo obbligatorio" : "";
 
     var oText = new Text({
+      width: "100%",
       text: sValueBind,
       visible: "{= " + sReadOnlyExpr + " }"
     });
@@ -41,6 +48,7 @@ sap.ui.define([
     if (bUseCombo) {
       if (bMultiple) {
         oEditCtrl = new MultiComboBox({
+          width: "100%",
           visible: "{= !" + sReadOnlyExpr + " }",
           /* enabled: !bLocked, */
           enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,// locked=B -> abilita solo se riga nuova
@@ -55,6 +63,7 @@ sap.ui.define([
         });
       } else {
         oEditCtrl = new ComboBox({
+          width: "100%",
           visible: "{= !" + sReadOnlyExpr + " }",
           /* enabled: !bLocked, */
           enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> abilita solo se riga nuova
@@ -64,12 +73,13 @@ sap.ui.define([
           valueStateText: sValueStateText,
           items: {
             path: "vm>/domainsByName/" + sDomain,
-            template: new Item({ key: "{vm>key}", text: "{vm>text}" })
+            template: new Item({width: "100%", key: "{vm>key}", text: "{vm>text}" })
           }
         });
       }
     } else {
       oEditCtrl = new Input({
+        width: "100%",
         visible: "{= !" + sReadOnlyExpr + " }",
         /* editable: !bLocked, */
         editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> editabile solo se riga nuova
@@ -83,7 +93,7 @@ sap.ui.define([
       opts.hookDirtyOnEditFn(oEditCtrl);
     }
 
-    return new HBox({ items: [oText, oEditCtrl] });
+    return new HBox({ width: "100%", items: [oText, oEditCtrl] });
   }
 
   return { createCellTemplate: createCellTemplate };

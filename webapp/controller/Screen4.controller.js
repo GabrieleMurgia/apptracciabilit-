@@ -924,14 +924,29 @@ if (sCat) {
 }
 
 // 6) assicura campi presenti nella riga synthetic per evitare binding strani (multi = array)
-(aSelected || []).forEach(function (row) {
+/* (aSelected || []).forEach(function (row) {
   (aCfg02 || []).forEach(function (f) {
     if (!f || !f.ui) return;
     var k = f.ui;
     if (row[k] === undefined || row[k] === null) row[k] = f.multiple ? [] : "";
     if (f.multiple && !Array.isArray(row[k])) row[k] = [];
   });
-});
+}); */
+
+(aSelected || []).forEach(function (row) {
+  (aCfg02 || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = String(f.ui || "").trim();
+    if (!k) return;
+
+    if (f.multiple) {
+      // ✅ qui: "AD|AF|AE" -> ["AD","AF","AE"]
+      row[k] = this._toArrayMulti(row[k]);
+    } else {
+      if (row[k] === undefined || row[k] === null) row[k] = "";
+    }
+  }.bind(this));
+}.bind(this));
 
 
     // se MMCT non c’è -> fallback colonne da chiavi riga/record
@@ -1990,6 +2005,27 @@ if (oMdc && typeof oMdc.initialized === "function") {
         MessageToast.show("Errore stampa");
       }
     },
+    _toArrayMulti: function (v) {
+  if (Array.isArray(v)) {
+    // trim + dedupe
+    var seen = {};
+    return v
+      .map(function (x) { return String(x || "").trim(); })
+      .filter(function (x) { return !!x; })
+      .filter(function (x) { if (seen[x]) return false; seen[x] = true; return true; });
+  }
+
+  var s = String(v || "").trim();
+  if (!s) return [];
+
+  var seen2 = {};
+  return s
+    .split(/[;|,]+/)           // <-- supporta | e ;
+    .map(function (x) { return String(x || "").trim(); })
+    .filter(function (x) { return !!x; })
+    .filter(function (x) { if (seen2[x]) return false; seen2[x] = true; return true; });
+},
+
 
     // =========================
     // EXCEL

@@ -1791,6 +1791,9 @@ onGoToScreen4FromRow: function (oEvent) {
         let recordsScreen3 = this.getView().getModel("detail").getData().Records || [];
 
         recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
+        recordsScreen4 = (recordsScreen4 || []).filter(function (r) {
+  return this._getCodAgg(r) !== "N";
+}.bind(this));
         recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
         if (!recordsScreen4.length) {
@@ -1876,6 +1879,11 @@ onGoToScreen4FromRow: function (oEvent) {
 
           return out;
         }.bind(this));
+
+        mergedRows = (mergedRows || []).filter(function (r) {
+  // usa la tua funzione tollerante (gestisce CodAgg / CODAGG ecc)
+  return this._getCodAgg(r) !== "N";
+}.bind(this));
 
         // ==========================================================
         // 4) COLONNE + MAPPING EXPORT

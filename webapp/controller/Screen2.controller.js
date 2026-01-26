@@ -402,8 +402,19 @@ function recomputeSupportFields(row) {
           var cache = oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} };
           cache.recordsByKey = cache.recordsByKey || {};
 
-          var k = "MATINFO|" + String(this._sVendorId) + "|" + String(sMaterial);
-          cache.recordsByKey[k] = { desc: sMaterialDesc, orig: sMaterialOrig };
+/*           var k = "MATINFO|" + String(this._sVendorId) + "|" + String(sMaterial);
+          cache.recordsByKey[k] = { desc: sMaterialDesc, orig: sMaterialOrig }; */
+          var sOpen = safeStr(oCtx.getProperty("Open")).trim();     // 'X' oppure ''
+var nOpenPo = Number(oCtx.getProperty("OpenPo")) || 0;    // 1/0 (opzionale)
+
+var k = "MATINFO|" + String(this._sVendorId) + "|" + String(sMaterial);
+cache.recordsByKey[k] = {
+  desc: sMaterialDesc,
+  orig: sMaterialOrig,
+  open: sOpen,
+  openPo: nOpenPo
+};
+
 
           oVm.setProperty("/cache", cache);
         }

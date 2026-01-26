@@ -94,6 +94,7 @@ sap.ui.define([
         Records: [],
         RecordsCount: 0,
         _mmct: { cat: "", s01: [], s02: [] },
+        OpenOda: "",
 
         __q: "",
         __statusFilter: "",
@@ -135,6 +136,22 @@ _isBaseCodAgg: function (o) {
 _isTemplateRow: function (o) {
   return this._getCodAgg(o) === "N";
 },
+_readOpenOdaFromMatInfoCache: function () {
+  try {
+    var oVm = this.getOwnerComponent().getModel("vm");
+    if (!oVm) return "";
+
+    var sKey = "MATINFO|" + String(this._sVendorId) + "|" + String(this._sMaterial);
+    var oInfo = oVm.getProperty("/cache/recordsByKey/" + sKey);
+
+    var v = oInfo && oInfo.open;
+    v = String(v == null ? "" : v).trim().toUpperCase();
+    return (v === "X") ? "X" : "";
+  } catch (e) {
+    return "";
+  }
+},
+
 
 _getRequiredMapFromMmct: function () {
   var oDetail = this.getView().getModel("detail");
@@ -335,6 +352,12 @@ _validateRequiredBeforePost: function () {
         __statusFilter: ""
       }, true);
 
+      var sOpenCache = this._readOpenOdaFromMatInfoCache();
+if (sOpenCache) {
+  oDetail.setProperty("/OpenOda", sOpenCache);
+}
+
+
       this._inlineFS = {
         filters: {},
         sort: { key: "", desc: false },
@@ -362,6 +385,32 @@ _validateRequiredBeforePost: function () {
         MdcTableUtil.setInnerHeaderHeight(oMdcTbl, bShowFilters);
       } catch (e) { }
     },
+
+    _computeOpenOdaFromRows: function (aRows) {
+  var hasSignalProp = false;
+
+  var bHasOpen = (aRows || []).some(function (r) {
+    if (!r) return false;
+
+    // se il dataset contiene i campi, lo segnalo
+    if (r.Open !== undefined || r.OpenPo !== undefined || r.OdaAperti !== undefined) {
+      hasSignalProp = true;
+    }
+
+    // casi più comuni
+    var v = r.Open;
+    if (v === true || v === 1) return true;
+
+    v = String(v == null ? "" : v).trim().toUpperCase();
+    if (v === "X" || v === "1" || v === "TRUE") return true;
+
+    var n = Number(r.OpenPo || r.OdaAperti || r.Aperti || 0);
+    return n > 0;
+  });
+
+  return { hasSignalProp: hasSignalProp, flag: bHasOpen ? "X" : "" };
+},
+
 
     onToggleHeaderFilters: function () {
       var oUi = this.getView().getModel("ui");
@@ -960,6 +1009,14 @@ if (Array.isArray(aRecs) && aRecs.length) {
   oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
 }
 
+        var oDetail = this.getView().getModel("detail");
+var res = this._computeOpenOdaFromRows(aRows);
+
+// se il dataset ha davvero il segnale, uso quello; altrimenti non sovrascrivo la cache di Screen2
+if (res.hasSignalProp) {
+  oDetail.setProperty("/OpenOda", res.flag);
+}
+
         this._bindRecords(aRecs);
         return;
       }
@@ -970,6 +1027,12 @@ if (Array.isArray(aRecs) && aRecs.length) {
         this._hydrateMmctFromRows(aResults);
 
          this._formatIncomingRowsMultiSeparators(aResults);
+
+         var oDetail = this.getView().getModel("detail");
+var res = this._computeOpenOdaFromRows(aResults);
+if (res.hasSignalProp) {
+  oDetail.setProperty("/OpenOda", res.flag);
+}
 
         var aRecordsBuilt = this._buildRecords01(aResults);
 

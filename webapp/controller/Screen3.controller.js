@@ -1712,15 +1712,27 @@ onGoToScreen4FromRow: function (oEvent) {
   var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
 
   // “stato complessivo”: AP solo se tutto è AP (se ti basta solo il role, vedi nota sotto)
-  var sAgg = "ST";
+/*   var sAgg = "ST";
   a.forEach(function (r) {
     var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
     sAgg = StatusUtil.mergeStatus(sAgg, st);
   });
+ */
 
-  oDetail.setProperty("/__role", sRole);
-  oDetail.setProperty("/__status", sAgg);
-  oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
+  var aSt = a.map(function (r) {
+  return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
+});
+
+var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
+var anyRJ = aSt.some(function (s) { return s === "RJ"; });
+var anyCH = aSt.some(function (s) { return s === "CH"; });
+
+// scegli la tua logica “globale”
+var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
+
+oDetail.setProperty("/__status", sAgg);
+oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
+oDetail.setProperty("/__role", sRole);
 
 
       this._refreshHeader3Fields();
@@ -1792,8 +1804,8 @@ onGoToScreen4FromRow: function (oEvent) {
 
         recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
         recordsScreen4 = (recordsScreen4 || []).filter(function (r) {
-  return this._getCodAgg(r) !== "N";
-}.bind(this));
+        return this._getCodAgg(r) !== "N";
+        }.bind(this));
         recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
         if (!recordsScreen4.length) {
@@ -1882,7 +1894,7 @@ onGoToScreen4FromRow: function (oEvent) {
 
         mergedRows = (mergedRows || []).filter(function (r) {
   // usa la tua funzione tollerante (gestisce CodAgg / CODAGG ecc)
-  return this._getCodAgg(r) !== "N";
+  return this._getCodAgg(r) !== "N" ;
 }.bind(this));
 
         // ==========================================================
@@ -2418,7 +2430,20 @@ if (fibraSrc != null && String(fibraSrc).trim() !== "") {
       if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
 
       var aSel = this._getSelectedParentObjectsFromMdc();
-      if (!aSel.length) return MessageToast.show("Seleziona almeno una riga da eliminare");
+      if (!aSel.length){
+        return MessageToast.show("Seleziona almeno una riga da eliminare");
+      }
+
+      //Blocco eliminazione righe approvate
+      var aForbidden = (aSel || []).filter(function (r) {
+  var st = String((r && (r.__status || r.Stato)) || "").trim().toUpperCase();
+  return st === "AP" || st === "RJ" || st === "CH";
+});
+
+if (aForbidden.length) {
+  MessageToast.show("non puoi eliminare partita fornitore approvati");
+  return;
+}
 
       // idx da rimuovere
       var aIdxToRemove = aSel

@@ -451,98 +451,6 @@ if (sOpenCache) {
   ).trim().toUpperCase();
 },
 
-/* _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
-  if (!oParent) return;
-
-  var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
-  var f = this._toStableString(oParent && (oParent.Fibra || oParent.FIBRA));
-  if (!g) return;
-
-  // match GUID+Fibra se presente, altrimenti tutte le righe del GUID
-  var aMatch = (aRowsCache || []).filter(function (r) {
-    var rg = this._rowGuidKey(r);
-    var rf = this._rowFibra(r);
-    if (f) return (rg === g && rf === f);
-    return (rg === g);
-  }.bind(this));
-
-  // prendo SOLO le righe RAW con CodAgg = N
-  var aToDelete = (aMatch || []).filter(function (r) {
-    return this._getCodAgg(r) === "N";
-  }.bind(this));
-
-  // fallback: se non ho righe raw ma il parent *davvero* ha CodAgg N, tombalo comunque
-  if (!aToDelete.length && this._getCodAgg(oParent) === "N") {
-    aToDelete = [oParent];
-  }
-
-  // se non ho niente con N -> non devo mandare delete
-  if (!aToDelete.length) return;
-
-  var aStash = oDetail.getProperty("/__deletedLinesForPost") || [];
-
-  aToDelete.forEach(function (r) {
-    var x = deepClone(r) || {};
-    if (x.CODAGG !== undefined) delete x.CODAGG;
-    x.CodAgg = "D";
-    x.__deletedAt = new Date().toISOString();
-    aStash.push(x);
-  });
-
-  // dedupe (Guid||Fibra||id riga se esiste)
-  var seen = {};
-  aStash = aStash.filter(function (r) {
-    var kg = String(r.Guid != null ? r.Guid : (r.GUID != null ? r.GUID : (r.guidKey != null ? r.guidKey : "")));
-    var kf = String(r.Fibra != null ? r.Fibra : (r.FIBRA != null ? r.FIBRA : ""));
-    var kid = String(r.ItmGuid || r.ItemGuid || r.Riga || r.Posizione || "");
-    var k = kg + "||" + kf + "||" + kid;
-    if (seen[k]) return false;
-    seen[k] = true;
-    return true;
-  });
-
-  oDetail.setProperty("/__deletedLinesForPost", aStash);
-}, */
-
-/* _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
-  if (!oParent) return;
-
-  var g = this._toStableString(oParent && (oParent.guidKey || oParent.GUID || oParent.Guid));
-  if (!g) return;
-
-  // match SOLO GUID (tutte le righe del GUID)
-  var aMatch = (aRowsCache || []).filter(function (r) {
-    return this._rowGuidKey(r) === g;
-  }.bind(this));
-
-  // prendo SOLO le righe RAW con CodAgg = N
-  var aToDelete = (aMatch || []).filter(function (r) {
-    return this._getCodAgg(r) === ""; // N,I,D,''
-  }.bind(this));
-
-  // fallback: se non ho righe raw ma il parent ha CodAgg N, tombalo comunque
-  if (!aToDelete.length && this._getCodAgg(oParent) === "") { // N,I,D,''
-    aToDelete = [oParent];
-  }
-
-  // se non ho niente con N -> non devo mandare delete
-  if (!aToDelete.length) return;
-
-  var aStash = oDetail.getProperty("/__deletedLinesForPost") || [];
-
-  aToDelete.forEach(function (r) {
-    var x = deepClone(r) || {};
-
-    if (x.CODAGG !== undefined) delete x.CODAGG;
-    x.CodAgg = "D";
-    x.__deletedAt = new Date().toISOString();
-
-    aStash.push(x);
-  });
-
-  // dedupe SOLO GUID (+ eventuale id riga se esiste)
-  oDetail.setProperty("/__deletedLinesForPost", aStash);
-}, */
 
 _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
   if (!oParent) return;
@@ -616,69 +524,6 @@ _createCellTemplate: function (sKey, oMeta) {
     hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
   });
 },
-/* _touchCodAggParent: function (p) {
-  if (!p) return;
-
-  var ca = this._getCodAgg(p);
-
-  // NEW: riga creata in UI (guid -new o flag)
-  var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
-
-  // Template (CodAgg=N): NON deve mai diventare U
-  if (ca === "N") return;
-
-  // 1) aggiorno parent
-  if (isNew) {
-    p.CodAgg = "I";
-  } else {
-    // base '' oppure I -> U
-    if (ca === "" || ca === "I") {
-      p.CodAgg = "U";
-    }
-  }
-
-  // evita doppio campo che crea ambiguità
-  if (p.CODAGG !== undefined) delete p.CODAGG;
-
-  // 2) aggiorno raw collegate (stesso GUID)
-  var g = this._toStableString(p.guidKey || p.Guid || p.GUID);
-  if (!g) return;
-
-  var oVm = this._ensureVmCache();
-  var sKey = this._getExportCacheKey();
-  var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
-  if (!Array.isArray(aRaw)) aRaw = [];
-
-  var changed = false;
-
-  aRaw.forEach(function (r) {
-    if (!r) return;
-    if (this._rowGuidKey(r) !== g) return;
-
-    var rc = this._getCodAgg(r);
-    var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
-
-    // non tocco template o cancellati
-    if (rc === "N" || rc === "D") return;
-
-    // nuovi restano I
-    if (rIsNew) {
-      if (r.CodAgg !== "I") { r.CodAgg = "I"; changed = true; }
-    } else {
-      // base '' o I -> U
-      if (rc === "" || rc === "I") {
-        if (r.CodAgg !== "U") { r.CodAgg = "U"; changed = true; }
-      }
-    }
-
-    // evita doppio campo
-    if (r.CODAGG !== undefined) { delete r.CODAGG; changed = true; }
-  }.bind(this));
-
-  if (changed) {
-    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
-  }
-}, */
 
 _touchCodAggParent: function (p, sPath) {
   if (!p) return;
@@ -765,51 +610,7 @@ _touchCodAggParent: function (p, sPath) {
 },
 
 
-/* _hookDirtyOnEdit: function (oCtrl) {
-  if (!oCtrl) return;
 
-  try {
-    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
-    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-  } catch (e) {}
-
-  var fn = function () {
-    var ctx = oCtrl.getBindingContext("detail") || oCtrl.getBindingContext();
-var p = ctx && ctx.getObject && ctx.getObject();
-var sPath = ctx && ctx.getPath && ctx.getPath();   // es: "/Records/3"
-if (p) this._touchCodAggParent(p, sPath);
-  }.bind(this);
-
-  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
-  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
-  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
-}, */
-
-/* _hookDirtyOnEdit: function (oCtrl) {
-  if (!oCtrl) return;
-
-  try {
-    if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
-    if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-  } catch (e) {}
-
-  var fn = function () {
-    var ctx = oCtrl.getBindingContext("detail") || oCtrl.getBindingContext();
-    if (!ctx) return;
-
-    var p = ctx.getObject && ctx.getObject();
-    var sPath = ctx.getPath && ctx.getPath(); // es: "/Records/3"
-    if (p) this._touchCodAggParent(p, sPath);
-  }.bind(this);
-
-  // IMPORTANTISSIMO: liveChange per Input (altrimenti change scatta solo on blur)
-  if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(fn);
-
-  // fallback classici
-  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
-  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
-  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
-}, */
 _hookDirtyOnEdit: function (oCtrl) {
   if (!oCtrl) return;
 
@@ -1079,9 +880,7 @@ if (res.hasSignalProp) {
       this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
     },
 
-    _hydrateMmctFromRows: function (aRows) {
-/*       var r0 = (Array.isArray(aRows) && aRows.length) ? (aRows[0] || {}) : {};
- */      
+    _hydrateMmctFromRows: function (aRows) {   
       var r0 = (Array.isArray(aRows) && aRows.length)
   ? ((aRows.find(function (r) { return this._getCodAgg(r) !== "N"; }.bind(this))) || (aRows[0] || {}))
   : {};
@@ -1259,7 +1058,7 @@ _rowGuidKey: function (r) {
 
       (aAllRows || []).forEach(function (r) {
 
-        // ✅ TEMPLATE: non deve apparire come parent in Screen3
+        //TEMPLATE: non deve apparire come parent in Screen3
   if (this._isTemplateRow(r)) return;
 
   var sGuidKey = this._rowGuidKey(r);
@@ -1775,12 +1574,6 @@ onGoToScreen4FromRow: function (oEvent) {
   var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
 
   // “stato complessivo”: AP solo se tutto è AP (se ti basta solo il role, vedi nota sotto)
-/*   var sAgg = "ST";
-  a.forEach(function (r) {
-    var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
-    sAgg = StatusUtil.mergeStatus(sAgg, st);
-  });
- */
 
   var aSt = a.map(function (r) {
   return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
@@ -2180,27 +1973,6 @@ oDetail.setProperty("/__role", sRole);
   return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
 },
 
-/* _pickTemplateGuidForNewParent: function () {
-  // 1) se user ha selezionato UNA riga in Screen3, uso quella
-  var aSel = this._getSelectedParentObjectsFromMdc ? this._getSelectedParentObjectsFromMdc() : [];
-  if (Array.isArray(aSel) && aSel.length === 1) {
-    var gSel = this._toStableString(aSel[0] && (aSel[0].guidKey || aSel[0].GID || aSel[0].GUID || aSel[0].Guid));
-    if (gSel) return gSel;
-  }
-
-  // 2) fallback: prima riga base (CodAgg N / "")
-var rTpl = aRaw.find(function (r) {
-  return this._getCodAgg(r) === "N" && this._rowGuidKey(r);
-}.bind(this));
-
-if (!rTpl) {
-  rTpl = aRaw.find(function (r) {
-    return this._getCodAgg(r) === "" && this._rowGuidKey(r);
-  }.bind(this));
-}
-
-return rTpl ? this._rowGuidKey(rTpl) : "";
-}, */
 
 _pickTemplateGuidForNewParent: function () {
   var aSel = this._getSelectedParentObjectsFromMdc ? this._getSelectedParentObjectsFromMdc() : [];
@@ -2274,75 +2046,6 @@ _cloneLockedFields: function (src, aCfg, scope) {
 },
 
 
-/*     onAddRow: function () {
-      var oDetail = this.getView().getModel("detail");
-      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-
-      var aAll = oDetail.getProperty("/RecordsAll") || [];
-
-      var iMax = -1;
-      (aAll || []).forEach(function (r) {
-        var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
-        if (!isNaN(n) && n > iMax) iMax = n;
-      });
-      var iNewIdx = iMax + 1;
-
-      // GUID + "-new"
-      var sGuidNew = this._genGuidNew();
-
-      // record padre (Screen3)
-      var oNewRow = {
-        idx: iNewIdx,
-
-        GUID: sGuidNew,
-        Guid: sGuidNew,
-        guidKey: sGuidNew,
-
-        Fibra: "",
-
-        CodAgg: "I",
-
-        Stato: "ST",
-        StatoText: this._statusText("ST"),
-        __status: "ST",
-
-        __canEdit: true,
-        __canApprove: false,
-        __canReject: false,
-        __readOnly: false,
-
-        __isNew: true,
-        __state: "NEW"
-      };
-
-      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-      (aCfg01 || []).forEach(function (f) {
-        if (!f || !f.ui) return;
-        var k = String(f.ui).trim();
-        if (!k) return;
-        if (k.toUpperCase() === "STATO") k = "Stato";
-        if (oNewRow[k] !== undefined) return;
-        oNewRow[k] = f.multiple ? [] : "";
-      });
-
-      aAll.push(oNewRow);
-      oDetail.setProperty("/RecordsAll", aAll);
-
-      // legame con Screen4: salva parent selezionato + crea bucket dettagli vuoto per idx
-      this._setSelectedParentForScreen4(oNewRow);
-      this._ensureScreen4CacheForParentIdx(iNewIdx, sGuidNew);
-
-      // aggiorna Records + rebind
-      this._applyClientFilters();
-
-      // selezione: prova a selezionare la prima riga visibile (best-effort)
-      setTimeout(function () {
-        this._selectFirstRowMdc();
-      }.bind(this), 0);
-
-      MessageToast.show("Riga aggiunta");
-    }, */
-    
     onAddRow: function () {
   var oDetail = this.getView().getModel("detail");
   if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
@@ -2822,50 +2525,6 @@ aSel.forEach(function (p) {
   return out;
 },
 
-/* _sanitizeLineForPost: function (r, sVendor10, sMaterial) {
-  r = r || {};
-
-  // Copia pulita: rimuovo campi UI e normalizzo arrays/null
-  var o = {};
-  Object.keys(r).forEach(function (k) {
-    if (!k) return;
-    if (k.indexOf("__") === 0) return;
-    if (k === "idx" || k === "guidKey" || k === "StatoText" || k === "__metadata") return;
-
-    var v = r[k];
-
-    // Multi -> stringa (backend tipicamente vuole string)
-    if (Array.isArray(v)) v = v.join(";");
-
-    // DateTime noti -> null se vuoti (per evitare type error OData)
-    if ((k === "InizioVal" || k === "FineVal" || k === "DataIns" || k === "DataMod") && (v === "" || v === undefined)) {
-      v = null;
-    }
-
-    o[k] = (v === undefined ? "" : v);
-  });
-
-  // Forza campi chiave minimi
-  if (!o.Fornitore) o.Fornitore = sVendor10;
-  if (!o.Materiale) o.Materiale = sMaterial;
-
-  // GUID: se è un "-new" mando null così backend lo genera
-  var g = (o.Guid != null ? o.Guid : (o.GUID != null ? o.GUID : (o.GuidKey != null ? o.GuidKey : "")));
-  g = String(g || "");
-  if (!g || g.indexOf("-new") >= 0) g = null;
-
-  // backend usa "Guid" (non "GUID")
-  o.Guid = g;
-  if (o.GUID !== undefined) delete o.GUID;
-  if (o.GuidKey !== undefined) delete o.GuidKey;
-
-  // UserID anche sulla linea (come da mail)
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
-  o.UserID = sUserId;
-
-  return o;
-}, */
 
 _getMultiFieldsMap: function () {
   var oDetail = this.getView().getModel("detail");
@@ -2965,9 +2624,6 @@ _readODataError: function (oError) {
 },
 
  uuidv4: function() {
-/*   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4))).toString(16)
-  ); */
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
 
@@ -3150,11 +2806,6 @@ onSave: function () {
     // >>> FIX: calcolo 1 Guid di gruppo per questo parent
     var gGroup = getGroupGuid.call(this, p);
 
-    // (opzionale ma utile) aggiorno anche il parent in memoria
- /*    p.Guid = gGroup;
-    p.GUID = gGroup;
-    p.guidKey = gGroup; */
-
     // se ho raw per quel guid => prendo quelle (completo Screen4)
     var aRows = (gP && mRawByGuid[gP]) ? mRawByGuid[gP] : [];
 
@@ -3166,8 +2817,6 @@ onSave: function () {
 
       // >>> FIX: forza Guid uguale per tutte le righe del parent
       r.Guid = gGroup;
-/*       r.GUID = gGroup;
-      r.guidKey = gGroup; */
 
       // 1) Propaga SEMPRE i campi Screen3 su tutte le righe (anche se il raw aveva valore)
       aParentKeys.forEach(function (k) {
@@ -3231,7 +2880,6 @@ onSave: function () {
   var oPayload = {
     UserID: sUserId,
     PostDataCollection: aLines
-      /* .filter(function (i) { return i.CodAgg !== "N"; }) */
       .filter(function (i) {
     var ca = this._getCodAgg(i);
     return !(ca === "N" || ca === "");

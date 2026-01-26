@@ -18,7 +18,6 @@ sap.ui.define([
     var bMultiple = !!(oMeta && oMeta.multiple);
 
     var sDomain = String((oMeta && oMeta.domain) || "").trim();
-   /*  var bUseCombo = !!sDomain && (typeof domainHasValuesFn === "function" ? domainHasValuesFn(sDomain) : false); */
    var bUseCombo = !!sDomain && (
   (typeof domainHasValuesFn === "function" && domainHasValuesFn(sDomain)) ||
   (opts.view && opts.view.getModel("vm") &&
@@ -47,25 +46,6 @@ sap.ui.define([
 
     if (bUseCombo) {
       if (bMultiple) {
-/*         oEditCtrl = new MultiComboBox({
-        forceSelection: false,
-        width: "100%",
-        visible: "{= !" + sReadOnlyExpr + " }",
-        enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
-
-  selectedKeys: sValueBind,
-  valueState: sValueState,
-  valueStateText: sValueStateText,
-
-  items: {
-    path: "vm>/domainsByName/" + sDomain,
-    template: new Item({
-      key: "{vm>key}",
-      // dropdown: "IT - Italia"
-      text: "{= ${vm>key} + ' - ' + ${vm>text} }"
-    })
-  }
-}); */
 oEditCtrl = new sap.m.MultiComboBox({
   showSecondaryValues: true,
   selectedKeys: sValueBind,
@@ -100,39 +80,6 @@ oEditCtrl = new sap.m.MultiComboBox({
           }
         });
 
-
-/* if (sKey === "Fibra") {
-  var dump = function (phase) {
-    var ctxDetail = oEditCtrl.getBindingContext("detail");
-    var ctxDefault = oEditCtrl.getBindingContext(); // utile per capire se il context è sul default
-
-    // ✅ Se non ho NESSUN context, è un template/dummy -> skip
-    if (!ctxDetail && !ctxDefault) return;
-
-    var row = (ctxDetail && ctxDetail.getObject && ctxDetail.getObject()) ||
-              (ctxDefault && ctxDefault.getObject && ctxDefault.getObject()) || null;
-
-    var vm = oEditCtrl.getModel("vm");
-    var dom = vm ? (vm.getProperty("/domainsByName/" + sDomain) || []) : [];
-
-    console.log("[DBG Fibra][" + phase + "]", {
-      hasVm: !!vm,
-      ctxDetail: ctxDetail && ctxDetail.getPath && ctxDetail.getPath(),
-      ctxDefault: ctxDefault && ctxDefault.getPath && ctxDefault.getPath(),
-      rowVal: row && row.Fibra,
-      selectedKey: oEditCtrl.getSelectedKey(),
-      itemsLen: oEditCtrl.getItems().length,
-      domain: sDomain,
-      domainKeys: dom.map(d => d.key)
-    });
-  };
-
-  oEditCtrl.attachModelContextChange(() => dump("modelContextChange"));
-  oEditCtrl.addEventDelegate({ onAfterRendering: () => dump("afterRendering") });
-  setTimeout(() => dump("t+0"), 0);
-  setTimeout(() => dump("t+300"), 300);
-}
- */
 
       }
 

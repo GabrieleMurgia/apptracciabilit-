@@ -16,6 +16,23 @@
       "Rejected": 0,
       "ToApprove": 2,
       "Approved": 0
+    },
+    {
+      "__metadata": {
+        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW20151LBB3')",
+        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW20151LBB3')",
+        "type": "ZVEND_TRACE_SRV.MaterialData"
+      },
+      "Stagione": "47",
+      "UserID": "E_ZEMAF",
+      "Fornitore": "0000002057",
+      "MatStatus": "DMMY",
+      "Materiale": "IW20151LBB7",
+      "DescMateriale": "TEST LBB",
+      "Open": "",
+      "Rejected": 0,
+      "ToApprove": 2,
+      "Approved": 0
     }
   ]
 }

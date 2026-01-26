@@ -310,7 +310,6 @@ sap.ui.define([
               "sap-language": "IT"
             },
             success: function (oData) {
-              debugger
               BusyIndicator.hide();
 
               
@@ -334,7 +333,7 @@ sap.ui.define([
                 var sDom = d.Domain;
                 acc[sDom] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
                   var v = x.Value;
-                  return { key: v, text: v };
+                  return { key: v, text: x.Descrizione };
                 });
                 return acc;
               }, {});

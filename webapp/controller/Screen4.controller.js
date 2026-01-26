@@ -1520,7 +1520,14 @@ if (this._sortState && this._sortState.key) {
   if (fMeta && fMeta.required) sHeader += " *";
 
   if (!p || !p.box || p.box.bIsDestroyed) {
-    var oLbl = new Text({ text: sHeader, wrapping: true });
+    /* var oLbl = new Text({ text: sHeader, wrapping: true }); */
+    var oLbl = new Text({
+  text: sHeader,
+  wrapping: false,
+  maxLines: 1,
+  width: "100%",
+  tooltip: sHeader
+});
 
     // --- SORT BUTTON (nuovo) ---
     var oSortBtn = this._hdrSortBtns[sKey];

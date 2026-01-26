@@ -33,7 +33,9 @@ sap.ui.define([], function () {
     var out = {};
     Object.keys(domainsByName || {}).forEach(function (d) {
       var m = {};
-      (domainsByName[d] || []).forEach(function (it) { m[it.key] = it.text; });
+      (domainsByName[d] || []).forEach(function (it) { 
+        m[it.key] = it.text; 
+      });
       out[d] = m;
     });
     return out;
@@ -265,8 +267,16 @@ sap.ui.define([], function () {
       acc[sDom] = aVals.map(function (x) {
         var v = (x && (x.Value || x.KEY || x.Key || x.value || x.Id)) ?? "";
         v = String(v).trim();
-        var t = (x && (x.Text || x.DESCR || x.Description || x.Desc || x.text)) ?? v;
+        var t = (x && (
+  x.Descrizione ||   
+  x.Text ||
+  x.DESCR ||
+  x.Description ||
+  x.Desc ||
+  x.text
+)) ?? v;
         t = String(t).trim();
+        
         return { key: v, text: t };
       }).filter(function (it) { return it.key !== ""; });
 

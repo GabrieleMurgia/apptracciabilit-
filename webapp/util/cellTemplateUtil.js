@@ -47,21 +47,38 @@ sap.ui.define([
 
     if (bUseCombo) {
       if (bMultiple) {
-        oEditCtrl = new MultiComboBox({
-          forceSelection: false,
-          width: "100%",
-          visible: "{= !" + sReadOnlyExpr + " }",
-          /* enabled: !bLocked, */
-          enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,// locked=B -> abilita solo se riga nuova
-          
-          selectedKeys: sValueBind,
-          valueState: sValueState,
-          valueStateText: sValueStateText,
-          items: {
-            path: "vm>/domainsByName/" + sDomain,
-            template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-          }
-        });
+/*         oEditCtrl = new MultiComboBox({
+        forceSelection: false,
+        width: "100%",
+        visible: "{= !" + sReadOnlyExpr + " }",
+        enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+
+  selectedKeys: sValueBind,
+  valueState: sValueState,
+  valueStateText: sValueStateText,
+
+  items: {
+    path: "vm>/domainsByName/" + sDomain,
+    template: new Item({
+      key: "{vm>key}",
+      // dropdown: "IT - Italia"
+      text: "{= ${vm>key} + ' - ' + ${vm>text} }"
+    })
+  }
+}); */
+oEditCtrl = new sap.m.MultiComboBox({
+  showSecondaryValues: true,
+  selectedKeys: sValueBind,
+
+  items: {
+    path: "vm>/domainsByName/" + sDomain,
+    template: new sap.ui.core.ListItem({
+      key: "{vm>key}",
+      text: "{vm>key}",            // <- ciò che vedrai nei token (solo value/key)
+      additionalText: "{vm>text}"  // <- info extra visibile nel dropdown
+    })
+  }
+});
       } else {
         oEditCtrl = new ComboBox({
           width: "100%",
@@ -74,7 +91,11 @@ sap.ui.define([
           valueStateText: sValueStateText,
           items: {
             path: "vm>/domainsByName/" + sDomain,
-            template: new Item({width: "100%", key: "{vm>key}", text: "{vm>text}" }),
+            template: new Item({
+              width: "100%", 
+              key: "{vm>key}", 
+              text: "{vm>text}"  
+            }),
             length: 500
           }
         });

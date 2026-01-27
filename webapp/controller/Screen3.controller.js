@@ -21,6 +21,8 @@ sap.ui.define([
   "sap/m/VBox",
   "sap/ui/export/Spreadsheet",
   "sap/ui/export/library",
+  "sap/m/Dialog",
+"sap/m/MessagePage",
 
   // ===== UTIL =====
   "apptracciabilita/apptracciabilita/util/common",
@@ -54,6 +56,9 @@ sap.ui.define([
   VBox,
   Spreadsheet,
   exportLibrary,
+  Dialog,
+  MessagePage,
+
 
   // ===== UTIL =====
   Common,
@@ -122,6 +127,250 @@ sap.ui.define([
         this._logTable("TABLE STATE @ after onInit");
       }.bind(this), 0);
     },
+
+    //UTILS AFTER POST:
+    // =========================
+// POST ESITO -> UI (riga rossa + MessagePage)
+// =========================
+_normEsito: function (v) {
+  return String(v == null ? "" : v).trim().toUpperCase();
+},
+_normMsg: function (o) {
+  // supporta sia Message che message
+  var m = (o && (o.Message != null ? o.Message : o.message)) || "";
+  return String(m == null ? "" : m).trim();
+},
+
+_syncPropToRecordsAllByIdx: function (oRow, sProp, vVal) {
+  try {
+    var oDetail = this.getView().getModel("detail");
+    if (!oDetail || !oRow) return;
+
+    var idx = (oRow.idx != null) ? parseInt(oRow.idx, 10) : NaN;
+    if (isNaN(idx)) return;
+
+    var aAll = oDetail.getProperty("/RecordsAll") || [];
+    for (var i = 0; i < aAll.length; i++) {
+      if (parseInt(aAll[i] && aAll[i].idx, 10) === idx) {
+        oDetail.setProperty("/RecordsAll/" + i + "/" + sProp, vVal);
+        break;
+      }
+    }
+  } catch (e) {}
+},
+
+_clearPostErrorByContext: function (oCtx) {
+  try {
+    if (!oCtx) return;
+
+    var oModel = oCtx.getModel && oCtx.getModel();
+    var sPath = oCtx.getPath && oCtx.getPath();
+    var oRow = oCtx.getObject && oCtx.getObject();
+    if (!oModel || !sPath || !oRow) return;
+
+    if (!oRow.__postError) return;
+
+    oModel.setProperty(sPath + "/__postError", false);
+    oModel.setProperty(sPath + "/__postMessage", "");
+
+    // sincronizza anche RecordsAll (perché il ctx spesso è su /Records filtrato)
+    this._syncPropToRecordsAllByIdx(oRow, "__postError", false);
+    this._syncPropToRecordsAllByIdx(oRow, "__postMessage", "");
+
+    // aggiorna classi visibili
+    var oTbl = this.byId("mdcTable3");
+    var oInner = this._getInnerTableFromMdc(oTbl);
+    this._updatePostErrorRowStyles(oInner);
+  } catch (e) {}
+},
+
+_updatePostErrorRowStyles: function (oInner) {
+  if (!oInner) return;
+
+  // GridTable: sap.ui.table.Table
+  if (oInner.isA && oInner.isA("sap.ui.table.Table")) {
+    var aRows = (oInner.getRows && oInner.getRows()) || [];
+    aRows.forEach(function (oRowCtrl) {
+      if (!oRowCtrl) return;
+
+      var oCtx = (oRowCtrl.getBindingContext && (oRowCtrl.getBindingContext("detail") || oRowCtrl.getBindingContext())) || null;
+      var oObj = oCtx && oCtx.getObject && oCtx.getObject();
+
+      if (oObj && oObj.__postError) oRowCtrl.addStyleClass("s3PostErrorRow");
+      else oRowCtrl.removeStyleClass("s3PostErrorRow");
+
+      // click anywhere sulla riga -> clear (hook una volta)
+      try {
+        if (oRowCtrl.data && !oRowCtrl.data("__s3PostErrClick")) {
+          oRowCtrl.data("__s3PostErrClick", true);
+          oRowCtrl.attachBrowserEvent("click", function () {
+            this._clearPostErrorByContext(oCtx);
+          }.bind(this));
+        }
+      } catch (e) {}
+    }.bind(this));
+    return;
+  }
+
+  // ResponsiveTable/ListBase: sap.m.Table / sap.m.ListBase
+  if (oInner.isA && (oInner.isA("sap.m.Table") || oInner.isA("sap.m.ListBase"))) {
+    var aItems = (oInner.getItems && oInner.getItems()) || [];
+    aItems.forEach(function (it) {
+      if (!it) return;
+
+      var oCtx2 = (it.getBindingContext && (it.getBindingContext("detail") || it.getBindingContext())) || null;
+      var oObj2 = oCtx2 && oCtx2.getObject && oCtx2.getObject();
+
+      if (oObj2 && oObj2.__postError) it.addStyleClass("s3PostErrorRow");
+      else it.removeStyleClass("s3PostErrorRow");
+
+      // click anywhere sulla riga -> clear (hook una volta)
+      try {
+        if (it.data && !it.data("__s3PostErrClick")) {
+          it.data("__s3PostErrClick", true);
+          it.attachBrowserEvent("click", function () {
+            this._clearPostErrorByContext(oCtx2);
+          }.bind(this));
+        }
+      } catch (e) {}
+    }.bind(this));
+  }
+},
+
+_ensurePostErrorRowHooks: function (oMdcTbl) {
+  try {
+    if (!oMdcTbl) return;
+    var oInner = this._getInnerTableFromMdc(oMdcTbl);
+    if (!oInner) return;
+
+    // evita doppio attach su stesso inner
+    if (oInner.data && oInner.data("__s3PostErrHooks")) return;
+    if (oInner.data) oInner.data("__s3PostErrHooks", true);
+
+    // GridTable
+    if (oInner.isA && oInner.isA("sap.ui.table.Table")) {
+      oInner.attachRowsUpdated(function () {
+        this._updatePostErrorRowStyles(oInner);
+      }.bind(this));
+
+      // click su una cella qualsiasi -> clear
+      if (typeof oInner.attachCellClick === "function") {
+        oInner.attachCellClick(function (e) {
+          var iRow = e.getParameter("rowIndex");
+          var oCtx = oInner.getContextByIndex && oInner.getContextByIndex(iRow);
+          this._clearPostErrorByContext(oCtx);
+        }.bind(this));
+      }
+
+      // prima applicazione
+      this._updatePostErrorRowStyles(oInner);
+      return;
+    }
+
+    // ResponsiveTable/ListBase
+    if (oInner.isA && (oInner.isA("sap.m.Table") || oInner.isA("sap.m.ListBase"))) {
+      if (typeof oInner.attachUpdateFinished === "function") {
+        oInner.attachUpdateFinished(function () {
+          this._updatePostErrorRowStyles(oInner);
+        }.bind(this));
+      }
+      this._updatePostErrorRowStyles(oInner);
+    }
+  } catch (e) {}
+},
+
+_showPostErrorMessagePage: function (aErrLines) {
+  var aErr = Array.isArray(aErrLines) ? aErrLines : [];
+  if (!aErr.length) return;
+
+  // prendo il primo messaggio "umano"
+  var r0 = aErr[0] || {};
+  var sMsg0 = this._normMsg(r0) || "Errore in salvataggio";
+
+  // opzionale: aggiungo Partita/Fibra del primo KO
+  var parts = [];
+  if (r0.PartitaFornitore) parts.push("Partita " + r0.PartitaFornitore);
+  if (r0.Fibra) parts.push("Fibra " + r0.Fibra);
+  var sHead = parts.length ? (" (" + parts.join(" - ") + ")") : "";
+
+  // toast compatto: primo errore + conteggio totale
+  var sToast = "Salvataggio NON completato: " + sMsg0 + sHead;
+  if (aErr.length > 1) sToast += " (+ altri " + (aErr.length - 1) + ")";
+
+  sap.m.MessageToast.show(sToast, { duration: 6000, width: "30em" });
+},
+
+
+
+
+_markRowsWithPostErrors: function (aRespLines) {
+  var oDetail = this.getView().getModel("detail");
+  var aAll = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
+  if (!Array.isArray(aAll)) aAll = [];
+
+  // indicizza per GUID e fallback per chiavi “business”
+  var mIdxByGuid = {};
+  var mIdxByBiz = {};
+
+  aAll.forEach(function (r, i) {
+    var g = this._toStableString(r && (r.guidKey || r.GUID || r.Guid));
+    if (g) mIdxByGuid[g] = i;
+
+    // fallback: Fornitore+Materiale+PartitaFornitore(+Linea)
+    var kBiz = [
+      this._normalizeVendor10(r && (r.Fornitore || r.FORNITORE)),
+      String(r && (r.Materiale || r.MATERIALE) || "").trim(),
+      String(r && (r.PartitaFornitore || r.PARTITAFORNITORE) || "").trim(),
+      String(r && (r.Linea || r.LINEA) || "").trim()
+    ].join("||");
+
+    if (kBiz !== "||||||") mIdxByBiz[kBiz] = i;
+  }.bind(this));
+
+  // raccogli messaggi per parent idx
+  var mMsgByIdx = {};
+
+  (aRespLines || []).forEach(function (line) {
+    var es = this._normEsito(line && (line.Esito != null ? line.Esito : line.esito));
+    if (!es || es === "OK") return;
+
+    var g2 = this._toStableString(line && (line.Guid || line.GUID || line.guidKey));
+    var iIdx = (g2 && mIdxByGuid[g2] != null) ? mIdxByGuid[g2] : null;
+
+    if (iIdx == null) {
+      var kBiz2 = [
+        this._normalizeVendor10(line && (line.Fornitore || line.FORNITORE)),
+        String(line && (line.Materiale || line.MATERIALE) || "").trim(),
+        String(line && (line.PartitaFornitore || line.PARTITAFORNITORE) || "").trim(),
+        String(line && (line.Linea || line.LINEA) || "").trim()
+      ].join("||");
+      if (mIdxByBiz[kBiz2] != null) iIdx = mIdxByBiz[kBiz2];
+    }
+
+    if (iIdx == null) return;
+
+    if (!mMsgByIdx[iIdx]) mMsgByIdx[iIdx] = [];
+    var msg = this._normMsg(line);
+    if (msg) mMsgByIdx[iIdx].push(msg);
+  }.bind(this));
+
+  // set flag + message su RecordsAll
+  Object.keys(mMsgByIdx).forEach(function (sI) {
+    var i = parseInt(sI, 10);
+    var msgs = (mMsgByIdx[i] || []).filter(Boolean);
+    oDetail.setProperty("/RecordsAll/" + i + "/__postError", true);
+    oDetail.setProperty("/RecordsAll/" + i + "/__postMessage", msgs.join("\n"));
+  });
+
+  // refresh lista visibile + styles
+  this._applyClientFilters();
+
+  var oTbl = this.byId("mdcTable3");
+  this._ensurePostErrorRowHooks(oTbl);
+  this._updatePostErrorRowStyles(this._getInnerTableFromMdc(oTbl));
+},
+
+
     _isEmptyRequiredValue: function (v) {
   if (v == null) return true;
   if (Array.isArray(v)) return v.length === 0;
@@ -710,15 +959,16 @@ _hookDirtyOnEdit: function (oCtrl) {
     } catch (e) {}
   }
 
-  function handler(oEvt) {
-    var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
+function handler(oEvt) {
+  var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
 
-    // forza update del model dove serve (soprattutto Input liveChange)
-    forceUpdateModelIfNeeded(src, oEvt && oEvt.getId && oEvt.getId());
+  forceUpdateModelIfNeeded(src, oEvt && oEvt.getId && oEvt.getId());
 
-    // marca riga dirty / CodAgg ecc (debounced su liveChange)
-    scheduleDirty(src, oEvt);
-  }
+  // appena l’utente tocca una cella, tolgo subito “KO” dalla riga
+  that._clearPostErrorByContext(getCtx(src));
+
+  scheduleDirty(src, oEvt);
+}
 
   // === attach eventi (best-effort, senza rompere se un control non li ha) ===
   if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(handler);
@@ -1760,6 +2010,7 @@ oDetail.setProperty("/__role", sRole);
       }.bind(this), 300);
 
       this._logTable("TABLE STATE @ after _bindRecords");
+      this._ensurePostErrorRowHooks(oTbl);
     },
 
     // =========================
@@ -3064,26 +3315,40 @@ oModel.create("/PostDataSet", oPayload, {
 
     // (tuo codice: controllo esiti)
     var aResp = this._extractPostResponseLines(oData);
-    console.log("[S3] POST response lines:", aResp);
+console.log("[S3] POST response lines:", aResp);
 
-    var aErr = (aResp || []).filter(function (r) {
-      var es = String(r && r.Esito || "").trim().toUpperCase();
-      return es && es !== "OK";
-    });
+/* DBG_FORCE_KO_FIRSTROW: (commenta questo blocco per disattivare) */ 
+/* (function(){ var p=(this.getView().getModel("detail").getProperty("/RecordsAll")||[])[0]||{}, g=this._toStableString(p.guidKey||p.GUID||p.Guid); aResp=Array.isArray(aResp)?aResp.slice():[]; aResp[0]=Object.assign({}, aResp[0]||{}, { Guid: g || (aResp[0]&&aResp[0].Guid) || "", Esito:"KO", Message:"PROVA", Fornitore:(aResp[0]&&aResp[0].Fornitore)||this._normalizeVendor10(this._sVendorId), Materiale:(aResp[0]&&aResp[0].Materiale)||String(this._sMaterial||"").trim() }); }).call(this); */
 
-    if (aErr.length) {
-      MessageToast.show("Errore salvataggio: " + ((aErr[0] && aErr[0].Message) || "verifica i dati"));
-    } else {
-      MessageToast.show("Salvataggio completato");
-    }
 
-    // reset deleted stash
-    var oDetail = this.getView().getModel("detail");
-    oDetail.setProperty("/__deletedLinesForPost", []);
+var aErr = (aResp || []).filter(function (r) {
+  var es = String(r && r.Esito || "").trim().toUpperCase();
+  return es && es !== "OK";
+});
 
-    // refresh tabella leggendo di nuovo dal backend
-    this._invalidateScreen3Cache(); // opzionale, ma ok
-    this._refreshAfterPost(oData);
+// === NUOVO COMPORTAMENTO ===
+if (aErr.length) {
+  // 1) riga rossa per i parent coinvolti
+  this._markRowsWithPostErrors(aErr);
+
+  // 2) MessagePage con i message
+  this._showPostErrorMessagePage(aErr);
+
+  // 3) NON refreshare dal backend: l’utente deve correggere (così il rosso resta)
+  return;
+}
+
+// === SE TUTTO OK: comportamento attuale ===
+MessageToast.show("Salvataggio completato");
+
+// reset deleted stash
+var oDetail = this.getView().getModel("detail");
+oDetail.setProperty("/__deletedLinesForPost", []);
+
+// refresh tabella leggendo di nuovo dal backend
+this._invalidateScreen3Cache();
+this._refreshAfterPost(oData);
+
 
   }.bind(this),
 

@@ -54,3 +54,8 @@
   font-weight: normal !important;
   font-family: Arial, Helvetica, sans-serif !important;
 }
+
+.s3PostErrorRow .sapUiTableCell,
+.s3PostErrorRow.sapMListTblRow > td {
+  background-color: #ffe5e5 !important;
+}

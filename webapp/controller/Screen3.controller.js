@@ -429,7 +429,7 @@ _getRequiredMapFromMmct: function () {
   return { req01: req01, req02: req02 };
 },
 
-_validateRequiredBeforePost: function () {
+/* _validateRequiredBeforePost: function () {
   var oDetail = this.getView().getModel("detail");
   var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
 
@@ -535,9 +535,184 @@ _validateRequiredBeforePost: function () {
   }.bind(this));
 
   return { ok: errors.length === 0, errors: errors };
+}, */
+
+
+_validateRequiredBeforePost: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
+  if (!Array.isArray(aParents)) aParents = [];
+
+  // Cache RAW (dataset completo)
+  var oVm = this._ensureVmCache();
+  var sCacheKey = this._getExportCacheKey(); // REAL|... / MOCK|...
+  var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+  if (!Array.isArray(aRawAll)) aRawAll = [];
+
+  // Cache Screen4 per idx (se presente)
+  var sKSafe = this._getCacheKeySafe(); // vendor||material (encoded)
+  var mAllS4 = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+  var mByIdx = (mAllS4 && mAllS4[sKSafe]) ? mAllS4[sKSafe] : {};
+
+  // Mappa opzionale idx -> guid “originale”
+  var mGuidByIdxAll = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+  var mGuidByIdx = (mGuidByIdxAll && mGuidByIdxAll[sKSafe]) ? mGuidByIdxAll[sKSafe] : {};
+
+  // Required da MMCT
+  var maps = this._getRequiredMapFromMmct ? this._getRequiredMapFromMmct() : { req01: {}, req02: {} };
+  var req01 = maps.req01 || {}; // Screen3
+  var req02 = maps.req02 || {}; // Screen4
+
+  // Empty check
+  var isEmpty = this._isEmptyRequiredValue
+    ? this._isEmptyRequiredValue.bind(this)
+    : function (v) {
+        if (v == null) return true;
+        if (Array.isArray(v)) return v.length === 0;
+        if (typeof v === "string") return v.trim() === "";
+        return false;
+      };
+
+  function toStr(v) { return String(v == null ? "" : v).trim(); }
+
+  function uniqNonEmpty(arr) {
+    var seen = {};
+    var out = [];
+    (arr || []).forEach(function (x) {
+      x = toStr(x);
+      if (!x) return;
+      if (seen[x]) return;
+      seen[x] = true;
+      out.push(x);
+    });
+    return out;
+  }
+
+  function getRowNoFromParent(p, iLoop) {
+    var idx = (p && p.idx != null) ? parseInt(p.idx, 10) : NaN;
+    if (!isNaN(idx)) return idx + 1;   // 1-based
+    return iLoop + 1;                 // fallback
+  }
+
+  // Indice raw per guid (per lookup veloce)
+  var mRawByGuid = {};
+  (aRawAll || []).forEach(function (r) {
+    if (!r) return;
+
+    // Escludo template e delete dal controllo required
+    var ca = (this._getCodAgg ? this._getCodAgg(r) : toStr(r.CodAgg || r.CODAGG)).toUpperCase();
+    if (ca === "N") return;
+    if (ca === "D") return;
+
+    var g = this._rowGuidKey
+      ? this._rowGuidKey(r)
+      : this._toStableString(r && (r.Guid || r.GUID || r.guidKey || r.GuidKey));
+
+    g = toStr(g);
+    if (!g) return;
+
+    if (!mRawByGuid[g]) mRawByGuid[g] = [];
+    mRawByGuid[g].push(r);
+  }.bind(this));
+
+  var errors = [];
+  var seenErr = {}; // dedupe
+
+  function addErr(pageLabel, rowNo, field, label) {
+    var k = pageLabel + "|" + rowNo + "|" + field;
+    if (seenErr[k]) return;
+    seenErr[k] = true;
+
+    errors.push({
+      page: pageLabel,     // "Pagina corrente" | "Dettaglio"
+      scope: pageLabel,    // compatibilità: se altrove usi e.scope
+      row: rowNo,          // numero riga 1-based
+      field: field || "",
+      label: label || field || ""
+    });
+  }
+
+  // Loop parent
+  (aParents || []).forEach(function (p, iLoop) {
+    if (!p) return;
+
+    // Escludo template parent
+    if (this._getCodAgg && this._getCodAgg(p) === "N") return;
+
+    var rowNo = getRowNoFromParent(p, iLoop);
+
+    // Required Screen3 (pagina corrente)
+    Object.keys(req01).forEach(function (k) {
+      var meta = req01[k] || {};
+      var v = p ? p[k] : undefined;
+      if (isEmpty(v)) {
+        addErr("Pagina corrente", rowNo, k, meta.label || k);
+      }
+    });
+
+    // Required Screen4 (dettaglio)
+    var iIdx = (p && p.idx != null) ? parseInt(p.idx, 10) : NaN;
+
+    var aDet = [];
+    var aDetByIdx = (!isNaN(iIdx) && mByIdx && Array.isArray(mByIdx[String(iIdx)]))
+      ? (mByIdx[String(iIdx)] || [])
+      : null;
+
+    if (Array.isArray(aDetByIdx) && aDetByIdx.length) {
+      aDet = aDetByIdx;
+    } else {
+      var gParent = this._toStableString(p && (p.guidKey || p.GUID || p.Guid || p.GuidKey));
+      var gByIdx = (!isNaN(iIdx) && mGuidByIdx && mGuidByIdx[String(iIdx)])
+        ? this._toStableString(mGuidByIdx[String(iIdx)])
+        : "";
+
+      var aCandidates = uniqNonEmpty([
+        gParent,
+        gByIdx,
+        p && p.Guid,
+        p && p.GUID,
+        p && p.guidKey,
+        p && p.GuidKey
+      ]);
+
+      aCandidates.forEach(function (g) {
+        var chunk = mRawByGuid[g];
+        if (Array.isArray(chunk) && chunk.length) {
+          aDet = aDet.concat(chunk);
+        }
+      });
+    }
+
+    if (!Array.isArray(aDet) || !aDet.length) return;
+
+    // Valido required S4: se anche una sola riga dettaglio manca un campo, segnalo sulla riga parent
+    aDet.forEach(function (r) {
+      Object.keys(req02).forEach(function (k) {
+        var meta = req02[k] || {};
+        var v = r ? r[k] : undefined;
+        if (isEmpty(v)) {
+          addErr("Dettaglio", rowNo, k, meta.label || k);
+        }
+      });
+    });
+
+  }.bind(this));
+
+  // Ordino per riga, poi pagina (corrente prima di dettaglio), poi label
+  errors.sort(function (a, b) {
+    var ra = a.row || 0;
+    var rb = b.row || 0;
+    if (ra !== rb) return ra - rb;
+
+    var pa = (a.page === "Pagina corrente") ? 0 : 1;
+    var pb = (b.page === "Pagina corrente") ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+
+    return String(a.label || "").localeCompare(String(b.label || ""));
+  });
+
+  return { ok: errors.length === 0, errors: errors };
 },
-
-
 
 
     // =========================
@@ -3032,9 +3207,13 @@ _readODataError: function (oError) {
 onSave: function () {
     var vr = this._validateRequiredBeforePost();
   if (!vr.ok) {
-  var top = vr.errors.slice(0, 15).map(function (e) {
+ /*  var top = vr.errors.slice(0, 15).map(function (e) {
     return "- [" + e.scope + "] " + e.label + " (GUID: " + (e.guid || "?") + ")";
-  }).join("\n");
+  }).join("\n"); */
+
+  var top = vr.errors.slice(0, 15).map(function (e) {
+  return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
+}).join("\n");
 
   MessageBox.error(
     "Compila tutti i campi obbligatori prima di salvare.\n\n" +

@@ -47,21 +47,29 @@ sap.ui.define([
     if (bUseCombo) {
       if (bMultiple) {
 oEditCtrl = new sap.m.MultiComboBox({
-  showSecondaryValues: true,
+  width: "100%",
+  visible: "{= !" + sReadOnlyExpr + " }",
+  enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+
   selectedKeys: sValueBind,
+
+  valueState: sValueState,
+  valueStateText: sValueStateText,
+  showValueStateMessage: true, // opzionale
 
   items: {
     path: "vm>/domainsByName/" + sDomain,
     template: new sap.ui.core.ListItem({
       key: "{vm>key}",
-      text: "{vm>key}",            // <- ciò che vedrai nei token (solo value/key)
-      additionalText: "{vm>text}"  // <- info extra visibile nel dropdown
+      text: "{vm>key}",
+      additionalText: "{vm>text}"
     })
   }
 });
+
       } else {
         oEditCtrl = new ComboBox({
-          width: "100%",
+          /* width: "100%", */
           visible: "{= !" + sReadOnlyExpr + " }",
           /* enabled: !bLocked, */
           enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> abilita solo se riga nuova
@@ -72,7 +80,7 @@ oEditCtrl = new sap.m.MultiComboBox({
           items: {
             path: "vm>/domainsByName/" + sDomain,
             template: new Item({
-              width: "100%", 
+              /* width: "100%", */ 
               key: "{vm>key}", 
               text: "{vm>text}"  
             }),
@@ -112,7 +120,7 @@ oEditCtrl = new sap.m.MultiComboBox({
 
     } else {
       oEditCtrl = new Input({
-        width: "100%",
+        /* width: "100%", */
         visible: "{= !" + sReadOnlyExpr + " }",
         /* editable: !bLocked, */
         editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> editabile solo se riga nuova
@@ -126,7 +134,7 @@ oEditCtrl = new sap.m.MultiComboBox({
       opts.hookDirtyOnEditFn(oEditCtrl);
     }
 
-    return new HBox({ width: "100%", items: [oText, oEditCtrl] });
+    return new HBox({ /* width: "100%", */ items: [oText, oEditCtrl] });
   }
 
   return { createCellTemplate: createCellTemplate };

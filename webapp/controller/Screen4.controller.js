@@ -579,6 +579,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
 
@@ -2010,9 +2011,9 @@ if (oMdc && typeof oMdc.initialized === "function") {
   var ca = String(r && (r.CodAgg || r.CODAGG || "")).trim().toUpperCase();
   return ca === "N" || ca === "";
 }) || aRowsAll[0];
+var oNew = Common.deepClone(oBase) || {};
 oNew.CodAgg = "I";
 oNew.__isNew = true;
-        var oNew = Common.deepClone(oBase) || {};
 
 
 

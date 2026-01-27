@@ -1192,7 +1192,7 @@ onGoToScreen4FromRow: function (oEvent) {
       this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
     },
 
-    _rebuildColumnsHard: async function (oTbl, aCfg01) {
+/*     _rebuildColumnsHard: async function (oTbl, aCfg01) {
       if (!oTbl) return;
       if (oTbl.initialized) await oTbl.initialized();
 
@@ -1253,9 +1253,129 @@ onGoToScreen4FromRow: function (oEvent) {
       }.bind(this));
 
       this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
-    },
+    }, */
 
-    // =========================
+    
+/*     _rebuildColumnsHard: async function (oTbl, aCfg01) {
+    if (!oTbl) return;
+    if (oTbl.initialized) await oTbl.initialized();
+
+    var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+    aOld.slice().forEach(function (c) {
+        oTbl.removeColumn(c);
+        c.destroy();
+    });
+
+    // 1) NAV colonna 
+    oTbl.addColumn(new MdcColumn({
+        header: "Dettaglio",
+        width: "100px",
+        template: new Button({
+            icon: "sap-icon://enter-more",
+            type: "Transparent",
+            press: this.onGoToScreen4FromRow.bind(this)
+        })
+    }));
+
+    // 2) STATO
+    this._colStatoS3 = new MdcColumn({
+        width: "70px",
+        header: "Stato",
+        dataProperty: "Stato", // Usa solo dataProperty
+        template: this._createStatusCellTemplate("Stato")
+    });
+    oTbl.addColumn(this._colStatoS3);
+
+    // 3) Colonne dinamiche MMCT
+    (aCfg01 || []).forEach(function (f) {
+        var sKeyRaw = String(f.ui || "").trim();
+        if (!sKeyRaw || sKeyRaw.toUpperCase() === "STATO") return;
+
+        var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
+
+        oTbl.addColumn(new MdcColumn({
+            header: sHeader,
+            dataProperty: sKeyRaw, // Usa solo dataProperty
+            template: this._createCellTemplate(sKeyRaw, f)
+        }));
+
+        
+    }.bind(this));
+}, */
+    
+_rebuildColumnsHard: async function (oTbl, aCfg01) {
+  if (!oTbl) return;
+  if (oTbl.initialized) await oTbl.initialized();
+
+  // distruggo colonne MDC
+  var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+  aOld.slice().forEach(function (c) {
+    oTbl.removeColumn(c);
+    c.destroy();
+  });
+
+  // 1) NAV colonna (nessun sort/filter)
+  oTbl.addColumn(new MdcColumn({
+    header: "Dettaglio",
+    visible: true,
+    width: "100px",
+    template: new Button({
+      icon: "sap-icon://enter-more",
+      type: "Transparent",
+      press: this.onGoToScreen4FromRow.bind(this)
+    })
+  }));
+
+  // 2) STATO (NO propertyKey!)
+  this._colStatoS3 = new MdcColumn({
+    width: "70px",
+    header: "Stato",
+    visible: true,
+    dataProperty: "Stato",
+    sortProperty: "Stato",
+    filterProperty: "Stato",
+    template: this._createStatusCellTemplate("Stato")
+  });
+  oTbl.addColumn(this._colStatoS3);
+
+  // 3) Colonne dinamiche MMCT
+  (aCfg01 || []).forEach(function (f) {
+    var sKeyRaw = String(f.ui || "").trim();
+    if (!sKeyRaw) return;
+
+    // Normalizzo STATO -> Stato (ma noi STATO lo gestiamo già sopra)
+    if (sKeyRaw.toUpperCase() === "STATO") return;
+
+    var sKey = sKeyRaw; // qui tieni il nome proprietà così com’è nel model
+    var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
+
+    oTbl.addColumn(new MdcColumn({
+      header: sHeader,
+      visible: true,
+      dataProperty: sKey,
+      sortProperty: sKey,
+      filterProperty: sKey,
+      template: this._createCellTemplate(sKey, f)
+    }));
+  }.bind(this));
+},
+_resetInlineHeaderControls: function () {
+  if (!this._inlineFS) {
+    this._inlineFS = { filters: {}, sort: { key: "", desc: false } };
+  }
+  if (!this._inlineFS.filters) this._inlineFS.filters = {};
+  if (!this._inlineFS.sort) this._inlineFS.sort = { key: "", desc: false };
+
+  ["sortBtns", "filterInputs", "headerTitles", "headerRows", "headerBoxes"].forEach(function (k) {
+    var m = this._inlineFS[k] || {};
+    Object.keys(m).forEach(function (key) {
+      try { m[key] && m[key].destroy && m[key].destroy(); } catch (e) {}
+    });
+    this._inlineFS[k] = {};
+  }.bind(this));
+},
+
+// =========================
     // FILTER STATUS + TEXT + per-colonna + sort 
     // =========================
     _getCustomDataValue: function (oCtrl, sKey) {
@@ -1487,9 +1607,10 @@ onGoToScreen4FromRow: function (oEvent) {
         if (!innerCol) innerCol = fallbackInnerByIndex(i);
 
         if (!innerCol) continue;
+        function isDead(o) { return !o || o.bIsDestroyed; }
 
         // --- Sort Button (riuso) ---
-        var oSortBtn = this._inlineFS.sortBtns[sField];
+/*         var oSortBtn = this._inlineFS.sortBtns[sField];
         if (!oSortBtn) {
           oSortBtn = new Button({
             type: "Transparent",
@@ -1502,7 +1623,27 @@ onGoToScreen4FromRow: function (oEvent) {
         } else {
           if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
         }
+ */
 
+        // --- Sort Button (riuso) ---
+var oSortBtn = this._inlineFS.sortBtns[sField];
+if (isDead(oSortBtn)) {
+  try { oSortBtn && oSortBtn.destroy && oSortBtn.destroy(); } catch (e) {}
+  oSortBtn = null;
+  delete this._inlineFS.sortBtns[sField];
+}
+if (!oSortBtn) {
+  oSortBtn = new Button({
+    type: "Transparent",
+    icon: "sap-icon://sort",
+    visible: "{ui>/showHeaderSort}",
+    press: this._onInlineColSortPress.bind(this)
+  });
+  oSortBtn.data("field", sField);
+  this._inlineFS.sortBtns[sField] = oSortBtn;
+} else {
+  if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
+}
         // --- Filter Input ---
         var oInp = this._inlineFS.filterInputs[sField];
         if (!oInp) {
@@ -1560,6 +1701,7 @@ onGoToScreen4FromRow: function (oEvent) {
       this._refreshInlineSortIcons();
       this._setInnerHeaderHeight(oMdcTbl);
     },
+    
 
     _bindRecords: async function (aRecords) {
       var oDetail = this.getView().getModel("detail");
@@ -1597,6 +1739,7 @@ oDetail.setProperty("/__role", sRole);
       var oTbl = this.byId("mdcTable3");
       var aCfg01Table = oDetail.getProperty("/_mmct/s01Table") || [];
       this._ensureMdcCfgScreen3(aCfg01Table);
+      this._resetInlineHeaderControls();
       await this._rebuildColumnsHard(oTbl, aCfg01Table);
 
       if (oTbl && oTbl.initialized) await oTbl.initialized();
@@ -2108,6 +2251,8 @@ _cloneLockedFields: function (src, aCfg, scope) {
     __isNew: true,
     __state: "NEW"
   }));
+
+  debugger
 
   // assicura chiavi mmct presenti
   (aCfg01 || []).forEach(function (f) {
@@ -2907,35 +3052,83 @@ onSave: function () {
   BusyIndicator.hide(0);
 
   debugger
-  oModel.create("/PostDataSet", oPayload, {
-    urlParameters: { "sap-language": "IT" },
-    success: function (oData) {
-      BusyIndicator.hide();
+oModel.create("/PostDataSet", oPayload, {
+  urlParameters: { "sap-language": "IT" },
 
-      var aResp = this._extractPostResponseLines(oData);
-      var aErr = (aResp || []).filter(function (r) {
-        var es = String(r && r.Esito || "").trim().toUpperCase();
-        return es && es !== "OK";
-      });
+  success: function (oData, oResponse) {
+    BusyIndicator.hide();
 
-      if (aErr.length) {
-        MessageToast.show("Errore salvataggio: " + ((aErr[0] && aErr[0].Message) || "verifica i dati"));
-      } else {
-        MessageToast.show("Salvataggio completato");
+    // LOG completo della risposta POST (anche HTTP response)
+    console.log("[S3] POST success - oResponse:", oResponse);
+    console.log("[S3] POST success - oData:", JSON.parse(JSON.stringify(oData || {})));
+
+    // (tuo codice: controllo esiti)
+    var aResp = this._extractPostResponseLines(oData);
+    console.log("[S3] POST response lines:", aResp);
+
+    var aErr = (aResp || []).filter(function (r) {
+      var es = String(r && r.Esito || "").trim().toUpperCase();
+      return es && es !== "OK";
+    });
+
+    if (aErr.length) {
+      MessageToast.show("Errore salvataggio: " + ((aErr[0] && aErr[0].Message) || "verifica i dati"));
+    } else {
+      MessageToast.show("Salvataggio completato");
+    }
+
+    // reset deleted stash
+    var oDetail = this.getView().getModel("detail");
+    oDetail.setProperty("/__deletedLinesForPost", []);
+
+    // refresh tabella leggendo di nuovo dal backend
+    this._invalidateScreen3Cache(); // opzionale, ma ok
+    this._refreshAfterPost(oData);
+
+  }.bind(this),
+
+  error: function (oError) {
+    BusyIndicator.hide();
+    var msg = this._readODataError(oError) || "Errore in salvataggio (vedi Console)";
+    console.error("[S3] POST ERROR", oError);
+    MessageToast.show(msg);
+  }.bind(this)
+});
+
+},
+
+_refreshAfterPost: function (oPostData) {
+  // 1) LOG risultato POST (quello che chiedi)
+  console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
+
+  // 2) Forzo reload backend e ribindo tabella
+  return new Promise(function (resolve) {
+    this._reloadDataFromBackend(function (aResults) {
+      // stessa pipeline di _loadDataOnce quando non c’è cache
+      this._hydrateMmctFromRows(aResults);
+      this._formatIncomingRowsMultiSeparators(aResults);
+
+      var oDetail = this.getView().getModel("detail");
+      var res = this._computeOpenOdaFromRows(aResults);
+      if (res.hasSignalProp) {
+        oDetail.setProperty("/OpenOda", res.flag);
       }
 
-      this._invalidateScreen3Cache();
-      this._loadDataOnce();
-      oDetail.setProperty("/__deletedLinesForPost", []);
-    }.bind(this),
+      var aRecordsBuilt = this._buildRecords01(aResults);
 
-    error: function (oError) {
-      BusyIndicator.hide();
-      var msg = this._readODataError(oError) || "Errore in salvataggio (vedi Console)";
-      console.error("[S3] POST ERROR", oError);
-      MessageToast.show(msg);
-    }.bind(this)
-  });
+      // aggiorno cache (così Screen4/export ecc restano coerenti)
+      var oVm = this._ensureVmCache();
+      var sKey = this._getExportCacheKey(); // REAL|... / MOCK|...
+      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+
+      // _bindRecords è async: quando finisce, la tabella è refreshata (rebind incluso)
+      Promise.resolve(this._bindRecords(aRecordsBuilt)).then(function () {
+        console.log("[S3] REFRESH DONE (rows from backend):", aResults.length);
+        resolve(aResults);
+      });
+    }.bind(this));
+  }.bind(this));
 },
 
 

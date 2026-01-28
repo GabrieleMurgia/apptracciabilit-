@@ -1638,12 +1638,12 @@ if (res.hasSignalProp) {
   // =========================
   BusyIndicator.show(0);
 
+  
   var pDataSet = new Promise(function (resolve, reject) {
     oODataModel.read("/DataSet", {
       filters: aFilters,
       urlParameters: { "sap-language": "IT" },
       success: function (oData) {
-        debugger
         resolve((oData && oData.results) || []);
       },
       error: reject
@@ -2928,7 +2928,8 @@ _cloneLockedFields: function (src, aCfg, scope) {
     if (k.toUpperCase() === "STATO") k = "Stato";
 
     // se locked -> copia, altrimenti vuoto
-    if (f.locked) {
+    /* if (f.locked || f.required) { */ //<- aggiungiamo anche le mandatory
+     if (f) {
       var v = src[k];
       if (f.multiple) out[k] = this._toArrayMulti(v);
       else out[k] = (v == null ? "" : v);
@@ -3807,7 +3808,8 @@ onSave: function () {
   BusyIndicator.show(0);
   BusyIndicator.hide(0);
 
-  
+
+debugger
 oModel.create("/PostDataSet", oPayload, {
   urlParameters: { "sap-language": "IT" },
 

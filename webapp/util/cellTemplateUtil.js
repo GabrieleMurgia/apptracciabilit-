@@ -4,8 +4,11 @@ sap.ui.define([
   "sap/m/Input",
   "sap/m/ComboBox",
   "sap/m/MultiComboBox",
-  "sap/ui/core/Item"
-], function (HBox, Text, Input, ComboBox, MultiComboBox, Item) {
+  "sap/ui/core/Item",
+  "sap/m/SuggestionItem",
+  "sap/ui/model/Filter",
+  "sap/ui/model/FilterOperator"
+], function (HBox, Text, Input, ComboBox, MultiComboBox, Item, SuggestionItem, Filter, FilterOperator) {
   "use strict";
 
   function createCellTemplate(sKey, oMeta, opts) {
@@ -16,6 +19,15 @@ sap.ui.define([
     var bLocked = !!(oMeta && oMeta.locked);
     var sNewRowExpr = "${detail>__isNew}"; 
     var bMultiple = !!(oMeta && oMeta.multiple);
+
+
+    var sSugPath = "vm>/suggestionsByField/" + sKey; // es: vm>/suggestionsByField/PartitaFornitore
+var bHasSuggestions = false;
+try {
+  var oVm = opts.view && opts.view.getModel && opts.view.getModel("vm");
+  var aSug = oVm && oVm.getProperty("/suggestionsByField/" + sKey);
+  bHasSuggestions = Array.isArray(aSug) && aSug.length > 0;
+} catch (e) {}
 
     var sDomain = String((oMeta && oMeta.domain) || "").trim();
    var bUseCombo = !!sDomain && (
@@ -119,17 +131,50 @@ oEditCtrl = new sap.m.MultiComboBox({
   });
 }
 
-    } else {
-      oEditCtrl = new Input({
-        /* width: "100%", */
-        visible: "{= !" + sReadOnlyExpr + " }",
-        /* editable: !bLocked, */
-        editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> editabile solo se riga nuova
-        value: sValueBind,
-        valueState: sValueState,
-        valueStateText: sValueStateText
-      });
-    }
+} else {
+  // se ho suggestions per questo campo -> Input con showSuggestion
+  if (bHasSuggestions) {
+    oEditCtrl = new Input({
+      visible: "{= !" + sReadOnlyExpr + " }",
+      editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+      value: sValueBind,
+       showSuggestion: true,
+  autocomplete: true,  
+  startSuggestion: 0,
+      valueState: sValueState,
+      valueStateText: sValueStateText,
+
+      showSuggestion: true,
+      startSuggestion: 0,
+
+      suggestionItems: {
+        path: sSugPath,
+        template: new SuggestionItem({ text: "{vm>key}" })
+      },
+
+      suggest: function (oEvt) {
+        var sVal = String(oEvt.getParameter("suggestValue") || "").trim();
+        var oB = oEvt.getSource().getBinding("suggestionItems");
+        if (!oB) return;
+
+        var aF = [];
+        if (sVal) aF.push(new Filter("key", FilterOperator.Contains, sVal));
+        oB.filter(aF);
+      }
+    });
+
+  } else {
+    // default: Input normale
+    oEditCtrl = new Input({
+      visible: "{= !" + sReadOnlyExpr + " }",
+      editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+      value: sValueBind,
+      valueState: sValueState,
+      valueStateText: sValueStateText
+    });
+  }
+}
+
 
     if (typeof opts.hookDirtyOnEditFn === "function") {
       opts.hookDirtyOnEditFn(oEditCtrl);

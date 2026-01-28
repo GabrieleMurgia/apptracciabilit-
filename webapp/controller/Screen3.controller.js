@@ -947,6 +947,7 @@ _stashDeleteForPostFromCache: function (oParent, aRowsCache, oDetail) {
 
 _createCellTemplate: function (sKey, oMeta) {
   return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+    view: this.getView(), // <-- Passiamo la view dentro opts
     domainHasValuesFn: this._domainHasValues.bind(this),
     hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
   });
@@ -976,7 +977,7 @@ _touchCodAggParent: function (p, sPath) {
     p.CodAgg = newCa;
     if (p.CODAGG !== undefined) delete p.CODAGG;
 
-    // 🔥 forza notifica al JSONModel (MDC + template riusati)
+    //  forza notifica al JSONModel (MDC + template riusati)
     try {
       var oDetail = this.getView().getModel("detail");
       if (oDetail) {
@@ -1035,8 +1036,6 @@ _touchCodAggParent: function (p, sPath) {
     oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
   }
 },
-
-
 
 _hookDirtyOnEdit: function (oCtrl) {
   if (!oCtrl) return;
@@ -1130,23 +1129,120 @@ _hookDirtyOnEdit: function (oCtrl) {
         var sPath = ctx.getPath && ctx.getPath(); // es: "/Records/3"
 
         if (row) {
-          // 🔥 qui è “il change delle celle”: intervieni se vuoi
+          //  qui è “il change delle celle”: intervieni se vuoi
           that._touchCodAggParent(row, sPath);
         }
       }, (oEvt && oEvt.getId && oEvt.getId() === "liveChange") ? 150 : 0);
     } catch (e) {}
   }
 
-function handler(oEvt) {
-  var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
+  // =========================
+  // LOGICA AGGIUNTA: salva old value su focusIn se campo ha suggestions
+  // =========================
+  try {
+    if (typeof oCtrl.attachFocusIn === "function") {
+      oCtrl.attachFocusIn(function () {
+        var rel = getBindingRelPath(oCtrl);
+        if (!rel) return;
 
-  forceUpdateModelIfNeeded(src, oEvt && oEvt.getId && oEvt.getId());
+        var oVm = that.getOwnerComponent().getModel("vm");
+        var aSug = oVm && oVm.getProperty("/suggestionsByField/" + rel);
 
-  // appena l’utente tocca una cella, tolgo subito “KO” dalla riga
-  that._clearPostErrorByContext(getCtx(src));
+        if (Array.isArray(aSug) && aSug.length) {
+          oCtrl.data("__oldVal", oCtrl.getValue());
+        }
+      });
+    }
+  } catch (e3) {}
 
-  scheduleDirty(src, oEvt);
-}
+  // ===== helper: check membership in suggestionsByField
+  function _normStr(v) { return String(v == null ? "" : v).trim(); }
+
+  function _hasSuggestionsForField(field) {
+    try {
+      var oVm = that.getOwnerComponent().getModel("vm");
+      var aSug = oVm && oVm.getProperty("/suggestionsByField/" + field);
+      return Array.isArray(aSug) && aSug.length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function _isValueInSuggestions(field, value) {
+    try {
+      var v = _normStr(value).toUpperCase();
+      if (!v) return true; // vuoto => non blocco
+      var oVm = that.getOwnerComponent().getModel("vm");
+      var aSug = (oVm && oVm.getProperty("/suggestionsByField/" + field)) || [];
+      return (aSug || []).some(function (x) {
+        var k = (x && x.key != null) ? x.key : x;
+        return _normStr(k).toUpperCase() === v;
+      });
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function handler(oEvt) {
+    var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
+    var evtId = (oEvt && oEvt.getId && oEvt.getId()) || "";
+
+    // evita loop quando ripristino valore via setValue
+    try {
+      if (src && src.data && src.data("__skipConfirmOnce")) {
+        src.data("__skipConfirmOnce", false);
+        forceUpdateModelIfNeeded(src, evtId);
+        that._clearPostErrorByContext(getCtx(src));
+        scheduleDirty(src, oEvt);
+        return;
+      }
+    } catch (e0) {}
+
+    forceUpdateModelIfNeeded(src, evtId);
+
+    // appena l’utente tocca una cella, tolgo subito “KO” dalla riga
+    that._clearPostErrorByContext(getCtx(src));
+
+    // =========================
+    // LOGICA AGGIUNTA: confirm se valore non è tra suggeriti (solo per Input)
+    // Trigger su change / submit (Enter)
+    // =========================
+    var rel = getBindingRelPath(src);
+    var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
+
+    if (rel && isInput && (evtId === "change" || evtId === "submit") && _hasSuggestionsForField(rel)) {
+      var newVal = _normStr(src.getValue());
+      if (newVal && !_isValueInSuggestions(rel, newVal)) {
+        var oldVal = _normStr(src.data("__oldVal"));
+
+        MessageBox.confirm(
+          "Il valore \"" + newVal + "\" non è presente nei valori previsti per \"" + rel + "\".\nVuoi inserirlo comunque?",
+          {
+            actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+            emphasizedAction: MessageBox.Action.OK,
+            onClose: function (action) {
+              if (action === MessageBox.Action.OK) {
+                // accetto: aggiorno oldVal
+                try { src.data("__oldVal", newVal); } catch (e) {}
+                scheduleDirty(src, oEvt);
+              } else {
+                // annullo: ripristino e riallineo model
+                try {
+                  if (src.data) src.data("__skipConfirmOnce", true);
+                  src.setValue(oldVal);
+                } catch (e2) {}
+                forceUpdateModelIfNeeded(src, "change");
+              }
+            }
+          }
+        );
+
+        return; // IMPORTANT: stop (dirty solo dopo OK)
+      }
+    }
+
+    scheduleDirty(src, oEvt);
+  }
 
   // === attach eventi (best-effort, senza rompere se un control non li ha) ===
   if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(handler);
@@ -1154,9 +1250,13 @@ function handler(oEvt) {
   if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(handler);
   if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(handler);
 
+  // IMPORTANT: Enter su Input (copre casi in cui l’utente preme invio senza uscire dal campo)
+  if (typeof oCtrl.attachSubmit === "function") oCtrl.attachSubmit(handler);
+
   // extra: se domani usi altri controlli (es. MultiInput token), sei coperto
   if (typeof oCtrl.attachTokenUpdate === "function") oCtrl.attachTokenUpdate(handler);
 },
+
 
     _createStatusCellTemplate: function (sKey) {
       var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
@@ -1550,42 +1650,63 @@ if (res.hasSignalProp) {
     });
   });
 
-  var pVendorBatch = new Promise(function (resolve, reject) {
-    oODataModel.read("/VendorBatchSet", {
-      filters: [
-        new Filter("Fornitore", FilterOperator.EQ, sVendor10)
-      ],
-      urlParameters: {
-        "$format": "json",
-        "sap-language": "IT"
-      },
-      success: function (oData) {
-        debugger
-        const results = oData.results;
+var pVendorBatch = new Promise(function (resolve, reject) {
+  oODataModel.read("/VendorBatchSet", {
+    filters: [ new Filter("Fornitore", FilterOperator.EQ, sVendor10) ],
+    urlParameters: { "$format": "json", "sap-language": "IT" },
 
-// Definiamo le chiavi da escludere
-const exclude = ["Fornitore", "Materiale", "Stagione", "__metadata",'UserID'];
+success: function (oData) {
+  const results = (oData && oData.results) || [];
 
-const finalObject = results.reduce((acc, item) => {
+  const exclude = ["Fornitore", "Materiale", "Stagione", "__metadata", "UserID"];
+  const finalObject = results.reduce((acc, item) => {
     Object.keys(item).forEach(key => {
-        // Se la chiave non è nella lista degli esclusi
-        if (!exclude.includes(key)) {
-            // Se la proprietà non esiste ancora nell'accumulatore, inizializzala come array
-            if (!acc[key]) {
-                acc[key] = [];
-            }
-            // Aggiungi il valore all'array della proprietà corrispondente
-            acc[key].push(item[key]);
-        }
+      if (!exclude.includes(key)) {
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item[key]);
+      }
     });
     return acc;
-}, {});
-debugger
-        resolve((oData && oData.results) || []);
-      },
-      error: reject
+  }, {});
+
+  // ===== NORMALIZZA + DEDUPE PER OGNI CAMPO =====
+  function normStr(v) { return String(v == null ? "" : v).trim(); }
+  function uniqCaseInsensitive(arr) {
+    const seen = {};
+    const out = [];
+    (arr || []).forEach(v => {
+      const s = normStr(v);
+      if (!s) return;
+      const k = s.toUpperCase();
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push(s);
     });
+    return out;
+  }
+
+  // Costruisco dizionario: { CampoA: [{key:"..."},...], CampoB: ... }
+  const suggestionsByField = {};
+  Object.keys(finalObject || {}).forEach((field) => {
+    const a = uniqCaseInsensitive(finalObject[field]);
+    suggestionsByField[field] = a.map(v => ({ key: v }));
   });
+
+  // ===== salva nel VM =====
+  var oVmCache = this._ensureVmCache();
+  oVmCache.setProperty("/suggestionsByField", suggestionsByField);
+
+  // (opzionale) tieni anche il finalObject grezzo
+  oVmCache.setProperty("/cache/vendorBatchFinalObjectByVendor/" + sVendor10, finalObject);
+
+  resolve(results);
+}.bind(this),
+
+
+    error: reject
+  });
+}.bind(this));
+
 
   // =========================
   // JOIN RISULTATI

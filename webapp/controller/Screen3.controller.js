@@ -753,7 +753,7 @@ _validateRequiredBeforePost: function () {
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
 
-      debugger
+      
 
       this._log("_onRouteMatched args", oArgs);
 
@@ -1357,7 +1357,7 @@ if (res.hasSignalProp) {
     // =========================
     // ODATA / MOCK
     // =========================
-    _reloadDataFromBackend: function (fnDone) {
+/*     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
@@ -1409,7 +1409,7 @@ if (res.hasSignalProp) {
 
       var aMatVariants = buildMaterialVariants(sRouteMat);
       var sSeason = String(this._sSeason || "").trim(); 
-      debugger
+      
 
       var aFilters = [
         new Filter("UserID", FilterOperator.EQ, sUserId),
@@ -1426,7 +1426,7 @@ if (res.hasSignalProp) {
         aFilters.push(new Filter({ filters: aMatFilters, and: false }));
       }
 
-      debugger
+      
       BusyIndicator.show(0);
       oODataModel.read("/DataSet", {
         filters: aFilters,
@@ -1450,7 +1450,180 @@ if (res.hasSignalProp) {
           done([]);
         }
       });
-    },
+    }, */
+
+    _reloadDataFromBackend: function (fnDone) {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
+  var bMockS3 = !!mock.mockS3;
+
+  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+  var oODataModel = this.getOwnerComponent().getModel();
+
+  function norm(v) { return String(v || "").trim().toUpperCase(); }
+  function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
+
+  // =========================
+  // MOCK
+  // =========================
+  if (bMockS3) {
+    BusyIndicator.show(0);
+
+    MockData.loadDataSetGeneric().then(function (aAll) {
+      BusyIndicator.hide();
+
+      var a = Array.isArray(aAll) ? aAll : [];
+      if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+        a.forEach(function (r) { if (r) r.Stato = sForceStato; });
+        console.log("[MOCK] forceStato =", sForceStato);
+      }
+
+      done(a);
+    }).catch(function (e) {
+      BusyIndicator.hide();
+      console.error("[S3] MOCK loadDataSetGeneric ERROR", e);
+      MessageToast.show("MOCK DataSet.json NON CARICATO");
+      done([]);
+    });
+
+    return;
+  }
+
+  // =========================
+  // NORMALIZZAZIONI
+  // =========================
+  var sVendor10 = String(this._sVendorId || "").trim();
+  if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) {
+    sVendor10 = ("0000000000" + sVendor10).slice(-10);
+  }
+
+  var sRouteMat = norm(this._sMaterial);
+  var sSeason = String(this._sSeason || "").trim();
+
+  function buildMaterialVariants(routeMat) {
+    var set = {};
+    function add(x) { x = norm(x); if (x) set[x] = true; }
+    add(routeMat);
+    if (routeMat && routeMat.slice(-1) !== "S") add(routeMat + "S");
+    if (routeMat && routeMat.slice(-1) === "S") add(routeMat.slice(0, -1));
+    return Object.keys(set);
+  }
+
+  var aMatVariants = buildMaterialVariants(sRouteMat);
+
+  // =========================
+  // FILTRI DataSet
+  // =========================
+  var aFilters = [
+    new Filter("UserID", FilterOperator.EQ, sUserId),
+    new Filter("Fornitore", FilterOperator.EQ, sVendor10)
+  ];
+
+  if (sSeason) {
+    aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
+  }
+
+  if (aMatVariants.length) {
+    aFilters.push(new Filter({
+      filters: aMatVariants.map(function (m) {
+        return new Filter("Materiale", FilterOperator.EQ, m);
+      }),
+      and: false
+    }));
+  }
+
+  // =========================
+  // READ PARALLELE
+  // =========================
+  BusyIndicator.show(0);
+
+  var pDataSet = new Promise(function (resolve, reject) {
+    oODataModel.read("/DataSet", {
+      filters: aFilters,
+      urlParameters: { "sap-language": "IT" },
+      success: function (oData) {
+        debugger
+        resolve((oData && oData.results) || []);
+      },
+      error: reject
+    });
+  });
+
+  var pVendorBatch = new Promise(function (resolve, reject) {
+    oODataModel.read("/VendorBatchSet", {
+      filters: [
+        new Filter("Fornitore", FilterOperator.EQ, sVendor10)
+      ],
+      urlParameters: {
+        "$format": "json",
+        "sap-language": "IT"
+      },
+      success: function (oData) {
+        debugger
+        const results = oData.results;
+
+// Definiamo le chiavi da escludere
+const exclude = ["Fornitore", "Materiale", "Stagione", "__metadata",'UserID'];
+
+const finalObject = results.reduce((acc, item) => {
+    Object.keys(item).forEach(key => {
+        // Se la chiave non è nella lista degli esclusi
+        if (!exclude.includes(key)) {
+            // Se la proprietà non esiste ancora nell'accumulatore, inizializzala come array
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            // Aggiungi il valore all'array della proprietà corrispondente
+            acc[key].push(item[key]);
+        }
+    });
+    return acc;
+}, {});
+debugger
+        resolve((oData && oData.results) || []);
+      },
+      error: reject
+    });
+  });
+
+  // =========================
+  // JOIN RISULTATI
+  // =========================
+  Promise.all([pDataSet, pVendorBatch])
+    .then(function (res) {
+      BusyIndicator.hide();
+
+      var aDataSetRows   = res[0];
+      var aVendorBatches = res[1];
+
+      // ====== USO 1: DataSet (come prima)
+      if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
+        aDataSetRows.forEach(function (r) { if (r) r.Stato = sForceStato; });
+      }
+
+      done(aDataSetRows);
+
+      // ====== USO 2: VendorBatchSet → VM (SEPARATO)
+      var oVmCache = this._ensureVmCache();
+      oVmCache.setProperty(
+        "/cache/vendorBatchByVendor/" + sVendor10,
+        aVendorBatches
+      );
+
+      console.log(
+        "[S3] VendorBatchSet cached",
+        sVendor10,
+        aVendorBatches.length
+      );
+    }.bind(this))
+    .catch(function (oError) {
+      BusyIndicator.hide();
+      console.error("Errore lettura DataSet o VendorBatchSet", oError);
+      MessageToast.show("Errore nel caricamento dei dati");
+      done([]);
+    });
+},
 
     // =========================
     // RECORDS (Screen3)
@@ -1582,6 +1755,28 @@ onGoToScreen4FromRow: function (oEvent) {
     console.error("onGoToScreen4FromRow ERROR", e);
   }
 },
+
+_readVendorBatchSet: function (sVendor10) {
+  var oModel = this.getOwnerComponent().getModel();
+
+  return new Promise(function (resolve, reject) {
+    oModel.read("/VendorBatchSet", {
+      filters: [
+        new Filter("Fornitore", FilterOperator.EQ, sVendor10)
+      ],
+      urlParameters: {
+        "$format": "json",
+        "sap-language": "IT"
+      },
+      success: function (oData) {
+        
+        resolve((oData && oData.results) || []);
+      },
+      error: reject
+    });
+  }.bind(this));
+},
+
     // =========================
     // P13N force visible (delegate su util)
     // =========================

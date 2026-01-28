@@ -28,11 +28,8 @@
       </Toolbar>
     </customHeader>
 
-    <subHeader>
-      <!-- Testata dinamica (Screen3) -->
-      <OverflowToolbar id="toolbarInfo3" design="Transparent">
-
-      <Label id="labelOpenODA" text="ODA aperti:" class="sapUiTinyMarginEnd"/>
+       <HBox id="hboxOda">
+                <Label id="labelOpenODA" text="ODA aperti:" class="sapUiTinyMarginEnd"/>
 
 <core:Icon
   id="iconOpenOda3"
@@ -40,6 +37,12 @@
   src="{= ${detail>/OpenOda} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
   color="{= ${detail>/OpenOda} === 'X' ? 'green' : 'red' }"
   tooltip="{= ${detail>/OpenOda} === 'X' ? 'Esistono ODA aperti' : 'Nessun ODA aperto' }" />
+          </HBox>
+
+
+    <subHeader>
+      <!-- Testata dinamica (Screen3) -->
+      <OverflowToolbar id="toolbarInfo3" design="Transparent">
 
 
         <HBox

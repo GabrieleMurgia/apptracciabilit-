@@ -18,7 +18,9 @@ sap.ui.define([
     var bRequired = !!(oMeta && oMeta.required);
     var bLocked = !!(oMeta && oMeta.locked);
     var sNewRowExpr = "${detail>__isNew}"; 
+    
     var bMultiple = !!(oMeta && oMeta.multiple);
+    
 
 
     var sSugPath = "vm>/suggestionsByField/" + sKey; // es: vm>/suggestionsByField/PartitaFornitore
@@ -61,7 +63,8 @@ try {
 oEditCtrl = new sap.m.MultiComboBox({
   width: "100%",
   visible: "{= !" + sReadOnlyExpr + " }",
-  enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+  /* enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, */
+  enabled: !bLocked,
 
   selectedKeys: sValueBind,
 
@@ -84,8 +87,8 @@ oEditCtrl = new sap.m.MultiComboBox({
         oEditCtrl = new ComboBox({
           /* width: "100%", */
           visible: "{= !" + sReadOnlyExpr + " }",
-          /* enabled: !bLocked, */
-          enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, // locked=B -> abilita solo se riga nuova
+          enabled: !bLocked,
+          /* enabled: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, */ // locked=B -> abilita solo se riga nuova
           
           selectedKey: sValueBind,
           valueState: sValueState,
@@ -136,7 +139,8 @@ oEditCtrl = new sap.m.MultiComboBox({
   if (bHasSuggestions) {
     oEditCtrl = new Input({
       visible: "{= !" + sReadOnlyExpr + " }",
-      editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+      /* editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, */
+      editable: !bLocked,
       value: sValueBind,
        showSuggestion: true,
   autocomplete: true,  
@@ -167,7 +171,8 @@ oEditCtrl = new sap.m.MultiComboBox({
     // default: Input normale
     oEditCtrl = new Input({
       visible: "{= !" + sReadOnlyExpr + " }",
-      editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true,
+      /* editable: bLocked ? "{= (" + sNewRowExpr + " === true) }" : true, */
+      editable: !bLocked,
       value: sValueBind,
       valueState: sValueState,
       valueStateText: sValueStateText

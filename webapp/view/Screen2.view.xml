@@ -120,9 +120,9 @@
                         <Text id="textColumnApproved2" text="Approvati" />
                     </Column>
 
-                    <Column id="columnMatStatus2" hAlign="Center">
-                        <Text id="textColumnMatStatus2" text="Stato" />
-                    </Column>
+                   <Column id="columnMatStatus2" hAlign="Center" visible="{/showMatStatusCol}">
+  <Text id="textColumnMatStatus2" text="Stato" />
+</Column>
                 </columns>
 
                 <items>

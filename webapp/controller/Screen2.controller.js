@@ -287,6 +287,7 @@ function recomputeSupportFields(row) {
           var aFiltered = aAll;
 
           var aMaterials = aFiltered.map(buildRow);
+          oViewModel.setProperty("/showMatStatusCol", aMaterials.some(r => String(r.MatStatus||"").trim() !== "DMMY"));
           oViewModel.setProperty("/Materials", aMaterials);
 
           this._applyFilters();
@@ -326,6 +327,9 @@ function recomputeSupportFields(row) {
           var aMaterials = aResults.map(buildRow);
 
           oViewModel.setProperty("/Materials", aMaterials);
+            oViewModel.setProperty("/showMatStatusCol",
+    aMaterials.some(r => String(r.MatStatus || "").trim() !== "DMMY")
+  );
           that._applyFilters();
         },
         error: function (oError) {

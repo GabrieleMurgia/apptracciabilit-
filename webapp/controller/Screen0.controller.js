@@ -312,8 +312,6 @@ sap.ui.define([
             success: function (oData) {
               BusyIndicator.hide();
 
-              
-
               if (!oData) {
                 console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);
                 return;
@@ -329,6 +327,7 @@ sap.ui.define([
               var aVend = (oData.UserInfosVend && oData.UserInfosVend.results) || [];
 
               // domainsByName: Domain -> [{key,text}]
+              /* QUA INSERIRE LOGICA PER INSERIMENTO LIBERO <- CON POPUP "AcceptNewVal" : "X" */
               var domainsByName = aDomains.reduce(function (acc, d) {
                 var sDom = d.Domain;
                 acc[sDom] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
@@ -337,6 +336,8 @@ sap.ui.define([
                 });
                 return acc;
               }, {});
+
+              debugger
 
               // === raccogli tutti i fields MMCT in una lista unica ===
               var aAllFields = aMMCT.reduce(function (acc, cat) {

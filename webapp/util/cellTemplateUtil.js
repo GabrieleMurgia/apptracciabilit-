@@ -55,7 +55,8 @@ oEditCtrl = new sap.m.MultiComboBox({
 
   valueState: sValueState,
   valueStateText: sValueStateText,
-  showValueStateMessage: true, // opzionale
+  showValueStateMessage: true, 
+  showSecondaryValues:true,
 
   items: {
     path: "vm>/domainsByName/" + sDomain,

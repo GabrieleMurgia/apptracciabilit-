@@ -751,6 +751,9 @@ _validateRequiredBeforePost: function () {
       this._sMode = oArgs.mode || "A";
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
       this._sMaterial = decodeURIComponent(oArgs.material || "");
+      this._sSeason = decodeURIComponent(oArgs.season || "");
+
+      debugger
 
       this._log("_onRouteMatched args", oArgs);
 
@@ -1405,23 +1408,30 @@ if (res.hasSignalProp) {
       }
 
       var aMatVariants = buildMaterialVariants(sRouteMat);
+      var sSeason = String(this._sSeason || "").trim(); 
+      debugger
 
       var aFilters = [
         new Filter("UserID", FilterOperator.EQ, sUserId),
-        new Filter("Fornitore", FilterOperator.EQ, sVendor2)
+        new Filter("Fornitore", FilterOperator.EQ, sVendor2),
       ];
+
+      if (sSeason) {
+    aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
+}
+
 
       if (aMatVariants.length) {
         var aMatFilters = aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); });
         aFilters.push(new Filter({ filters: aMatFilters, and: false }));
       }
 
+      debugger
       BusyIndicator.show(0);
       oODataModel.read("/DataSet", {
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
-          debugger
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
           if(oData){}
@@ -2678,7 +2688,7 @@ _cloneLockedFields: function (src, aCfg, scope) {
     __state: "NEW"
   }));
 
-  debugger
+  
 
   // assicura chiavi mmct presenti
   (aCfg01 || []).forEach(function (f) {
@@ -3207,9 +3217,9 @@ _readODataError: function (oError) {
 onSave: function () {
     var vr = this._validateRequiredBeforePost();
   if (!vr.ok) {
- /*  var top = vr.errors.slice(0, 15).map(function (e) {
+ /* var top = vr.errors.slice(0, 15).map(function (e) {
     return "- [" + e.scope + "] " + e.label + " (GUID: " + (e.guid || "?") + ")";
-  }).join("\n"); */
+    }).join("\n"); */
 
   var top = vr.errors.slice(0, 15).map(function (e) {
   return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
@@ -3468,7 +3478,7 @@ onSave: function () {
       })
   };
 
-  debugger;
+  ;
 
   // LOG payload completo
   console.log("[S3] Payload /PostDataSet (UNIFIED)", JSON.parse(JSON.stringify(oPayload)));
@@ -3481,7 +3491,7 @@ onSave: function () {
   BusyIndicator.show(0);
   BusyIndicator.hide(0);
 
-  debugger
+  
 oModel.create("/PostDataSet", oPayload, {
   urlParameters: { "sap-language": "IT" },
 

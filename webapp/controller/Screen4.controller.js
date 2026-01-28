@@ -1313,12 +1313,21 @@ if (this._sortState && this._sortState.key) {
             width: "100%",
             visible: sVisibleBind,
             allowCustomValues: false,
-            placeholder: "filtra..."
+            showSecondaryValues:true,
+            placeholder: "filtra...",
+              items: {
+    path: "vm>/domainsByName/" + sDomain,
+    template: new sap.ui.core.ListItem({
+      key: "{vm>key}",
+      text: "{vm>key}",
+      additionalText: "{vm>text}"
+    })
+  }
           });
-          oCtrl.bindAggregation("items", {
+/*           oCtrl.bindAggregation("items", {
             path: "vm>/domainsByName/" + sDomain,
-            template: new Item({ key: "{vm>key}", text: "{vm>text}" })
-          });
+            template: new Item({ key: "{vm>key}", text: "{vm>key}", additionalText: "{vm>text}", })
+          }); */
 
           oCtrl.attachSelectionFinish(function () {
             var a = oCtrl.getSelectedKeys ? oCtrl.getSelectedKeys() : [];

@@ -113,7 +113,8 @@ function recomputeSupportFields(row) {
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
 
-    onMatStatusPress: function (oEvent) {
+  onMatStatusPress: function (oEvent) {
+  
   var oBtn = oEvent.getSource();
   var oCtx = oBtn.getBindingContext(); // contesto JSONModel della riga
   if (!oCtx) return;
@@ -309,18 +310,18 @@ function recomputeSupportFields(row) {
       var sUserId2 = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
 
       BusyIndicator.show(0);
-
+      
       var aFilters = [
         new Filter("Fornitore", FilterOperator.EQ, sVendorId),
-        new Filter("UserID", FilterOperator.EQ, sUserId2)
+        new Filter("UserID", FilterOperator.EQ, sUserId2),
+        /* new Filter("Stagione", FilterOperator.EQ, sUserId2), */
       ];
 
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
-          debugger
+          
           BusyIndicator.hide();
-
           var aResults = (oData && oData.results) || [];
           var aMaterials = aResults.map(buildRow);
 
@@ -392,6 +393,8 @@ function recomputeSupportFields(row) {
       var oItem = oEvent.getSource().getSelectedItem();
       var oCtx = oItem.getBindingContext();
 
+      debugger
+      var sSeason = oCtx.getProperty("Stagione")
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
       var sMaterialOrig = oCtx.getProperty("MaterialOriginal");
@@ -419,10 +422,13 @@ cache.recordsByKey[k] = {
       } catch (e) {
         console.warn("[Screen2] cache MATINFO error", e);
       }
-
+      /* QUA INSERIRE */
+      
+      debugger
       this.getOwnerComponent().getRouter().navTo("Screen3", {
         vendorId: encodeURIComponent(this._sVendorId),
         material: encodeURIComponent(sMaterial),
+        season: encodeURIComponent(sSeason),
         mode: this._sMode || "A"
       });
     },

@@ -104,7 +104,7 @@
         },
         {
           "name": "Screen3",
-          "pattern": "Screen3/{vendorId}/{material}/{season}/{mode}",
+          "pattern": "Screen3/{vendorId}/{material}/{season}",
           "target": "Screen3"
         },
         {

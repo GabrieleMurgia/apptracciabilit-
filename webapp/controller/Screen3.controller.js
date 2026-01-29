@@ -1090,6 +1090,49 @@ if (res.hasSignalProp) {
       oDetail.setProperty("/Header3Fields", a);
       this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
     },
+    _buildCommonFilters: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+
+  var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+
+  // vendor 10 cifre
+  var sVendor10 = String(this._sVendorId || "").trim();
+  if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) {
+    sVendor10 = ("0000000000" + sVendor10).slice(-10);
+  }
+
+  var sSeason = String(this._sSeason || "").trim();
+
+  // varianti materiale (OR)
+  function norm(v){ return String(v || "").trim().toUpperCase(); }
+  var sRouteMat = norm(this._sMaterial);
+
+  var set = {};
+  function add(x){ x = norm(x); if (x) set[x] = true; }
+  add(sRouteMat);
+  if (sRouteMat && sRouteMat.slice(-1) !== "S") add(sRouteMat + "S");
+  if (sRouteMat && sRouteMat.slice(-1) === "S") add(sRouteMat.slice(0, -1));
+  var aMatVariants = Object.keys(set);
+
+  var aFilters = [
+    new sap.ui.model.Filter("UserID", sap.ui.model.FilterOperator.EQ, sUserId),
+    new sap.ui.model.Filter("Fornitore", sap.ui.model.FilterOperator.EQ, sVendor10)
+  ];
+
+  if (sSeason) {
+    aFilters.push(new sap.ui.model.Filter("Stagione", sap.ui.model.FilterOperator.EQ, sSeason));
+  }
+
+  if (aMatVariants.length) {
+    var aMatFilters = aMatVariants.map(function (m) {
+      return new sap.ui.model.Filter("Materiale", sap.ui.model.FilterOperator.EQ, m);
+    });
+    aFilters.push(new sap.ui.model.Filter(aMatFilters, false)); // OR
+  }
+
+  return aFilters;
+},
+
 
     _hydrateMmctFromRows: function (aRows) {   
       var r0 = (Array.isArray(aRows) && aRows.length)
@@ -1226,10 +1269,12 @@ if (res.hasSignalProp) {
   // =========================
   BusyIndicator.show(0);
 
-  
+  var aCommonFilters = this._buildCommonFilters();
+
+  debugger
   var pDataSet = new Promise(function (resolve, reject) {
     oODataModel.read("/DataSet", {
-      filters: aFilters,
+      filters: aCommonFilters,
       urlParameters: { "sap-language": "IT" },
       success: function (oData) {
         resolve((oData && oData.results) || []);
@@ -1240,7 +1285,7 @@ if (res.hasSignalProp) {
 
 var pVendorBatch = new Promise(function (resolve, reject) {
   oODataModel.read("/VendorBatchSet", {
-    filters: [ new Filter("Fornitore", FilterOperator.EQ, sVendor10) ],
+    filters: aCommonFilters,/* [ new Filter("Fornitore", FilterOperator.EQ, sVendor10) ], */
     urlParameters: { "$format": "json", "sap-language": "IT" },
 
 success: function (oData) {
@@ -3011,7 +3056,6 @@ onSave: function () {
   BusyIndicator.hide(0);
 
 
-debugger
 oModel.create("/PostDataSet", oPayload, {
   urlParameters: { "sap-language": "IT" },
 

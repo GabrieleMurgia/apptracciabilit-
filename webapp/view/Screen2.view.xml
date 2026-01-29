@@ -46,6 +46,14 @@
                     state="true"
                     change=".onFilterChanged" />
 
+                <Label id="labelDescCatFilter2" text="Cat. Materiale" />
+<SearchField
+  id="inputDescCatFilter2"
+  width="12rem"
+  liveChange=".onFilterChanged"
+  search=".onFilterChanged"
+  placeholder="Es. Pelle, Tessuto..." />
+
                 <!-- filtro Stagione -->
                 <Label id="labelSeasonFilter2" text="Stagione" />
                 <SearchField
@@ -103,6 +111,12 @@
                         <Text id="textColumnMaterialDesc2" text="Descrizione" />
                     </Column>
 
+                    <Column id="DescCatMateriale">
+                        <Text id="TextDescCatMateriale" text="Desc.Cat.Materiale" />
+                    </Column>
+
+                    
+
                     <Column id="columnSeason2">
                         <Text id="textColumnSeason2" text="Stagione" />
                     </Column>
@@ -141,6 +155,10 @@
                             <Text
                                 id="textMaterialDescription2"
                                 text="{MaterialDescription}" />
+
+                            <Text
+                                id="DescCatMateriale2"
+                                text="{DescCatMateriale}" />
 
                             <Text
                                 id="textSeason2"

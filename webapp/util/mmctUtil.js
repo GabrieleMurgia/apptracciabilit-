@@ -22,6 +22,12 @@ sap.ui.define([], function () {
     return isNaN(n) ? 9999 : n;
   }
 
+  function _normUiKey(kRaw) {
+    var k = String(kRaw || "").trim();
+    if (!k) return "";
+    return (k.toUpperCase() === "STATO") ? "Stato" : k;
+  }
+
   function getMmctCfgForCat(oVm, sCat) {
     var aUserInfos = (oVm && (oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userInfosMMCT"))) || [];
     if (!Array.isArray(aUserInfos)) return [];
@@ -58,8 +64,7 @@ sap.ui.define([], function () {
 
         return {
           ui: ui,
-          label: label, 
-          /* label: (c.Descrizione || c.DESCRIZIONE || ui), */
+          label: label,
           domain: domain,
           required: !!flags.required,
           locked: !!flags.locked,
@@ -71,7 +76,6 @@ sap.ui.define([], function () {
       })
       .filter(Boolean);
 
-    // stessa tua: order + tie-break stabili
     out.sort(function (a, b) {
       var ao = (a && a.order != null) ? a.order : 9999;
       var bo = (b && b.order != null) ? b.order : 9999;
@@ -90,12 +94,170 @@ sap.ui.define([], function () {
     return out;
   }
 
+  // =========================
+  // NEW: hydrate MMCT runtime
+  // =========================
+  function pickRaw0FromRows(aRows, getCodAggFn) {
+    if (!Array.isArray(aRows) || !aRows.length) return {};
+    var fn = (typeof getCodAggFn === "function") ? getCodAggFn : function (r) {
+      return String(r && (r.CodAgg != null ? r.CodAgg : r.CODAGG) || "").trim().toUpperCase();
+    };
+    var r0 = aRows.find(function (r) { return fn(r) !== "N"; }) || aRows[0] || {};
+    return r0 || {};
+  }
+
+  function hydrateMmctFromRows(oVm, aRows, getCodAggFn) {
+    var r0 = pickRaw0FromRows(aRows, getCodAggFn);
+    var sCat = String(r0.CatMateriale || "").trim();
+
+    var a00All = sCat ? cfgForScreen(oVm, sCat, "00") : [];
+    var aHdr3 = (a00All || [])
+      .filter(function (f) { return !!(f && f.testata1); })
+      .filter(function (f) { return String(f.ui || "").trim().toUpperCase() !== "FORNITORE"; });
+
+    var a01All = sCat ? cfgForScreen(oVm, sCat, "01") : [];
+    var a01Table = (a01All || []).filter(function (f) { return !(f && f.testata1); });
+
+    var a02All = sCat ? cfgForScreen(oVm, sCat, "02") : [];
+
+    return {
+      cat: sCat,
+      raw0: r0,
+      s00: a00All,
+      hdr3: aHdr3,
+      s01: a01All,
+      s01Table: a01Table,
+      s02: a02All
+    };
+  }
+
+  // =========================
+  // NEW: header fields
+  // =========================
+  function buildHeaderFields(mmct, valToTextFn) {
+    mmct = mmct || {};
+    var aHdr = mmct.hdr3 || [];
+    var r0 = mmct.raw0 || {};
+
+    var a = (aHdr || [])
+      .slice()
+      .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
+      .map(function (f) {
+        var kRaw = String((f && f.ui) || "").trim();
+        var k = _normUiKey(kRaw);
+        var v = r0 ? r0[k] : "";
+        var txt = (typeof valToTextFn === "function") ? valToTextFn(v) : String(v == null ? "" : v);
+        return { key: k, label: f.label || kRaw || k, value: txt };
+      });
+
+    return a;
+  }
+
+  // =========================
+  // NEW: required map (S01/S02)
+  // =========================
+  function getRequiredMap(mmct) {
+    mmct = mmct || {};
+    var a01 = mmct.s01 || [];
+    var a02 = mmct.s02 || [];
+
+    var req01 = {};
+    var req02 = {};
+
+    (a01 || []).forEach(function (f) {
+      if (f && f.ui && f.required) req01[_normUiKey(f.ui)] = f;
+    });
+    (a02 || []).forEach(function (f) {
+      if (f && f.ui && f.required) req02[_normUiKey(f.ui)] = f;
+    });
+
+    return { req01: req01, req02: req02 };
+  }
+
+  // =========================
+  // NEW: multi fields + normalizzazione separatori
+  // =========================
+  function getMultiFieldsMap(mmct) {
+    mmct = mmct || {};
+    var a01 = mmct.s01 || [];
+    var a02 = mmct.s02 || [];
+
+    var m = {};
+    [a01, a02].forEach(function (arr) {
+      (arr || []).forEach(function (f) {
+        if (!f || !f.ui || !f.multiple) return;
+        m[_normUiKey(f.ui)] = true;
+      });
+    });
+
+    return m;
+  }
+
+  function normalizeMultiString(v, sSepOut) {
+    var sep = (sSepOut == null ? ";" : String(sSepOut));
+
+    if (v == null) return v;
+
+    if (Array.isArray(v)) {
+      return v
+        .map(function (x) { return String(x || "").trim(); })
+        .filter(Boolean)
+        .join(sep);
+    }
+
+    var s = String(v || "").trim();
+    if (!s) return "";
+
+    // se non contiene separatori "noti", lascio com’è
+    if (s.indexOf(";") < 0 && s.indexOf("|") < 0) return s;
+
+    return s
+      .split(/[;|]+/)
+      .map(function (x) { return String(x || "").trim(); })
+      .filter(Boolean)
+      .join(sep);
+  }
+
+  function formatIncomingRowsMultiSeparators(aRows, mmctOrMap, sSepOut) {
+    if (!Array.isArray(aRows) || !aRows.length) return;
+
+    var mMulti = null;
+
+    // se mi passi mmct (ha s01/s02) lo calcolo, altrimenti assumo sia già map
+    if (mmctOrMap && (mmctOrMap.s01 || mmctOrMap.s02)) mMulti = getMultiFieldsMap(mmctOrMap);
+    else mMulti = mmctOrMap || {};
+
+    var aKeys = Object.keys(mMulti || {});
+    if (!aKeys.length) return;
+
+    var sep = (sSepOut == null ? ";" : String(sSepOut));
+
+    aRows.forEach(function (r) {
+      if (!r) return;
+      aKeys.forEach(function (k) {
+        var v = r[k];
+        if (typeof v === "string" && v.indexOf("|") >= 0) {
+          r[k] = normalizeMultiString(v, sep);
+        }
+      });
+    });
+  }
+
   return {
     getSettingFlags: getSettingFlags,
     isMultipleField: isMultipleField,
     isX: isX,
     parseOrder: parseOrder,
     getMmctCfgForCat: getMmctCfgForCat,
-    cfgForScreen: cfgForScreen
+    cfgForScreen: cfgForScreen,
+
+    // NEW exports
+    pickRaw0FromRows: pickRaw0FromRows,
+    hydrateMmctFromRows: hydrateMmctFromRows,
+    buildHeaderFields: buildHeaderFields,
+    getRequiredMap: getRequiredMap,
+    getMultiFieldsMap: getMultiFieldsMap,
+    normalizeMultiString: normalizeMultiString,
+    formatIncomingRowsMultiSeparators: formatIncomingRowsMultiSeparators
   };
 });

@@ -863,7 +863,7 @@ _touchCodAggParent: function (p, sPath) {
   } else if (ca === "" || ca === "I") {
     newCa = "U";
   }
-
+  
   var parentChanged = (newCa !== ca);
   if (parentChanged) {
     p.CodAgg = newCa;
@@ -1077,7 +1077,7 @@ if (res.hasSignalProp) {
         .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
         .map(function (f) {
           var kRaw = String(f.ui || "").trim();
-          debugger
+          
           var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
 
           return {
@@ -1271,12 +1271,12 @@ if (res.hasSignalProp) {
 
   var aCommonFilters = this._buildCommonFilters();
 
-  debugger
   var pDataSet = new Promise(function (resolve, reject) {
     oODataModel.read("/DataSet", {
       filters: aCommonFilters,
       urlParameters: { "sap-language": "IT" },
       success: function (oData) {
+        debugger
         resolve((oData && oData.results) || []);
       },
       error: reject
@@ -1285,10 +1285,11 @@ if (res.hasSignalProp) {
 
 var pVendorBatch = new Promise(function (resolve, reject) {
   oODataModel.read("/VendorBatchSet", {
-    filters: aCommonFilters,/* [ new Filter("Fornitore", FilterOperator.EQ, sVendor10) ], */
+    filters: aCommonFilters,
     urlParameters: { "$format": "json", "sap-language": "IT" },
 
 success: function (oData) {
+  deepClone
   const results = (oData && oData.results) || [];
 
   const exclude = ["Fornitore", "Materiale", "Stagione", "__metadata", "UserID"];
@@ -2317,6 +2318,7 @@ _cloneLockedFields: function (src, aCfg, scope) {
   // ---- build Parent (Screen3): solo LOCKED presi da tpl0
   var oLockedParent = this._cloneLockedFields(tpl0, aCfg01, "S01");
 
+  
   var oNewRow = deepClone(Object.assign({}, oLockedParent, {
     idx: iNewIdx,
 
@@ -2982,8 +2984,12 @@ onSave: function () {
 
       // Fibra gestita a parte (no overwrite con "")
       if (!isEmpty(p.Fibra)) {
-        // se il parent ha Fibra, vince lui
-        r.Fibra = p.Fibra;
+        // se il parent ha Fibra, 
+        if(r.Guid.includes("new")){
+          r.Fibra = p.Fibra;
+        }else{
+          r.Fibra = r.Fibra;
+        }
       } else if (isEmpty(r.Fibra) && !isEmpty(fP)) {
         // altrimenti tieni raw (Screen4), e se raw è vuoto fai fallback al parent normalizzato
         r.Fibra = fP;
@@ -3024,6 +3030,31 @@ onSave: function () {
     MessageToast.show("Nessuna riga da salvare");
     return;
   }
+  
+  
+  /* LOGICA CHE SE PER UN RECORD IL CODAGG è U <- rende U tutti gli altri record con stesso Guid */
+var mGuidHasU = Object.create(null);
+debugger
+(aLines || []).forEach(function (line) {
+  var g = this._toStableString(line && line.Guid); // aLines ha già Guid "canonico"
+  if (!g) return;
+
+  var ca = this._getCodAgg(line);
+  if (ca === "U") mGuidHasU[g] = true;
+}.bind(this));
+
+(aLines || []).forEach(function (line) {
+  var g = this._toStableString(line && line.Guid);
+  if (!g || !mGuidHasU[g]) return;
+
+  var ca = this._getCodAgg(line);
+
+  if (ca === "") {
+    line.CodAgg = "U";
+    if (line.CODAGG !== undefined) delete line.CODAGG;
+  }
+
+}.bind(this));
 
   // >>> FIX: NON generare più Guid per riga (li hai già forzati sopra)
   var oPayload = {

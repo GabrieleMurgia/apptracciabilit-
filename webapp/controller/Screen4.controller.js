@@ -341,12 +341,13 @@ _touchCodAggRow: function (row) {
   var isNew = !!row.__isNew || (g.indexOf("-new") >= 0);
 
   if (isNew) {
-    row.CodAgg = "I";
+    row.CodAgg = "U";
     return;
   }
 
-  // ✅ consegna: se è I -> U, e anche base -> U
-  if (ca === "" || ca === "N" || ca === "I") row.CodAgg = "U";
+  if (ca === "" || ca === "N" || ca === "I"){
+     row.CodAgg = "U";
+  }
 },
 
 _hookDirtyOnEdit: function (oCtrl) {
@@ -355,22 +356,42 @@ _hookDirtyOnEdit: function (oCtrl) {
   try {
     if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
     if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-  } catch (e) { }
+  } catch (e) {}
 
-  var fn = function () {
-    // 1) dirty UI
+  // per Input: update immediato
+  try {
+    if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) {
+      oCtrl.setValueLiveUpdate(true);
+    }
+  } catch (e2) {}
+
+  var fn = function (oEvt) {
     this._markDirty();
 
-    // 2) CodAgg update sulla riga editata
-    var ctx = (oCtrl.getBindingContext && (oCtrl.getBindingContext("detail") || oCtrl.getBindingContext())) || null;
+    // ✅ usa il CONTROLLO che ha generato l’evento (clone), non il template
+    var src = (oEvt && oEvt.getSource) ? oEvt.getSource() : oCtrl;
+
+    var ctx = (src.getBindingContext && (src.getBindingContext("detail") || src.getBindingContext())) || null;
     var row = ctx && ctx.getObject && ctx.getObject();
-    if (row) this._touchCodAggRow(row);
+    if (!row) return;
+
+    var before = this._getCodAgg(row);
+    this._touchCodAggRow(row);
+    var after = this._getCodAgg(row);
+
+    // ✅ importante con JSONModel: se vuoi propagare CodAgg ai binding, usa setProperty
+    if (before !== after && ctx.getPath) {
+      this.getView().getModel("detail").setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
+    }
   }.bind(this);
 
-  if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(fn);
-  if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(fn);
-  if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(fn);
+  if (oCtrl.attachLiveChange) oCtrl.attachLiveChange(fn);          // utile per Input
+  if (oCtrl.attachChange) oCtrl.attachChange(fn);
+  if (oCtrl.attachSelectionChange) oCtrl.attachSelectionChange(fn);
+  if (oCtrl.attachSelectionFinish) oCtrl.attachSelectionFinish(fn);
+  if (oCtrl.attachSubmit) oCtrl.attachSubmit(fn);
 },
+
 
 
     _createCellTemplate: function (sKey, oMeta) {
@@ -579,7 +600,7 @@ _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
-          debugger
+          
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
 
@@ -850,7 +871,7 @@ _loadSelectedRecordRows: function (fnDone) {
 
    var aSelected = aByGuid; // <- patch solo per GUID
 
-   debugger;
+   ;
 
     // --- ROLE/STATUS ---
     var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
@@ -1256,7 +1277,7 @@ if (this._sortState && this._sortState.key) {
     var cmp = vx.localeCompare(vy, undefined, { numeric: true, sensitivity: "base" });
     return desc ? -cmp : cmp;
   });
-}
+}     
 
       oDetail.setProperty("/Rows", a);
       oDetail.setProperty("/RowsCount", a.length);
@@ -1806,10 +1827,15 @@ if (oMdc && typeof oMdc.initialized === "function") {
         var aCacheAll = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
         if (!Array.isArray(aCacheAll)) aCacheAll = [];
 
-                aCacheAll = aCacheAll.filter(function (r) {
-  return this._rowGuidKey(r) !== sGuidKeySel;
-}.bind(this));
+        aCacheAll = aCacheAll.filter(function (r) {
+        return this._rowGuidKey(r) !== sGuidKeySel;
+        }.bind(this));
 
+      aRemain.forEach(l => {
+      if(!l.CodAgg){
+        l.CodAgg = 'U'
+      }
+      })
         aCacheAll = aCacheAll.concat(aRemain);
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aCacheAll);
 
@@ -2015,14 +2041,17 @@ if (oMdc && typeof oMdc.initialized === "function") {
           return;
         }
 
+        
         var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
         var oBase = aRowsAll.find(function(r){
-  var ca = String(r && (r.CodAgg || r.CODAGG || "")).trim().toUpperCase();
-  return ca === "N" || ca === "";
-}) || aRowsAll[0];
-var oNew = Common.deepClone(oBase) || {};
-oNew.CodAgg = "I";
-oNew.__isNew = true;
+        var ca = String(r && (r.CodAgg || r.CODAGG || "")).trim().toUpperCase();
+        return ca === "N" || ca === "";
+        }) || aRowsAll[0];
+        var oNew = Common.deepClone(oBase) || {};
+        let shouldBeUpdate = Object.values(this.getView().getModel("vm").getData().cache.dataRowsByKey)[0].filter(i => i.Guid == oNew.Guid).filter(i => !i?.Guid?.toLowerCase().includes("new")).length
+        
+        oNew.CodAgg = shouldBeUpdate ? 'U' : "I";
+        oNew.__isNew = true;
 
 
 

@@ -29,6 +29,7 @@ sap.ui.define([
   // HOOK DIRTY ON EDIT (spostato dal controller)
   // =========================
   function hookDirtyOnEdit(oCtrl, hookOpts) {
+    debugger
     hookOpts = hookOpts || {};
     var sModelName = hookOpts.modelName || "detail";
     var oView = hookOpts.view || null;
@@ -305,8 +306,9 @@ sap.ui.define([
             template: new ListItem({
               key: "{vm>key}",
               text: "{vm>key}",
-              additionalText: "{vm>text}"
-            })
+              additionalText: "{vm>text}",
+            }),
+            length: 1000
           }
         });
       } else {
@@ -324,7 +326,7 @@ sap.ui.define([
               key: "{vm>key}",
               text: "{vm>text}"
             }),
-            length: 500
+            length: 1000
           }
         });
       }

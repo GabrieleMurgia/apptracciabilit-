@@ -27,6 +27,7 @@ function recomputeSupportFields(row) {
     safeStr(row.Material),
     safeStr(row.MaterialOriginal),
     safeStr(row.MaterialDescription),
+    safeStr(row.DescCatMateriale),
     safeStr(row.Stagione),
     safeStr(row.MatStatus),
     safeStr(row.Open),
@@ -37,6 +38,7 @@ function recomputeSupportFields(row) {
 
   row.StagioneLC = lc(row.Stagione);
   row.MaterialLC = lc(row.Material);
+  row.DescCatMaterialeLC = lc(row.DescCatMateriale)
   row.MaterialOriginalLC = lc(row.MaterialOriginal);
   row.SearchAllLC = lc(searchAll);
 }
@@ -71,6 +73,7 @@ function buildRow(m) {
   // 1:1 Mapping dai dati originali (m)
   var materialOrig = safeStr(m.Materiale).trim();
   var desc = safeStr(m.DescMateriale).trim();
+  var descCat = safeStr(m.DescCatMateriale).trim();
   var season = safeStr(m.Stagione).trim();
   var status = safeStr(m.MatStatus).trim();
 
@@ -84,6 +87,7 @@ function buildRow(m) {
   var searchAll = [
     materialOrig, 
     desc,
+    descCat,
     season, 
     status,
     open, 
@@ -97,6 +101,7 @@ function buildRow(m) {
     Material: materialOrig, 
     MaterialOriginal: materialOrig,
     MaterialDescription: desc,
+    DescCatMateriale: descCat,  
 
     Stagione: season,
     MatStatus: status,
@@ -111,6 +116,7 @@ function buildRow(m) {
     // Campi per filtri case-insensitive (Lowecase)
     StagioneLC: lc(season),
     MaterialLC: lc(materialOrig),
+    DescCatMaterialeLC: lc(descCat),
     MaterialOriginalLC: lc(materialOrig),
     SearchAllLC: lc(searchAll)
   };
@@ -326,6 +332,7 @@ function buildRow(m) {
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
+          debugger
           
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
@@ -359,6 +366,8 @@ function buildRow(m) {
       var sSeasonText = (this.byId("inputSeasonFilter2").getValue() || "").trim().toLowerCase();
       var sMaterialOnly = (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase();
       var sGeneral = (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase();
+      var sDescCat = (this.byId("inputDescCatFilter2").getValue() || "").trim().toLowerCase();
+
 
       var aFilters = [];
 
@@ -373,6 +382,10 @@ function buildRow(m) {
         }));
       }
 
+      if (sDescCat) {
+  aFilters.push(new Filter("DescCatMaterialeLC", FilterOperator.Contains, sDescCat));
+}
+
       if (sSeasonText) {
         aFilters.push(new Filter("StagioneLC", FilterOperator.Contains, sSeasonText));
       }
@@ -381,7 +394,7 @@ function buildRow(m) {
         aFilters.push(new Filter({
           filters: [
             new Filter("MaterialLC", FilterOperator.Contains, sMaterialOnly),
-            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly)
+            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly),
           ],
           and: false
         }));
@@ -390,6 +403,7 @@ function buildRow(m) {
       if (sGeneral) {
         aFilters.push(new Filter("SearchAllLC", FilterOperator.Contains, sGeneral));
       }
+
 
       oBinding.filter(aFilters, "Application");
     },

@@ -8,30 +8,91 @@
       },
       "Stagione": "46",
       "UserID": "E_ZEMAF",
+      "CatMateriale": "CF",
       "Fornitore": "0000002056",
+      "DescCatMateriale": "Abbiglaimento PF",
       "MatStatus": "DMMY",
       "Materiale": "IW20151LBB3",
       "DescMateriale": "TEST LBB",
       "Open": "X",
       "Rejected": 0,
-      "ToApprove": 2,
+      "ToApprove": 9,
       "Approved": 0
     },
     {
       "__metadata": {
-        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW20151LBB3')",
-        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW20151LBB3')",
+        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0626SVS')",
+        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0626SVS')",
         "type": "ZVEND_TRACE_SRV.MaterialData"
       },
-      "Stagione": "47",
+      "Stagione": "44",
       "UserID": "E_ZEMAF",
-      "Fornitore": "0000002057",
+      "CatMateriale": "CF",
+      "Fornitore": "0000002056",
+      "DescCatMateriale": "Abbiglaimento PF",
       "MatStatus": "DMMY",
-      "Materiale": "IW20151LBB7",
-      "DescMateriale": "TEST LBB",
-      "Open": "",
+      "Materiale": "IW2B0626SVS",
+      "DescMateriale": "IW2B0626SVS",
+      "Open": "X",
       "Rejected": 0,
-      "ToApprove": 2,
+      "ToApprove": 0,
+      "Approved": 0
+    },
+    {
+      "__metadata": {
+        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0631SVS')",
+        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0631SVS')",
+        "type": "ZVEND_TRACE_SRV.MaterialData"
+      },
+      "Stagione": "44",
+      "UserID": "E_ZEMAF",
+      "CatMateriale": "CF",
+      "Fornitore": "0000002056",
+      "DescCatMateriale": "Abbiglaimento PF",
+      "MatStatus": "DMMY",
+      "Materiale": "IW2B0631SVS",
+      "DescMateriale": "IW2B0631SVS",
+      "Open": "X",
+      "Rejected": 0,
+      "ToApprove": 0,
+      "Approved": 0
+    },
+    {
+      "__metadata": {
+        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0640SVS')",
+        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0640SVS')",
+        "type": "ZVEND_TRACE_SRV.MaterialData"
+      },
+      "Stagione": "44",
+      "UserID": "E_ZEMAF",
+      "CatMateriale": "CF",
+      "Fornitore": "0000002056",
+      "DescCatMateriale": "Abbiglaimento PF",
+      "MatStatus": "DMMY",
+      "Materiale": "IW2B0640SVS",
+      "DescMateriale": "IW2B0640SVS",
+      "Open": "X",
+      "Rejected": 0,
+      "ToApprove": 0,
+      "Approved": 0
+    },
+    {
+      "__metadata": {
+        "id": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0640SVS')",
+        "uri": "https://s4d:44300/sap/opu/odata/sap/ZVEND_TRACE_SRV/MaterialDataSet(UserID='E_ZEMAF',Fornitore='0000002056',Materiale='IW2B0640SVS')",
+        "type": "ZVEND_TRACE_SRV.MaterialData"
+      },
+      "Stagione": "46",
+      "UserID": "E_ZEMAF",
+      "CatMateriale": "CF",
+      "Fornitore": "0000002056",
+      "DescCatMateriale": "Abbiglaimento PF",
+      "MatStatus": "DMMY",
+      "Materiale": "IW2B0640SVS",
+      "DescMateriale": "IW2B0640SVS",
+      "Open": "X",
+      "Rejected": 0,
+      "ToApprove": 0,
       "Approved": 0
     }
   ]

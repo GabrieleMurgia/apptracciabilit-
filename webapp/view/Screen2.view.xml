@@ -80,6 +80,9 @@
                 id="tableMaterials2"
                 mode="SingleSelectMaster"
                 items="{ path: '/Materials' }"
+                growing="true"
+    growingThreshold="100"
+    growingScrollToLoad="true"
                 itemPress=".onMaterialPress">
 
                 <headerToolbar>

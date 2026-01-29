@@ -46,13 +46,12 @@ function recomputeSupportFields(row) {
   function safeStr(x) { return (x === null || x === undefined) ? "" : String(x); }
   function lc(x) { return safeStr(x).toLowerCase(); }
 
-  function looksLikeMatCode(s) {
-    s = safeStr(s).trim();
-    if (!s) return false;
-    if (/\s/.test(s)) return false;
-    if (!/^[A-Za-z0-9._-]+$/.test(s)) return false;
-    return s.length >= 6;
-  }
+function looksLikeMatCode(s) {
+  s = safeStr(s).trim();
+  if (!s || s.length < 6) return false;
+  if (/^[A-Z]+$/.test(s) && s.length < 10) return false; 
+  return /^[A-Za-z0-9._-]+$/.test(s);
+}
 
   function chooseMaterialKey(m) {
     var mat = safeStr(m && m.Materiale).trim();
@@ -68,48 +67,54 @@ function recomputeSupportFields(row) {
   }
 
   // crea una riga coerente (MOCK + BACKEND) e i campi supporto filtri
-  function buildRow(m) {
-    var keyForDataSet = chooseMaterialKey(m);
+function buildRow(m) {
+  // 1:1 Mapping dai dati originali (m)
+  var materialOrig = safeStr(m.Materiale).trim();
+  var desc = safeStr(m.DescMateriale).trim();
+  var season = safeStr(m.Stagione).trim();
+  var status = safeStr(m.MatStatus).trim();
 
-    var material = safeStr(keyForDataSet).trim();
-    var materialOrig = safeStr(m.Materiale).trim();
-    var desc = safeStr(m.DescMateriale).trim();
-    var season = safeStr(m.Stagione).trim();
-    var status = safeStr(m.MatStatus).trim();
+  // Mapping stati e numeri
+  var open = safeStr(m.Open).trim();
+  var rejected = Number(m.Rejected) || 0;
+  var pending = Number(m.ToApprove) || 0; // Backend usa ToApprove
+  var approved = Number(m.Approved) || 0;
 
-    var open = safeStr(m.Open).trim();
-    var rejected = Number(m.Rejected) || 0;
-    var pending = Number(m.ToApprove) || 0;
-    var approved = Number(m.Approved) || 0;
+  // Stringa per ricerca globale (concatena i valori reali)
+  var searchAll = [
+    materialOrig, 
+    desc,
+    season, 
+    status,
+    open, 
+    rejected, 
+    pending, 
+    approved
+  ].join(" ");
 
-    var searchAll = [
-      material, materialOrig, desc,
-      season, status,
-      open, rejected, pending, approved
-    ].join(" ");
+  return {
+    // Ora 'Material' punta direttamente al codice, non più al risultato di chooseMaterialKey
+    Material: materialOrig, 
+    MaterialOriginal: materialOrig,
+    MaterialDescription: desc,
 
-    return {
-      Material: material,
-      MaterialOriginal: materialOrig,
-      MaterialDescription: desc,
+    Stagione: season,
+    MatStatus: status,
 
-      Stagione: season,
-      MatStatus: status,
+    OpenPo: open === "X" ? 1 : 0,
+    Open: open,
+    Rejected: rejected,
+    Pending: pending,
+    ToApprove: pending,
+    Approved: approved,
 
-      OpenPo: open === "X" ? 1 : 0,
-      Open: open,
-      Rejected: rejected,
-      Pending: pending,
-      ToApprove: pending,
-      Approved: approved,
-
-      // supporto filtri testuali case-insensitive
-      StagioneLC: lc(season),
-      MaterialLC: lc(material),
-      MaterialOriginalLC: lc(materialOrig),
-      SearchAllLC: lc(searchAll)
-    };
-  }
+    // Campi per filtri case-insensitive (Lowecase)
+    StagioneLC: lc(season),
+    MaterialLC: lc(materialOrig),
+    MaterialOriginalLC: lc(materialOrig),
+    SearchAllLC: lc(searchAll)
+  };
+}
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
 

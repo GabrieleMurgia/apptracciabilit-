@@ -22,7 +22,7 @@ sap.ui.define([
   "sap/ui/export/Spreadsheet",
   "sap/ui/export/library",
   "sap/m/Dialog",
-"sap/m/MessagePage",
+  "sap/m/MessagePage",
 
   // ===== UTIL =====
   "apptracciabilita/apptracciabilita/util/common",
@@ -1395,6 +1395,7 @@ if (res.hasSignalProp) {
         .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
         .map(function (f) {
           var kRaw = String(f.ui || "").trim();
+          debugger
           var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
 
           return {
@@ -1457,101 +1458,6 @@ if (res.hasSignalProp) {
     // =========================
     // ODATA / MOCK
     // =========================
-/*     _reloadDataFromBackend: function (fnDone) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
-      var bMockS3 = !!mock.mockS3;
-
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
-      var oODataModel = this.getOwnerComponent().getModel();
-
-      function norm(v) { return String(v || "").trim().toUpperCase(); }
-      function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
-
-      if (bMockS3) {
-        BusyIndicator.show(0);
-
-        MockData.loadDataSetGeneric().then(function (aAll) {
-          BusyIndicator.hide();
-
-          var a = Array.isArray(aAll) ? aAll : [];
-          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-            a.forEach(function (r) { if (r) r.Stato = sForceStato; });
-            this._log("[MOCK] forceStato =", sForceStato);
-          }
-
-          this._log("[MOCK] loadDataSetGeneric OK", { rows: a.length, sample0: a[0] });
-          done(a);
-        }.bind(this)).catch(function (e) {
-          BusyIndicator.hide();
-          console.error("[S3] MOCK loadDataSetGeneric ERROR", e);
-          MessageToast.show("MOCK DataSet.json NON CARICATO: guarda Console + Network");
-          done([]);
-        });
-
-        return;
-      }
-
-      var sVendor2 = String(this._sVendorId || "").trim();
-      if (/^\d+$/.test(sVendor2) && sVendor2.length < 10) sVendor2 = ("0000000000" + sVendor2).slice(-10);
-
-      var sRouteMat = norm(this._sMaterial);
-
-      function buildMaterialVariants(routeMat) {
-        var set = {};
-        function add(x) { x = norm(x); if (x) set[x] = true; }
-        add(routeMat);
-        if (routeMat && routeMat.charAt(routeMat.length - 1) !== "S") add(routeMat + "S");
-        if (routeMat && routeMat.charAt(routeMat.length - 1) === "S") add(routeMat.slice(0, -1));
-        return Object.keys(set);
-      }
-
-      var aMatVariants = buildMaterialVariants(sRouteMat);
-      var sSeason = String(this._sSeason || "").trim(); 
-      
-
-      var aFilters = [
-        new Filter("UserID", FilterOperator.EQ, sUserId),
-        new Filter("Fornitore", FilterOperator.EQ, sVendor2),
-      ];
-
-      if (sSeason) {
-    aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
-}
-
-
-      if (aMatVariants.length) {
-        var aMatFilters = aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); });
-        aFilters.push(new Filter({ filters: aMatFilters, and: false }));
-      }
-
-      
-      BusyIndicator.show(0);
-      oODataModel.read("/DataSet", {
-        filters: aFilters,
-        urlParameters: { "sap-language": "IT" },
-        success: function (oData) {
-          BusyIndicator.hide();
-          var a = (oData && oData.results) || [];
-          if(oData){}
-
-          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-            a.forEach(function (r) { if (r) r.Stato = sForceStato; });
-            console.log("[Screen3] forceStato =", sForceStato);
-          }
-
-          done(a);
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("Errore lettura DataSet", oError);
-          MessageToast.show("Errore nel caricamento dei dati");
-          done([]);
-        }
-      });
-    }, */
-
     _reloadDataFromBackend: function (fnDone) {
   var oVm = this.getOwnerComponent().getModel("vm");
   var mock = (oVm && oVm.getProperty("/mock")) || {};
@@ -1943,117 +1849,7 @@ _readVendorBatchSet: function (sVendor10) {
       this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
     },
 
-/*     _rebuildColumnsHard: async function (oTbl, aCfg01) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
 
-      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-      aOld.slice().forEach(function (c) {
-        oTbl.removeColumn(c);
-        c.destroy();
-      });
-
-      // 1) NAV colonna 
-      oTbl.addColumn(new MdcColumn({
-        header: "Dettaglio",
-        visible: true,
-        width: "100px",
-        template: new Button({
-          icon: "sap-icon://enter-more",
-          type: "Transparent",
-          tooltip: "Apri dettagli",
-          press: this.onGoToScreen4FromRow.bind(this)
-        })
-      }));
-
-      // 2) STATO 
-      this._colStatoS3 = new MdcColumn({
-        width: "70px",
-        header: "Stato",
-        visible: true,
-        dataProperty: "Stato",
-        propertyKey: "Stato",
-        template: this._createStatusCellTemplate("Stato")
-      });
-      oTbl.addColumn(this._colStatoS3);
-
-      // 3) Colonne dinamiche MMCT
-      (aCfg01 || []).forEach(function (f) {
-        var sKeyRaw = String(f.ui || "").trim();
-        if (!sKeyRaw) return;
-
-        var bIsStato = (sKeyRaw.toUpperCase() === "STATO");
-        var sKey = bIsStato ? "Stato" : sKeyRaw;
-
-        var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
-
-        var sK = String(sKey || "").trim().toUpperCase();
-        if (sK === "STATO") {
-          if (this._colStatoS3) this._colStatoS3.setHeader(sHeader);
-          return;
-        }
-
-        oTbl.addColumn(new MdcColumn({
-          header: sHeader,
-          visible: true,
-          dataProperty: sKey,
-          propertyKey: sKey,
-          template: this._createCellTemplate(sKey, f)
-        }));
-
-      }.bind(this));
-
-      this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
-    }, */
-
-    
-/*     _rebuildColumnsHard: async function (oTbl, aCfg01) {
-    if (!oTbl) return;
-    if (oTbl.initialized) await oTbl.initialized();
-
-    var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-    aOld.slice().forEach(function (c) {
-        oTbl.removeColumn(c);
-        c.destroy();
-    });
-
-    // 1) NAV colonna 
-    oTbl.addColumn(new MdcColumn({
-        header: "Dettaglio",
-        width: "100px",
-        template: new Button({
-            icon: "sap-icon://enter-more",
-            type: "Transparent",
-            press: this.onGoToScreen4FromRow.bind(this)
-        })
-    }));
-
-    // 2) STATO
-    this._colStatoS3 = new MdcColumn({
-        width: "70px",
-        header: "Stato",
-        dataProperty: "Stato", // Usa solo dataProperty
-        template: this._createStatusCellTemplate("Stato")
-    });
-    oTbl.addColumn(this._colStatoS3);
-
-    // 3) Colonne dinamiche MMCT
-    (aCfg01 || []).forEach(function (f) {
-        var sKeyRaw = String(f.ui || "").trim();
-        if (!sKeyRaw || sKeyRaw.toUpperCase() === "STATO") return;
-
-        var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
-
-        oTbl.addColumn(new MdcColumn({
-            header: sHeader,
-            dataProperty: sKeyRaw, // Usa solo dataProperty
-            template: this._createCellTemplate(sKeyRaw, f)
-        }));
-
-        
-    }.bind(this));
-}, */
-    
 _rebuildColumnsHard: async function (oTbl, aCfg01) {
   if (!oTbl) return;
   if (oTbl.initialized) await oTbl.initialized();
@@ -2361,22 +2157,7 @@ _resetInlineHeaderControls: function () {
         function isDead(o) { return !o || o.bIsDestroyed; }
 
         // --- Sort Button (riuso) ---
-/*         var oSortBtn = this._inlineFS.sortBtns[sField];
-        if (!oSortBtn) {
-          oSortBtn = new Button({
-            type: "Transparent",
-            icon: "sap-icon://sort",
-            visible: "{ui>/showHeaderSort}",
-            press: this._onInlineColSortPress.bind(this)
-          });
-          oSortBtn.data("field", sField);
-          this._inlineFS.sortBtns[sField] = oSortBtn;
-        } else {
-          if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
-        }
- */
 
-        // --- Sort Button (riuso) ---
 var oSortBtn = this._inlineFS.sortBtns[sField];
 if (isDead(oSortBtn)) {
   try { oSortBtn && oSortBtn.destroy && oSortBtn.destroy(); } catch (e) {}

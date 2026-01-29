@@ -429,114 +429,6 @@ _getRequiredMapFromMmct: function () {
   return { req01: req01, req02: req02 };
 },
 
-/* _validateRequiredBeforePost: function () {
-  var oDetail = this.getView().getModel("detail");
-  var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
-
-  // ---- RAW cache (tutto il dataset, incl. dettagli) ----
-  var oVm = this._ensureVmCache();
-  var sCacheKey = this._getExportCacheKey(); // REAL|... / MOCK|...
-  var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
-  if (!Array.isArray(aRawAll)) aRawAll = [];
-
-  // ---- Screen4 cache per idx (quella che usi in _ensureScreen4CacheForParentIdx) ----
-  var sKSafe = this._getCacheKeySafe(); // vendor||material (encoded)
-  var mAllS4 = oVm.getProperty("/cache/screen4DetailsByKey") || {};
-  var mByIdx = (mAllS4 && mAllS4[sKSafe]) ? mAllS4[sKSafe] : {};
-
-  // mappa guid originale per idx (se l’hai popolata)
-  var mGuidByIdxAll = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
-  var mGuidByIdx = (mGuidByIdxAll && mGuidByIdxAll[sKSafe]) ? mGuidByIdxAll[sKSafe] : {};
-
-  var maps = this._getRequiredMapFromMmct();
-  var req01 = maps.req01; // Screen3/S01
-  var req02 = maps.req02; // Screen4/S02
-
-  var errors = [];
-
-  function pushErr(scope, guid, field, label) {
-    errors.push({
-      scope: scope,
-      guid: guid || "",
-      field: field || "",
-      label: label || field || ""
-    });
-  }
-
-  function uniqNonEmpty(arr) {
-    var seen = {};
-    return (arr || []).filter(function (x) {
-      x = String(x || "").trim();
-      if (!x) return false;
-      if (seen[x]) return false;
-      seen[x] = true;
-      return true;
-    });
-  }
-
-  aParents.forEach(function (p) {
-    if (!p) return;
-
-    // Escludo template CodAgg=N
-    if (this._getCodAgg(p) === "N") return;
-
-    var iIdx = (p.idx != null) ? String(p.idx) : "";
-
-    // GUID “stabile” del parent (NON dovresti mutare guidKey prima della validazione)
-    var gParent = this._toStableString(p.guidKey || p.GUID || p.Guid);
-
-    // --- required parent (Screen3 / S01)
-    Object.keys(req01).forEach(function (k) {
-      var meta = req01[k];
-      var v = p ? p[k] : undefined;
-      if (this._isEmptyRequiredValue(v)) {
-        pushErr("S3", gParent, k, meta.label || k);
-      }
-    }.bind(this));
-
-    // --- required details (Screen4 / S02)
-    // 1) Provo prima la cache Screen4 per idx (se esiste e ha righe)
-    var aDet = [];
-    var aDetByIdx = (iIdx && Array.isArray(mByIdx[iIdx])) ? mByIdx[iIdx] : null;
-    if (Array.isArray(aDetByIdx) && aDetByIdx.length) {
-      aDet = aDetByIdx;
-    } else {
-      // 2) Fallback: prendo righe raw dal dataset cache (match per GUID)
-      //    - includo anche eventuale guid “originale” da mappa idx->guid
-      var gByIdx = (iIdx && mGuidByIdx && mGuidByIdx[iIdx]) ? String(mGuidByIdx[iIdx]) : "";
-      var aCandidates = uniqNonEmpty([
-        gParent,
-        gByIdx,
-        p.Guid,
-        p.GUID
-      ]);
-
-      aDet = (aRawAll || []).filter(function (r) {
-        var ca = this._getCodAgg(r);
-        if (ca === "D") return false; // escluso delete
-        if (ca === "N") return false; // escluso template
-        var rg = this._rowGuidKey(r);
-        return aCandidates.indexOf(rg) >= 0;
-      }.bind(this));
-    }
-
-    // Se per qualche motivo non trovo dettagli, non invento errori: valido solo ciò che ho
-    (aDet || []).forEach(function (r) {
-      Object.keys(req02).forEach(function (k) {
-        var meta = req02[k];
-        var v = r ? r[k] : undefined;
-        if (this._isEmptyRequiredValue(v)) {
-          // GUID “di riferimento” per messaggio: meglio quello parent
-          pushErr("S4", gParent, k, meta.label || k);
-        }
-      }.bind(this));
-    }.bind(this));
-
-  }.bind(this));
-
-  return { ok: errors.length === 0, errors: errors };
-}, */
-
 
 _validateRequiredBeforePost: function () {
   var oDetail = this.getView().getModel("detail");
@@ -1907,33 +1799,16 @@ _rebuildColumnsHard: async function (oTbl, aCfg01) {
   }.bind(this));
 },
 _resetInlineHeaderControls: function () {
-  if (!this._inlineFS) {
-    this._inlineFS = { filters: {}, sort: { key: "", desc: false } };
-  }
-  if (!this._inlineFS.filters) this._inlineFS.filters = {};
-  if (!this._inlineFS.sort) this._inlineFS.sort = { key: "", desc: false };
-
-  ["sortBtns", "filterInputs", "headerTitles", "headerRows", "headerBoxes"].forEach(function (k) {
-    var m = this._inlineFS[k] || {};
-    Object.keys(m).forEach(function (key) {
-      try { m[key] && m[key].destroy && m[key].destroy(); } catch (e) {}
-    });
-    this._inlineFS[k] = {};
-  }.bind(this));
+  this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
+  MdcTableUtil.resetInlineHeaderControls(this._inlineFS);
 },
 
 // =========================
     // FILTER STATUS + TEXT + per-colonna + sort 
     // =========================
-    _getCustomDataValue: function (oCtrl, sKey) {
-      try {
-        var a = (oCtrl && oCtrl.getCustomData && oCtrl.getCustomData()) || [];
-        var cd = a.find(function (x) { return x && x.getKey && x.getKey() === sKey; });
-        return cd ? cd.getValue() : null;
-      } catch (e) {
-        return null;
-      }
-    },
+_getCustomDataValue: function (oCtrl, sKey) {
+  return MdcTableUtil.getCustomDataValue(oCtrl, sKey);
+},
 
     _applyClientFilters: function () {
       var oDetail = this.getView().getModel("detail");
@@ -2032,19 +1907,9 @@ _resetInlineHeaderControls: function () {
       return MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
     },
 
-    _refreshInlineSortIcons: function () {
-      var st2 = (this._inlineFS && this._inlineFS.sort) || { key: "", desc: false };
-      var mBtns = (this._inlineFS && this._inlineFS.sortBtns) || {};
-      Object.keys(mBtns).forEach(function (k) {
-        var b = mBtns[k];
-        if (!b || !b.setIcon) return;
-        if (!st2.key || st2.key !== k) {
-          b.setIcon("sap-icon://sort");
-        } else {
-          b.setIcon(st2.desc ? "sap-icon://sort-descending" : "sap-icon://sort-ascending");
-        }
-      });
-    },
+_refreshInlineSortIcons: function () {
+  MdcTableUtil.refreshInlineSortIcons(this._inlineFS);
+},
 
     _onInlineColFilterLiveChange: function (oEvt) {
       var oInput = oEvt.getSource();
@@ -2082,157 +1947,17 @@ _resetInlineHeaderControls: function () {
       this._applyClientFilters();
     },
 
-    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
-      if (!oMdcTbl) return;
-      if (oMdcTbl.initialized) await oMdcTbl.initialized();
+_applyInlineHeaderFilterSort: async function (oMdcTbl) {
+  // allinea callback (così i controlli riusati chiamano sempre l’ultima funzione)
+  this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
 
-      var oInner = this._getInnerTableFromMdc(oMdcTbl);
-      if (!oInner || typeof oInner.getColumns !== "function") {
-        this._log("InlineFS: inner table non trovata o non compatibile");
-        return;
-      }
-
-      var aMdcCols = (oMdcTbl.getColumns && oMdcTbl.getColumns()) || [];
-      var aInnerCols = oInner.getColumns() || [];
-
-      function normInnerKey(col) {
-        var k = "";
-        try {
-          if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
-          if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
-        } catch (e) { }
-
-        k = String(k || "").trim();
-        if (k.indexOf(">") >= 0) k = k.split(">").pop(); 
-        return String(k || "").trim();
-      }
-
-      var mInnerByKey = {};
-      aInnerCols.forEach(function (c) {
-        var k = normInnerKey(c);
-        if (!k) return;
-        mInnerByKey[k] = c;
-        mInnerByKey[k.toUpperCase()] = c;
-      });
-
-      if (!this._inlineFS) {
-        this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
-      }
-      if (!this._inlineFS.sortBtns) this._inlineFS.sortBtns = {};
-      if (!this._inlineFS.filterInputs) this._inlineFS.filterInputs = {};
-      if (!this._inlineFS.headerTitles) this._inlineFS.headerTitles = {};
-      if (!this._inlineFS.headerRows) this._inlineFS.headerRows = {};
-      if (!this._inlineFS.headerBoxes) this._inlineFS.headerBoxes = {};
-
-      var oUiModel = this.getView().getModel("ui");
-
-      function fallbackInnerByIndex(iMdc) {
-        var col = aInnerCols[iMdc] || null;
-        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
-
-        col = aInnerCols[iMdc + 1] || null;
-        if (col && (typeof col.setLabel === "function" || typeof col.setHeader === "function")) return col;
-
-        return null;
-      }
-
-      for (var i = 0; i < aMdcCols.length; i++) {
-        var mdcCol = aMdcCols[i];
-
-        var sField =
-          (mdcCol && (
-            (typeof mdcCol.getPropertyKey === "function" && mdcCol.getPropertyKey()) ||
-            (typeof mdcCol.getDataProperty === "function" && mdcCol.getDataProperty())
-          )) || "";
-
-        sField = String(sField || "").trim();
-        if (!sField) continue; 
-
-        var sHeader = (typeof mdcCol.getHeader === "function" && mdcCol.getHeader()) || sField;
-
-        var innerCol = mInnerByKey[sField] || mInnerByKey[sField.toUpperCase()] || null;
-        if (!innerCol) innerCol = fallbackInnerByIndex(i);
-
-        if (!innerCol) continue;
-        function isDead(o) { return !o || o.bIsDestroyed; }
-
-        // --- Sort Button (riuso) ---
-
-var oSortBtn = this._inlineFS.sortBtns[sField];
-if (isDead(oSortBtn)) {
-  try { oSortBtn && oSortBtn.destroy && oSortBtn.destroy(); } catch (e) {}
-  oSortBtn = null;
-  delete this._inlineFS.sortBtns[sField];
-}
-if (!oSortBtn) {
-  oSortBtn = new Button({
-    type: "Transparent",
-    icon: "sap-icon://sort",
-    visible: "{ui>/showHeaderSort}",
-    press: this._onInlineColSortPress.bind(this)
+  return MdcTableUtil.applyInlineHeaderFilterSort(oMdcTbl, {
+    view: this.getView(),
+    inlineFS: this._inlineFS,
+    applyClientFilters: this._applyClientFilters.bind(this),
+    log: this._log.bind(this)
   });
-  oSortBtn.data("field", sField);
-  this._inlineFS.sortBtns[sField] = oSortBtn;
-} else {
-  if (oSortBtn.bindProperty) oSortBtn.bindProperty("visible", "ui>/showHeaderSort");
-}
-        // --- Filter Input ---
-        var oInp = this._inlineFS.filterInputs[sField];
-        if (!oInp) {
-          oInp = new Input({
-            width: "100%",
-            placeholder: "Filtra...",
-            visible: "{ui>/showHeaderFilters}",
-            liveChange: this._onInlineColFilterLiveChange.bind(this)
-          });
-          oInp.data("field", sField);
-          this._inlineFS.filterInputs[sField] = oInp;
-        } else {
-          if (oInp.bindProperty) oInp.bindProperty("visible", "ui>/showHeaderFilters");
-        }
-
-        var wantedVal = String((this._inlineFS.filters && this._inlineFS.filters[sField]) || "");
-        if (oInp.getValue && oInp.getValue() !== wantedVal) oInp.setValue(wantedVal);
-
-        // --- Title ---
-        var oTitle = this._inlineFS.headerTitles[sField];
-        if (!oTitle) {
-          oTitle = new Text({ text: (typeof sHeader === "string" ? sHeader : sField), wrapping: false });
-          this._inlineFS.headerTitles[sField] = oTitle;
-        } else if (oTitle.setText) {
-          oTitle.setText(typeof sHeader === "string" ? sHeader : sField);
-        }
-
-        // --- Header row + box ---
-        var oH = this._inlineFS.headerRows[sField];
-        if (!oH) {
-          oH = new HBox({
-            justifyContent: "SpaceBetween",
-            alignItems: "Center",
-            items: [oTitle, oSortBtn]
-          });
-          this._inlineFS.headerRows[sField] = oH;
-        }
-
-        var oV = this._inlineFS.headerBoxes[sField];
-        if (!oV) {
-          oV = new VBox({ items: [oH, oInp] });
-          this._inlineFS.headerBoxes[sField] = oV;
-        }
-
-        // assicuro che veda il model "ui"
-        if (oUiModel) oV.setModel(oUiModel, "ui");
-
-        // GridTable (sap.ui.table.Column) -> setLabel
-        // ResponsiveTable (sap.m.Column)  -> setHeader
-        MdcTableUtil.setInnerColumnHeader(innerCol, oV);
-
-        if (innerCol.data) innerCol.data("__inlineFS", true);
-      }
-
-      this._refreshInlineSortIcons();
-      this._setInnerHeaderHeight(oMdcTbl);
-    },
+},
     
 
     _bindRecords: async function (aRecords) {
@@ -2971,114 +2696,20 @@ aSel.forEach(function (p) {
     /* ===========================
      * Helpers selezione MDC
      * =========================== */
-    _getSelectedParentObjectsFromMdc: function () {
-      var oMdc = this.byId(this.PARENT_TABLE_ID);
-      var aObj = [];
+_getSelectedParentObjectsFromMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+  return MdcTableUtil.getSelectedObjectsFromMdc(oMdc, "detail");
+},
 
-      // 1) MDC Table (se disponibile)
-      try {
-        if (oMdc && typeof oMdc.getSelectedContexts === "function") {
-          var aCtx = oMdc.getSelectedContexts() || [];
-          aCtx.forEach(function (c) {
-            var o = c && c.getObject && c.getObject();
-            if (o) aObj.push(o);
-          });
-          if (aObj.length) return aObj;
-        }
-      } catch (e) { }
+_clearSelectionMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+  MdcTableUtil.clearSelectionMdc(oMdc);
+},
 
-      // 2) Inner table fallback
-      var oInner = this._getInnerTableFromMdc(oMdc);
-
-      // sap.ui.table.Table
-      try {
-        if (oInner && typeof oInner.getSelectedIndices === "function" && typeof oInner.getContextByIndex === "function") {
-          var aIdx = oInner.getSelectedIndices() || [];
-          aIdx.forEach(function (i) {
-            var c = oInner.getContextByIndex(i);
-            var o = c && c.getObject && c.getObject();
-            if (o) aObj.push(o);
-          });
-          if (aObj.length) return aObj;
-        }
-      } catch (e2) { }
-
-      // sap.m.Table / ListBase
-      try {
-        if (oInner && typeof oInner.getSelectedItems === "function") {
-          var aItems = oInner.getSelectedItems() || [];
-          aItems.forEach(function (it) {
-            var c = it && it.getBindingContext && (it.getBindingContext("detail") || it.getBindingContext());
-            var o = c && c.getObject && c.getObject();
-            if (o) aObj.push(o);
-          });
-          if (aObj.length) return aObj;
-        }
-      } catch (e3) { }
-
-      // single selection fallback
-      try {
-        if (oInner && typeof oInner.getSelectedItem === "function") {
-          var it2 = oInner.getSelectedItem();
-          if (it2) {
-            var c2 = it2.getBindingContext && (it2.getBindingContext("detail") || it2.getBindingContext());
-            var o2 = c2 && c2.getObject && c2.getObject();
-            if (o2) aObj.push(o2);
-          }
-        }
-      } catch (e4) { }
-
-      return aObj;
-    },
-
-    _clearSelectionMdc: function () {
-      var oMdc = this.byId(this.PARENT_TABLE_ID);
-
-      try {
-        if (oMdc && typeof oMdc.clearSelection === "function") {
-          oMdc.clearSelection();
-          return;
-        }
-      } catch (e) { }
-
-      var oInner = this._getInnerTableFromMdc(oMdc);
-
-      try {
-        if (oInner && typeof oInner.clearSelection === "function") {
-          oInner.clearSelection();
-          return;
-        }
-      } catch (e2) { }
-
-      try {
-        if (oInner && typeof oInner.removeSelections === "function") {
-          oInner.removeSelections(true);
-          return;
-        }
-      } catch (e3) { }
-    },
-
-    _selectFirstRowMdc: function () {
-      var oMdc = this.byId(this.PARENT_TABLE_ID);
-      var oInner = this._getInnerTableFromMdc(oMdc);
-
-      // sap.ui.table.Table
-      try {
-        if (oInner && typeof oInner.setSelectedIndex === "function") {
-          oInner.setSelectedIndex(0);
-          return;
-        }
-      } catch (e) { }
-
-      // sap.m.Table / ListBase
-      try {
-        if (oInner && typeof oInner.getItems === "function" && typeof oInner.setSelectedItem === "function") {
-          var it = (oInner.getItems() || [])[0];
-          if (it) oInner.setSelectedItem(it, true);
-          return;
-        }
-      } catch (e2) { }
-    },
+_selectFirstRowMdc: function () {
+  var oMdc = this.byId(this.PARENT_TABLE_ID);
+  MdcTableUtil.selectFirstRowMdc(oMdc);
+},
 
     /* ===========================
      * Legame Screen3 -> Screen4 (cache + selected parent)

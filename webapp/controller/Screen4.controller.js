@@ -148,7 +148,10 @@ sap.ui.define([
       } catch (e) {  }
     },
 
-    
+_markSkipS3BackendOnce: function () {
+  var oVm = this._ensureVmCache();
+  oVm.setProperty("/__skipS3BackendOnce", true);
+},
 _log: function () {
   var a = Array.prototype.slice.call(arguments);
   a.unshift("[S4] " + Common.ts());
@@ -2170,6 +2173,7 @@ if (oMdc && typeof oMdc.initialized === "function") {
 },
 
     onNavBack: function () {
+      this._markSkipS3BackendOnce();
       var oHistory = History.getInstance();
       var sPreviousHash = oHistory.getPreviousHash();
 

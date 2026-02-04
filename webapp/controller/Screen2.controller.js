@@ -332,7 +332,7 @@ function buildRow(m) {
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
-          debugger
+          
           
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
@@ -416,7 +416,7 @@ function buildRow(m) {
       var oItem = oEvent.getSource().getSelectedItem();
       var oCtx = oItem.getBindingContext();
 
-      debugger
+      
       var sSeason = oCtx.getProperty("Stagione")
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
@@ -447,7 +447,7 @@ cache.recordsByKey[k] = {
       }
       /* QUA INSERIRE */
       
-      debugger
+      
       this.getOwnerComponent().getRouter().navTo("Screen3", {
         vendorId: encodeURIComponent(this._sVendorId),
         material: encodeURIComponent(sMaterial),

@@ -81,6 +81,7 @@ sap.ui.define([
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
 
     onInit: function () {
+
       this._log("onInit");
 
       var oRouter = this.getOwnerComponent().getRouter();
@@ -982,7 +983,7 @@ _hookDirtyOnEdit: function (oCtrl) {
       return !!(mock && mock.mockS3);
     },
 
-    _loadDataOnce: function () {
+/*     _loadDataOnce: function () {
       var oVm = this._ensureVmCache();
       var sBaseKey = this._getCacheKeySafe();
 
@@ -998,7 +999,7 @@ _hookDirtyOnEdit: function (oCtrl) {
         cachedRecs: aRecs ? aRecs.length : null
       });
 
-      if (Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length) {
+if (Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length) {
         this._hydrateMmctFromRows(aRows);
         this._formatIncomingRowsMultiSeparators(aRows);
 
@@ -1052,7 +1053,82 @@ if (res.hasSignalProp) {
 
         this._bindRecords(aRecordsBuilt);
       }.bind(this));
-    },
+    }, */
+    
+_loadDataOnce: function () {
+  var oVm = this._ensureVmCache();
+  var sBaseKey = this._getCacheKeySafe();
+
+  var bMockS3 = this._isMockS3Enabled();
+  var sKey = (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
+
+  var aRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
+  var aRecs = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
+
+  var bSkipBackendOnce = !!oVm.getProperty("/__skipS3BackendOnce");
+  if (bSkipBackendOnce) {
+    oVm.setProperty("/__skipS3BackendOnce", false); 
+  }
+
+  var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
+
+  // --- mostra cache subito (come già fai) ---
+  if (bHasCache) {
+    try {
+      this._hydrateMmctFromRows(aRows);
+      this._formatIncomingRowsMultiSeparators(aRows);
+      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
+
+      var mTplGuid = {};
+      (aRows || []).forEach(function (r) {
+        if (this._getCodAgg(r) === "N") mTplGuid[this._rowGuidKey(r)] = true;
+      }.bind(this));
+
+      aRecs = (aRecs || []).filter(function (rec) {
+        var g = this._toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid));
+        return !mTplGuid[g];
+      }.bind(this));
+      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
+
+      var oDetailC = this.getView().getModel("detail");
+      var resC = this._computeOpenOdaFromRows(aRows);
+      if (resC.hasSignalProp) oDetailC.setProperty("/OpenOda", resC.flag);
+
+      this._bindRecords(aRecs);
+    } catch (e) {
+      console.warn("[S3] cache bind failed", e);
+    }
+  }
+
+  // ✅ SE SONO TORNATO DA SCREEN4 E HO CACHE, STOP: niente OData
+  if (bSkipBackendOnce && bHasCache) {
+    this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey });
+    return;
+  }
+
+  // --- altrimenti: fai stale-while-revalidate come prima ---
+  this._loadToken = (this._loadToken || 0) + 1;
+  var iToken = this._loadToken;
+
+  this._reloadDataFromBackend(function (aResults) {
+    if (iToken !== this._loadToken) return;
+
+    this._hydrateMmctFromRows(aResults);
+    this._formatIncomingRowsMultiSeparators(aResults);
+
+    var oDetail = this.getView().getModel("detail");
+    var res = this._computeOpenOdaFromRows(aResults);
+    if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
+
+    var aRecordsBuilt = this._buildRecords01(aResults);
+
+    oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+    oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+
+    this._bindRecords(aRecordsBuilt);
+  }.bind(this));
+},
+
 
     // =========================
     // MMCT -> colonne (delegate su util)
@@ -1131,6 +1207,63 @@ if (res.hasSignalProp) {
   }
 
   return aFilters;
+},
+
+// Nel controller Screen3, dopo _snapshotRecords
+
+_hasUnsavedChanges: function () {
+  debugger
+  var oDetail = this.getView().getModel("detail");
+  var aCurrent = oDetail.getProperty("/RecordsAll") || [];
+  var aSnapshot = this._snapshotRecords || [];
+
+  aSnapshot = aSnapshot.map(obj => {
+  // Trasformiamo l'oggetto in un array di coppie [chiave, valore]
+  const cleanEntries = Object.entries(obj).map(([key, value]) => {
+    // Se il valore è un array, rimuoviamo i duplicati
+    if (Array.isArray(value)) {
+      return [key, [...new Set(value)]];
+    }
+    // Altrimenti lo lasciamo invariato
+    return [key, value];
+  });
+
+  // Ricostruiamo l'oggetto dalle coppie pulite
+  return Object.fromEntries(cleanEntries);
+});
+
+  // Se non ho snapshot, non ci sono modifiche
+  if (!aSnapshot || !aSnapshot.length) return false;
+
+  // Controllo lunghezza (righe aggiunte/eliminate)
+  if (aCurrent.length !== aSnapshot.length) return true;
+
+  // Confronto ogni riga (modifiche)
+  return aCurrent.some(function (rCurr, i) {
+    var rSnap = aSnapshot[i];
+    if (!rSnap) return true;
+
+    // Confronto solo campi business (escludo __* e idx)
+    return Object.keys(rCurr).some(function (k) {
+      if (k.indexOf("__") === 0) return false; // skip meta
+      if (k === "idx" || k === "guidKey" || k === "StatoText") return false;
+
+      var vCurr = rCurr[k];
+      var vSnap = rSnap[k];
+
+      // Gestione array (campi multipli)
+      if (Array.isArray(vCurr) && Array.isArray(vSnap)) {
+        if (vCurr.length !== vSnap.length) return true;
+        return vCurr.some(function (v, j) { return v !== vSnap[j]; });
+      }
+
+      if(vCurr !== vSnap){
+        debugger
+      }
+
+      return vCurr !== vSnap;
+    });
+  });
 },
 
 
@@ -1276,7 +1409,7 @@ if (res.hasSignalProp) {
       filters: aCommonFilters,
       urlParameters: { "sap-language": "IT" },
       success: function (oData) {
-        debugger
+        
         resolve((oData && oData.results) || []);
       },
       error: reject
@@ -3034,7 +3167,7 @@ onSave: function () {
   
   /* LOGICA CHE SE PER UN RECORD IL CODAGG è U <- rende U tutti gli altri record con stesso Guid */
 var mGuidHasU = Object.create(null);
-debugger
+
 (aLines || []).forEach(function (line) {
   var g = this._toStableString(line && line.Guid); // aLines ha già Guid "canonico"
   if (!g) return;
@@ -3146,7 +3279,7 @@ this._refreshAfterPost(oData);
 
 },
 
-_refreshAfterPost: function (oPostData) {
+/* _refreshAfterPost: function (oPostData) {
   // 1) LOG risultato POST (quello che chiedi)
   console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
 
@@ -3178,16 +3311,46 @@ _refreshAfterPost: function (oPostData) {
       });
     }.bind(this));
   }.bind(this));
+}, */
+
+_refreshAfterPost: function (oPostData) {
+  console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
+
+  return new Promise(function (resolve) {
+    this._reloadDataFromBackend(function (aResults) {
+      this._hydrateMmctFromRows(aResults);
+      this._formatIncomingRowsMultiSeparators(aResults);
+
+      var oDetail = this.getView().getModel("detail");
+      var res = this._computeOpenOdaFromRows(aResults);
+      if (res.hasSignalProp) {
+        oDetail.setProperty("/OpenOda", res.flag);
+      }
+
+      var aRecordsBuilt = this._buildRecords01(aResults);
+
+      var oVm = this._ensureVmCache();
+      var sKey = this._getExportCacheKey();
+      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+
+      Promise.resolve(this._bindRecords(aRecordsBuilt)).then(function () {
+        // >>> AGGIORNA SNAPSHOT DOPO SALVATAGGIO <
+        this._snapshotRecords = deepClone(aRecordsBuilt);
+        
+        console.log("[S3] REFRESH DONE (rows from backend):", aResults.length);
+        resolve(aResults);
+      }.bind(this));
+    }.bind(this));
+  }.bind(this));
 },
-
-
 
 
 
     // =========================
     // NavBack
     // =========================
-    onNavBack: function () {
+/*     onNavBack: function () {
       var oHistory = History.getInstance();
       var sPreviousHash = oHistory.getPreviousHash();
       if (sPreviousHash !== undefined) window.history.go(-1);
@@ -3197,7 +3360,39 @@ _refreshAfterPost: function (oPostData) {
           mode: this._sMode || "A"
         }, true);
       }
-    }
+    } */
+   onNavBack: function () {
+  // Controlla se ci sono modifiche non salvate
+  if (this._hasUnsavedChanges()) {
+    MessageBox.warning(
+      "Hai modificato i dati. Sei sicuro di voler uscire senza salvare?",
+      {
+        title: "Modifiche non salvate",
+        actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+        emphasizedAction: MessageBox.Action.CANCEL,
+        onClose: function (sAction) {
+          if (sAction === MessageBox.Action.OK) {
+            this._performNavBack();
+          }
+        }.bind(this)
+      }
+    );
+  } else {
+    this._performNavBack();
+  }
+},
+
+_performNavBack: function () {
+  var oHistory = History.getInstance();
+  var sPreviousHash = oHistory.getPreviousHash();
+  if (sPreviousHash !== undefined) window.history.go(-1);
+  else {
+    this.getOwnerComponent().getRouter().navTo("Screen2", {
+      vendorId: encodeURIComponent(this._sVendorId),
+      mode: this._sMode || "A"
+    }, true);
+  }
+},
 
   });
 

@@ -5,9 +5,10 @@
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
   xmlns:mdc="sap.ui.mdc"
-  xmlns:mdctable="sap.ui.mdc.table">
+  xmlns:mdctable="sap.ui.mdc.table"
+  displayBlock="true">
 
-  <Page id="page3" title="Tracciabilità">
+  <Page id="page3" title="Tracciabilità" enableScrolling="false" class="sapUiFullHeight">
 
     <customHeader>
       <Toolbar id="toolbar3">
@@ -28,22 +29,8 @@
       </Toolbar>
     </customHeader>
 
-       <HBox id="hboxOda">
-                <Label id="labelOpenODA" text="ODA aperti:" class="sapUiTinyMarginEnd"/>
-
-<core:Icon
-  id="iconOpenOda3"
-  class="sapUiTinyMarginEnd"
-  src="{= ${detail>/OpenOda} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
-  color="{= ${detail>/OpenOda} === 'X' ? 'green' : 'red' }"
-  tooltip="{= ${detail>/OpenOda} === 'X' ? 'Esistono ODA aperti' : 'Nessun ODA aperto' }" />
-          </HBox>
-
-
     <subHeader>
-      <!-- Testata dinamica (Screen3) -->
       <OverflowToolbar id="toolbarInfo3" design="Transparent">
-
 
         <HBox
           id="hdr3Dynamic"
@@ -55,18 +42,10 @@
           items="{detail>/Header3Fields}">
 
           <items>
-            <HBox
-              id="hdr3PairTmpl"
-              class="hdrDynPair "
-              >
-
-              <HBox
-                id="hdr3LblBoxTmpl"
-                >
-
+            <HBox id="hdr3PairTmpl" class="hdrDynPair ">
+              <HBox id="hdr3LblBoxTmpl">
                 <Label id="hdr3LblTmpl" text="{detail>label}:" design="Bold"/>
               </HBox>
-
               <Text id="hdr3ValTmpl" text="{detail>value}" class="hdrDynVal"/>
             </HBox>
           </items>
@@ -77,140 +56,101 @@
     </subHeader>
 
     <content>
-      <VBox id="box3" width="100%">
+      <!-- wrapper full-height: la tabella si prende lo spazio residuo -->
+     <!--  <VBox id="screen3MainVBox" width="100%" height="100%" fitContainer="true" class="sapUiFullHeight"> -->
 
-        <!-- Toolbar: filtri stato + filtro testuale + bottoni -->
-        <HBox
-          id="hboxToolbarTable3"
-          width="100%"
-          justifyContent="End"
-          alignItems="Center"
-          class="sapUiTinyMargin alignTableButton">
+        <HBox id="hboxOda">
+          <Label id="labelOpenODA" text="ODA aperti:" class="sapUiTinyMarginEnd"/>
+          <core:Icon
+            id="iconOpenOda3"
+            class="sapUiTinyMarginEnd"
+            src="{= ${detail>/OpenOda} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
+            color="{= ${detail>/OpenOda} === 'X' ? 'green' : 'red' }"
+            tooltip="{= ${detail>/OpenOda} === 'X' ? 'Esistono ODA aperti' : 'Nessun ODA aperto' }" />
+        </HBox>
 
-          <HBox id="hboxToolbarTable3-1" class="left20">
+  <!--       <VBox id="box3" width="100%"> -->
 
-            <!-- FILTRI STATO (TUTTI / ST / AP / RJ / CH) -->
-            <HBox id="hboxStatusFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
-              <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd"/>
+          <HBox
+            id="hboxToolbarTable3"
+            width="100%"
+            justifyContent="End"
+            alignItems="Center"
+            class="sapUiTinyMargin alignTableButton">
 
-              <ObjectStatus
-                id="stAll3"
-                text="TUTTI"
-                icon="sap-icon://filter"
-                state="None"
-                active="true"
-                press=".onStatusFilterPress"
-                class="sapUiTinyMarginEnd">
-                <customData>
-                  <core:CustomData id="cdStAll3" key="status" value=""/>
-                </customData>
-              </ObjectStatus>
+            <HBox id="hboxToolbarTable3-1" class="left20">
 
-              <ObjectStatus
-                id="stST3"
-                text="In attesa"
-                icon="sap-icon://circle-task"
-                state="Warning"
-                active="true"
-                press=".onStatusFilterPress"
-                class="sapUiTinyMarginEnd">
-                <customData>
-                  <core:CustomData id="cdStST3" key="status" value="ST"/>
-                </customData>
-              </ObjectStatus>
+              <HBox id="hboxStatusFilter3" class="sapUiTinyMarginEnd left20" alignItems="Center">
+                <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd"/>
 
-              <ObjectStatus
-                id="stAP3"
-                text="Approvato"
-                icon="sap-icon://circle-task"
-                state="Success"
-                active="true"
-                press=".onStatusFilterPress"
-                class="sapUiTinyMarginEnd">
-                <customData>
-                  <core:CustomData id="cdStAP3" key="status" value="AP"/>
-                </customData>
-              </ObjectStatus>
+                <ObjectStatus id="stAll3" text="TUTTI" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="sapUiTinyMarginEnd">
+                  <customData>
+                    <core:CustomData id="cdStAll3" key="status" value=""/>
+                  </customData>
+                </ObjectStatus>
 
-              <ObjectStatus
-                id="stRJ3"
-                text="Respinto"
-                icon="sap-icon://circle-task"
-                state="Error"
-                active="true"
-                press=".onStatusFilterPress"
-                class="sapUiTinyMarginEnd">
-                <customData>
-                  <core:CustomData id="cdStRJ3" key="status" value="RJ"/>
-                </customData>
-              </ObjectStatus>
+                <ObjectStatus id="stST3" text="In attesa" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="sapUiTinyMarginEnd">
+                  <customData>
+                    <core:CustomData id="cdStST3" key="status" value="ST"/>
+                  </customData>
+                </ObjectStatus>
 
-              <ObjectStatus
-                id="stCH3"
-                text="Modificato"
-                icon="sap-icon://circle-task"
-                state="Information"
-                active="true"
-                press=".onStatusFilterPress">
-                <customData>
-                  <core:CustomData id="cdStCH3" key="status" value="CH"/>
-                </customData>
-              </ObjectStatus>
+                <ObjectStatus id="stAP3" text="Approvato" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="sapUiTinyMarginEnd">
+                  <customData>
+                    <core:CustomData id="cdStAP3" key="status" value="AP"/>
+                  </customData>
+                </ObjectStatus>
+
+                <ObjectStatus id="stRJ3" text="Respinto" icon="sap-icon://circle-task" state="Error" active="true" press=".onStatusFilterPress" class="sapUiTinyMarginEnd">
+                  <customData>
+                    <core:CustomData id="cdStRJ3" key="status" value="RJ"/>
+                  </customData>
+                </ObjectStatus>
+
+                <ObjectStatus id="stCH3" text="Modificato" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress">
+                  <customData>
+                    <core:CustomData id="cdStCH3" key="status" value="CH"/>
+                  </customData>
+                </ObjectStatus>
+              </HBox>
+
+              <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
+                <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
+                <Input id="inputFilter3" width="22rem" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi"/>
+
+                <Button id="btnColFilters5" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters"/>
+                <Button id="btnSort5" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort"/>
+                <Button id="btnResetFS5" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort"/>
+              </HBox>
+
             </HBox>
 
-            <!-- FILTRO TESTUALE -->
-            <HBox id="hboxFilter3" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
-              <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd"/>
-              <Input
-                id="inputFilter3"
-                width="22rem"
-                liveChange=".onGlobalFilter"
-                placeholder="Filtro testuale su tutti i campi"/>
+            <Toolbar id="tblToolbar3" design="Transparent">
+              <ToolbarSpacer id="footerToolbar532"/>
 
-              <Button id="btnColFilters5" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters"/>
-              <Button id="btnSort5" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort"/>
-              <Button id="btnResetFS5" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort"/>
-            </HBox>
+              <Button id="btnAddRow01" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow"/>
+              <Button id="btnDeleteRows01" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows"/>
+
+              <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
+              <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
+            </Toolbar>
 
           </HBox>
 
-          <!-- BOTTONI: print/excel (NO dialog) -->
-          <Toolbar id="tblToolbar3" design="Transparent">
-            <ToolbarSpacer id="footerToolbar532"/>
-
-            <Button
-              id="btnAddRow01"
-              text="Aggiungi riga"
-              type="Emphasized"
-              icon="sap-icon://add"
-              enabled="{detail>/__canAddRow}"
-              press=".onAddRow"/>
-
-            <Button
-              id="btnDeleteRows01"
-              text="Elimina righe"
-              type="Negative"
-              icon="sap-icon://delete"
-              enabled="{detail>/__canAddRow}"
-              press=".onDeleteRows"/>
-
-            <Button id="tbPrint3" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
-            <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
-          </Toolbar>
-
-        </HBox>
+      <!--   </VBox> -->
 
         <mdc:Table
           id="mdcTable3"
           type="Table"
           width="100%"
+          height="100%"
           selectionMode="Multi"
           p13nMode="Column"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>
           <!-- colonne create in controller -->
         </mdc:Table>
 
-      </VBox>
+ <!--      </VBox> -->
     </content>
 
     <footer>

@@ -310,7 +310,7 @@ sap.ui.define([
               "sap-language": "IT"
             },
             success: function (oData) {
-              debugger
+              
               BusyIndicator.hide();
 
               if (!oData) {
@@ -338,7 +338,7 @@ sap.ui.define([
                 return acc;
               }, {});
 
-              debugger
+              
 
               // === raccogli tutti i fields MMCT in una lista unica ===
               var aAllFields = aMMCT.reduce(function (acc, cat) {

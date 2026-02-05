@@ -32,7 +32,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/mmctUtil",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil",
-  "apptracciabilita/apptracciabilita/util/cellTemplateUtil"
+  "apptracciabilita/apptracciabilita/util/cellTemplateUtil" /*  */
 ], function (
   Controller,
   History,

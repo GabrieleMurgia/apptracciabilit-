@@ -83,6 +83,9 @@
                     <Column id="columnOpenPo1">
                         <Text id="textColumnOpenPo1" text="Aperti" />
                     </Column>
+                    <Column id="columnToUnlock1" hAlign="Center">
+                    <Text id="textColumnToUnlock1" text="Da sbloccare" />
+                    </Column>
                     <Column id="columnRejected1">
                         <Text id="textColumnRejected1" text="Rifiutati" />
                     </Column>
@@ -102,10 +105,19 @@
                                 title="{vm>ReagSoc}"
                                 text="{vm>Fornitore}" />
 
-                            <ObjectNumber
-                                id="objectNumberOpenPo1"
-                                number="{vm>Open}" />
+<core:Icon
+  id="iconOpen1"
+  src="{= ${vm>Open} === 'X' ? 'sap-icon://open-folder' : 'sap-icon://folder' }"
+  tooltip="{= ${vm>Open} === 'X' ? 'Aperti' : 'Nessun aperto' }" />
 
+<ObjectStatus
+  id="statusToUnlock1"
+  icon="sap-icon://locked"
+  text="{vm>ToUnlock}"
+  state="Warning"
+  />
+
+  
                             <ObjectNumber
                                 id="objectNumberRejected1"
                                 number="{vm>Rejected}"

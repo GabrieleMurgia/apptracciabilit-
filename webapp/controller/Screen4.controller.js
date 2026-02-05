@@ -113,6 +113,25 @@ sap.ui.define([
     onOpenSort: function () {
       this.onToggleHeaderSort();
     },
+
+    _dedupeCfgByUi: function (aCfg, opts) {
+  opts = opts || {};
+  var ignoreCase = opts.ignoreCase !== false; // default true
+  var skip = opts.skip || {};                 // es: { "STATO": true }
+
+  var seen = Object.create(null);
+  return (aCfg || []).filter(function (f) {
+    var ui = String(f && f.ui || "").trim();
+    if (!ui) return false;
+
+    var k = ignoreCase ? ui.toUpperCase() : ui;
+    if (skip[k]) return false;
+
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+},
 /*     onToggleHeaderSort: function () {
       var oUi = this.getView().getModel("ui");
       if (!oUi) return;
@@ -371,7 +390,7 @@ _hookDirtyOnEdit: function (oCtrl) {
   var fn = function (oEvt) {
     this._markDirty();
 
-    // ✅ usa il CONTROLLO che ha generato l’evento (clone), non il template
+    //  usa il CONTROLLO che ha generato l’evento (clone), non il template
     var src = (oEvt && oEvt.getSource) ? oEvt.getSource() : oCtrl;
 
     var ctx = (src.getBindingContext && (src.getBindingContext("detail") || src.getBindingContext())) || null;
@@ -382,7 +401,7 @@ _hookDirtyOnEdit: function (oCtrl) {
     this._touchCodAggRow(row);
     var after = this._getCodAgg(row);
 
-    // ✅ importante con JSONModel: se vuoi propagare CodAgg ai binding, usa setProperty
+    //  importante con JSONModel: se vuoi propagare CodAgg ai binding, usa setProperty
     if (before !== after && ctx.getPath) {
       this.getView().getModel("detail").setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
     }
@@ -916,12 +935,18 @@ if (!sCat) {
 var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
 
 // ===== HEADER DINAMICA SCREEN4 (Livello 00 + Testata2) =====
-var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
+/* var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
 var aHdr4 = (a00All || []).filter(function (f) { return !!(f && f.testata2); });
 
 // salvo in detail
 oDetail.setProperty("/_mmct/s00", a00All);
-oDetail.setProperty("/_mmct/hdr4", aHdr4);
+oDetail.setProperty("/_mmct/hdr4", aHdr4); */
+
+var oHdr = this._buildHeader4FromMmct00(sCat);
+
+// salvo in detail (hdr4 già deduplicata)
+oDetail.setProperty("/_mmct/s00", oHdr.s00);
+oDetail.setProperty("/_mmct/hdr4", oHdr.hdr4);
 
 
 oDetail.setProperty("/_mmct/rec", oRec || oSel || {});
@@ -965,7 +990,7 @@ if (sCat) {
     if (!k) return;
 
     if (f.multiple) {
-      // ✅ qui: "AD|AF|AE" -> ["AD","AF","AE"]
+      //  qui: "AD|AF|AE" -> ["AD","AF","AE"]
       row[k] = this._toArrayMulti(row[k]);
     } else {
       if (row[k] === undefined || row[k] === null) row[k] = "";
@@ -1075,72 +1100,116 @@ _getDataCacheKey: function () {
   return (bMock ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
 },
 
+// Screen4 - rimuove doppioni dalla TESTATA dinamica (hdr4)
+// dedupe per ui (case-insensitive). Tiene la PRIMA occorrenza.
+_dedupeHeader4: function (aHdr4) {
+  var seen = Object.create(null);
+
+  return (aHdr4 || []).filter(function (f) {
+    if (!f) return false;
+
+    var ui = String(f.ui || f.UiFieldname || f.UIFIELDNAME || "").trim();
+    if (!ui) return false;
+
+    var k = ui.toUpperCase(); // case-insensitive
+    if (seen[k]) return false;
+
+    seen[k] = true;
+    return true;
+  });
+},
+
+// =========================
+// Screen4 - HEADER DINAMICA (Livello "00" + testata2) + DEDUPE
+// =========================
+_buildHeader4FromMmct00: function (sCat) {
+  // LivelloSchermata == "00"
+  var a00All = sCat ? (this._cfgForScreen(sCat, "00") || []) : [];
+
+  // solo quelli che vanno in testata (testata2)
+  var aHdr4Raw = (a00All || []).filter(function (f) {
+    return !!(f && f.testata2);
+  });
+
+  // ordina (se presente order) così il dedupe tiene quello "giusto"
+  aHdr4Raw = aHdr4Raw.slice().sort(function (a, b) {
+    var oa = (a && a.order != null) ? a.order : 9999;
+    var ob = (b && b.order != null) ? b.order : 9999;
+    return oa - ob;
+  });
+
+  // dedupe per ui (case-insensitive) -> tiene la PRIMA occorrenza
+  var aHdr4 = this._dedupeHeader4(aHdr4Raw);
+
+  return { s00: a00All, hdr4: aHdr4 };
+},
 
 
     // =========================
     // MDC cfg + columns + rebind
     // =========================
-    _ensureMdcCfgScreen4: function (aCfg02) {
-      var oVm = this._ensureVmCache();
+_ensureMdcCfgScreen4: function (aCfg02) {
+  var oVm = this._ensureVmCache();
 
-      var aProps = (aCfg02 || []).map(function (f) {
-        return {
-          name: f.ui,
-          label: f.label || f.ui,
-          dataType: "String",
-          domain: f.domain || "",
-          required: !!f.required
-        };
-      });
+  //  DEDUPE
+  var aCfgUnique = this._dedupeCfgByUi(aCfg02);
 
-      oVm.setProperty("/mdcCfg/screen4", {
-        modelName: "detail",
-        collectionPath: "/Rows",
-        properties: aProps
-      });
+  var aProps = aCfgUnique.map(function (f) {
+    return {
+      name: f.ui,
+      label: f.label || f.ui,
+      dataType: "String",
+      domain: f.domain || "",
+      required: !!f.required
+    };
+  });
 
-      this._log("vm>/mdcCfg/screen4 set", { props: aProps.length });
-    },
+  oVm.setProperty("/mdcCfg/screen4", {
+    modelName: "detail",
+    collectionPath: "/Rows",
+    properties: aProps
+  });
 
-    _rebuildColumnsHard: async function (oTbl, aCfg02) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
-
-      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-      aOld.slice().forEach(function (c) {
-        oTbl.removeColumn(c);
-        c.destroy();
-      });
-
-      (aCfg02 || []).forEach(function (f) {
-        var sKey = String(f.ui || "").trim();
-        if (!sKey) return;
-
-        
-
-        var sHeader = (f.label || sKey) + (f.required ? " *" : "");
-
-        var mProps = MdcColumn.getMetadata().getAllProperties(); // utile se vuoi compatibilità versioni
-
-var oSettings = {
-  header: sHeader,
-  visible: true,
-  dataProperty: sKey,
-  sortProperty: sKey,
-  filterProperty: sKey,
-  template: this._createCellTemplate(sKey, f)
-};
-
-// SOLO se esiste nella tua versione (nel tuo caso: NON esiste, quindi non verrà settata)
-if (mProps.propertyKey) oSettings.propertyKey = sKey;
-
-oTbl.addColumn(new MdcColumn(oSettings));
+  this._log("vm>/mdcCfg/screen4 set", { props: aProps.length });
+},
 
 
-      }.bind(this));
+_rebuildColumnsHard: async function (oTbl, aCfg02) {
+  if (!oTbl) return;
+  if (oTbl.initialized) await oTbl.initialized();
 
-      this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
-    },
+  var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+  aOld.slice().forEach(function (c) {
+    oTbl.removeColumn(c);
+    c.destroy();
+  });
+
+  // DEDUPE per ui (case-insensitive)
+  var aCfgUnique = this._dedupeCfgByUi(aCfg02);
+
+  aCfgUnique.forEach(function (f) {
+    var sKey = String(f.ui || "").trim();
+    if (!sKey) return;
+
+    var sHeader = (f.label || sKey) + (f.required ? " *" : "");
+
+    var mProps = MdcColumn.getMetadata().getAllProperties();
+    var oSettings = {
+      header: sHeader,
+      visible: true,
+      dataProperty: sKey,
+      sortProperty: sKey,
+      filterProperty: sKey,
+      template: this._createCellTemplate(sKey, f)
+    };
+    if (mProps.propertyKey) oSettings.propertyKey = sKey;
+
+    oTbl.addColumn(new MdcColumn(oSettings));
+  }.bind(this));
+
+  this._log("HARD rebuild columns done", (oTbl.getColumns && oTbl.getColumns().length) || 0);
+},
+
 
     _forceP13nAllVisible: function (oTbl, reason) {
     return P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), reason);

@@ -8,6 +8,12 @@
     padding: 0 50px;
 }
 
+.sapUiTableCCnt{
+  height: 100vh!important;
+}
+.sapUiTable{
+   height: 100%!important;
+}
 .FirstTitle{
   font-size: 30px!important;
   margin: 20px!important;

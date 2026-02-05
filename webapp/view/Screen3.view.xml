@@ -56,7 +56,7 @@
     </subHeader>
 
     <content>
-      <!-- wrapper full-height: la tabella si prende lo spazio residuo -->
+
      <!--  <VBox id="screen3MainVBox" width="100%" height="100%" fitContainer="true" class="sapUiFullHeight"> -->
 
         <HBox id="hboxOda">
@@ -143,7 +143,7 @@
           id="mdcTable3"
           type="Table"
           width="100%"
-          height="100%"
+          height="100vh"
           selectionMode="Multi"
           p13nMode="Column"
           delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>

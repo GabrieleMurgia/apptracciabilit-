@@ -1100,7 +1100,7 @@ _loadDataOnce: function () {
     }
   }
 
-  // ✅ SE SONO TORNATO DA SCREEN4 E HO CACHE, STOP: niente OData
+  //  SE SONO TORNATO DA SCREEN4 E HO CACHE, STOP: niente OData
   if (bSkipBackendOnce && bHasCache) {
     this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey });
     return;
@@ -1143,7 +1143,7 @@ _loadDataOnce: function () {
       return MmctUtil.cfgForScreen(oVm, sCat, sScreen);
     },
 
-    _refreshHeader3Fields: function () {
+/*     _refreshHeader3Fields: function () {
       var oDetail = this.getView().getModel("detail");
       var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
       var r0 = oDetail.getProperty("/_mmct/raw0") || {}; 
@@ -1165,7 +1165,45 @@ _loadDataOnce: function () {
 
       oDetail.setProperty("/Header3Fields", a);
       this._log("_refreshHeader3Fields", { hdr3: aHdr.length, out: a.length, sample: a[0] });
-    },
+    }, */
+
+_refreshHeader3Fields: function () {
+  var oDetail = this.getView().getModel("detail");
+  var aHdr = oDetail.getProperty("/_mmct/hdr3") || [];
+  var r0 = oDetail.getProperty("/_mmct/raw0") || {};
+
+  // costruzione output come fai già
+  var a = (aHdr || [])
+    .slice()
+    .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
+    .map(function (f) {
+      var kRaw = String(f.ui || "").trim();
+      var k = (kRaw.toUpperCase() === "STATO") ? "Stato" : kRaw;
+
+      return {
+        key: k,
+        label: f.label || kRaw || k,
+        value: this._valToText(r0[k])
+      };
+    }.bind(this));
+
+  var seen = Object.create(null);
+  a = a.filter(function (x) {
+    var k = String(x && x.key || "").trim().toUpperCase();
+    if (!k) return false;
+
+    // normalizza STATO/Stato nello stesso bucket
+    if (k === "STATO") k = "STATO";
+    if (k === "STATO") { /* no-op, solo chiarezza */ }
+
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+
+  oDetail.setProperty("/Header3Fields", a);
+},
+
     _buildCommonFilters: function () {
   var oVm = this.getOwnerComponent().getModel("vm");
 
@@ -1212,25 +1250,24 @@ _loadDataOnce: function () {
 // Nel controller Screen3, dopo _snapshotRecords
 
 _hasUnsavedChanges: function () {
-  debugger
   var oDetail = this.getView().getModel("detail");
   var aCurrent = oDetail.getProperty("/RecordsAll") || [];
   var aSnapshot = this._snapshotRecords || [];
 
-  aSnapshot = aSnapshot.map(obj => {
-  // Trasformiamo l'oggetto in un array di coppie [chiave, valore]
-  const cleanEntries = Object.entries(obj).map(([key, value]) => {
-    // Se il valore è un array, rimuoviamo i duplicati
-    if (Array.isArray(value)) {
-      return [key, [...new Set(value)]];
-    }
-    // Altrimenti lo lasciamo invariato
-    return [key, value];
-  });
+  // Funzione helper per normalizzare gli oggetti
+  var normalizeObject = function(obj) {
+    const cleanEntries = Object.entries(obj).map(([key, value]) => {
+      if (Array.isArray(value)) {
+        // Rimuovi duplicati E ordina l'array
+        return [key, [...new Set(value)].sort()];
+      }
+      return [key, value];
+    });
+    return Object.fromEntries(cleanEntries);
+  };
 
-  // Ricostruiamo l'oggetto dalle coppie pulite
-  return Object.fromEntries(cleanEntries);
-});
+  aSnapshot = aSnapshot.map(normalizeObject);
+  aCurrent = aCurrent.map(normalizeObject);
 
   // Se non ho snapshot, non ci sono modifiche
   if (!aSnapshot || !aSnapshot.length) return false;
@@ -1254,11 +1291,8 @@ _hasUnsavedChanges: function () {
       // Gestione array (campi multipli)
       if (Array.isArray(vCurr) && Array.isArray(vSnap)) {
         if (vCurr.length !== vSnap.length) return true;
+        // Gli array sono già ordinati dalla normalizzazione
         return vCurr.some(function (v, j) { return v !== vSnap[j]; });
-      }
-
-      if(vCurr !== vSnap){
-        debugger
       }
 
       return vCurr !== vSnap;
@@ -1672,7 +1706,7 @@ _readVendorBatchSet: function (sVendor10) {
       return P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), reason);
     },
 
-    _ensureMdcCfgScreen3: function (aCfg01) {
+/*     _ensureMdcCfgScreen3: function (aCfg01) {
       var oVm = this.getOwnerComponent().getModel("vm");
 
       var aProps = (aCfg01 || []).map(function (f) {
@@ -1707,11 +1741,63 @@ _readVendorBatchSet: function (sVendor10) {
         properties: aProps
       });
 
+      var names = aProps.map(p => String(p.name || "").trim());
+var dup = names.filter((n,i) =>
+  names.findIndex(x => x.toUpperCase() === n.toUpperCase()) !== i
+);
+console.log("DUP PROPS:", dup, aProps);
+
       this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
-    },
+    }, */
 
+    _ensureMdcCfgScreen3: function (aCfg01) {
+  var oVm = this.getOwnerComponent().getModel("vm");
 
-_rebuildColumnsHard: async function (oTbl, aCfg01) {
+  var seen = Object.create(null);
+  var aProps = [];
+
+  (aCfg01 || []).forEach(function (f) {
+    var name = String(f && f.ui || "").trim();
+    if (!name) return;
+
+    // normalizza STATO
+    if (name.toUpperCase() === "STATO") name = "Stato";
+
+    // chiave univoca case-insensitive
+    var k = name.toUpperCase();
+    if (seen[k]) return;
+    seen[k] = true;
+
+    aProps.push({
+      name: name,
+      label: f.label || name,
+      dataType: "String",
+      domain: f.domain || "",
+      required: !!f.required
+    });
+  });
+
+  // assicura Stato una volta sola
+  if (!seen["STATO"]) {
+    aProps.unshift({
+      name: "Stato",
+      label: "Stato",
+      dataType: "String",
+      domain: "",
+      required: false
+    });
+  }
+
+  oVm.setProperty("/mdcCfg/screen3", {
+    modelName: "detail",
+    collectionPath: "/Records",
+    properties: aProps
+  });
+
+  this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
+},
+
+/* _rebuildColumnsHard: async function (oTbl, aCfg01) {
   if (!oTbl) return;
   if (oTbl.initialized) await oTbl.initialized();
 
@@ -1766,7 +1852,77 @@ _rebuildColumnsHard: async function (oTbl, aCfg01) {
       template: this._createCellTemplate(sKey, f)
     }));
   }.bind(this));
+}, */
+
+_rebuildColumnsHard: async function (oTbl, aCfg01) {
+  if (!oTbl) return;
+  if (oTbl.initialized) await oTbl.initialized();
+
+  // distruggo colonne MDC
+  var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
+  aOld.slice().forEach(function (c) {
+    oTbl.removeColumn(c);
+    c.destroy();
+  });
+
+  // DEDUPE config colonne per "ui" (case-insensitive)
+  var seen = Object.create(null);
+  var aCfgUnique = (aCfg01 || []).filter(function (f) {
+    var ui = String(f && f.ui || "").trim();
+    if (!ui) return false;
+
+    // STATO lo gestisci già a parte
+    if (ui.toUpperCase() === "STATO") return false;
+
+    var k = ui.toUpperCase();
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+
+  // 1) NAV
+  oTbl.addColumn(new MdcColumn({
+    header: "Dettaglio",
+    visible: true,
+    width: "100px",
+    template: new Button({
+      icon: "sap-icon://enter-more",
+      type: "Transparent",
+      press: this.onGoToScreen4FromRow.bind(this)
+    })
+  }));
+
+  // 2) STATO
+  this._colStatoS3 = new MdcColumn({
+    width: "70px",
+    header: "Stato",
+    visible: true,
+    dataProperty: "Stato",
+    sortProperty: "Stato",
+    filterProperty: "Stato",
+    template: this._createStatusCellTemplate("Stato")
+  });
+  oTbl.addColumn(this._colStatoS3);
+
+  // 3) Colonne dinamiche (deduped)
+  aCfgUnique.forEach(function (f) {
+    var sKeyRaw = String(f.ui || "").trim();
+    if (!sKeyRaw) return;
+
+    var sKey = sKeyRaw;
+    var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
+
+    oTbl.addColumn(new MdcColumn({
+      header: sHeader,
+      visible: true,
+      dataProperty: sKey,
+      sortProperty: sKey,
+      filterProperty: sKey,
+      template: this._createCellTemplate(sKey, f)
+    }));
+  }.bind(this));
 },
+
 _resetInlineHeaderControls: function () {
   this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
   MdcTableUtil.resetInlineHeaderControls(this._inlineFS);

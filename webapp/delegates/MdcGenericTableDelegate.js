@@ -83,13 +83,14 @@ sap.ui.define([
 
     if (sDomain && _hasDomainValues(sDomain)) {
       oEditCtrl = new MultiComboBox({
-        selectedKey: "{" + sBinding + "}",
+        selectedKeys: "{" + sBinding + "}",
         value: "{" + sBinding + "}",
         visible: "{= !" + sReadOnlyExpr + " }",
         valueState: sValueState,
         valueStateText: sValueStateText,
         items: {
           path: "cfg>/domainsMap/" + sDomain,
+          templateShareable: false,
           template: new ListItem({
             key: "{cfg>Key}",
             text: "{cfg>Text}"
@@ -111,7 +112,7 @@ sap.ui.define([
   }
 
   // Dice alla tabella da dove leggere i record (path + modelName)
-  Delegate.updateBindingInfo = function (oTable, oBindingInfo) {
+/*   Delegate.updateBindingInfo = function (oTable, oBindingInfo) {
     const oCfg = _getCfg(oTable);
 
     const sPath = (oCfg && oCfg.collectionPath) ? oCfg.collectionPath : "/items";
@@ -119,7 +120,19 @@ sap.ui.define([
 
     oBindingInfo.path = sPath;
     if (sModelName) oBindingInfo.model = sModelName;
-  };
+  }; */
+
+  Delegate.updateBindingInfo = function (oTable, oBindingInfo) {
+  const p = _getPayload(oTable);
+  const oCfg = _getCfg(oTable);
+
+  const sPath = (oCfg && oCfg.collectionPath) || p.defaultPath || "/__empty";
+  const sModelName = (oCfg && oCfg.modelName) || p.defaultModel || "detail";
+
+  oBindingInfo.path = sPath;
+  oBindingInfo.model = sModelName;
+};
+
 
   // Elenco proprietà (p13n)
   Delegate.fetchProperties = async function (oTable) {

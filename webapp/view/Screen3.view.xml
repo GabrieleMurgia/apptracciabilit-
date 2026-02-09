@@ -146,8 +146,15 @@
           height="100vh"
           selectionMode="Multi"
           p13nMode="Column"
-          delegate='{"name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate","payload":{"cfgModel":"vm","cfgPath":"/mdcCfg/screen3"}}'>
-          <!-- colonne create in controller -->
+delegate='{
+    "name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate",
+    "payload":{
+      "cfgModel":"vm",
+      "cfgPath":"/mdcCfg/screen3",
+      "defaultModel":"detail",
+      "defaultPath":"/Records"
+    }
+  }'>          <!-- colonne create in controller -->
         </mdc:Table>
 
  <!--      </VBox> -->

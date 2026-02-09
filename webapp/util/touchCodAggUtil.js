@@ -8,13 +8,27 @@ sap.ui.define([
   var TouchCodAggUtil = {
 
     /**
+     * Legge CodAgg normalizzato da un oggetto riga/record.
+     */
+    getCodAgg: function (o) {
+      return String(o && (o.CodAgg != null ? o.CodAgg : (o.CODAGG != null ? o.CODAGG : ""))).trim().toUpperCase();
+    },
+
+    /**
+     * Marca CodAgg = "U" su una singola riga S4 (se non già "N"/"D").
+     */
+    touchCodAggRow: function (row) {
+      if (!row) return;
+      var ca = TouchCodAggUtil.getCodAgg(row);
+      var g = String(row.Guid || row.GUID || row.guidKey || "").trim();
+      var isNew = !!row.__isNew || (g.indexOf("-new") >= 0);
+
+      if (isNew) { row.CodAgg = "U"; return; }
+      if (ca === "" || ca === "N" || ca === "I") { row.CodAgg = "U"; }
+    },
+
+    /**
      * Aggiorna il CodAgg del parent e delle righe raw in cache.
-     * @param {object} p - record parent
-     * @param {string} sPath - binding path
-     * @param {object} opts
-     * @param {sap.ui.model.json.JSONModel} opts.oDetail
-     * @param {sap.ui.model.json.JSONModel} opts.oVm
-     * @param {string} opts.cacheKey - export cache key
      */
     touchCodAggParent: function (p, sPath, opts) {
       if (!p) return;

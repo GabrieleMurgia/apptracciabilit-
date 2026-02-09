@@ -29,7 +29,7 @@ sap.ui.define([
   // HOOK DIRTY ON EDIT (spostato dal controller)
   // =========================
   function hookDirtyOnEdit(oCtrl, hookOpts) {
-    debugger
+    // debugger; // <-- lasciarlo attivo blocca l'app; riattivalo solo se ti serve
     hookOpts = hookOpts || {};
     var sModelName = hookOpts.modelName || "detail";
     var oView = hookOpts.view || null;
@@ -303,6 +303,7 @@ sap.ui.define([
 
           items: {
             path: "vm>/domainsByName/" + sDomain,
+            templateShareable: false,
             template: new ListItem({
               key: "{vm>key}",
               text: "{vm>key}",
@@ -322,6 +323,7 @@ sap.ui.define([
 
           items: {
             path: "vm>/domainsByName/" + sDomain,
+            templateShareable: false,
             template: new Item({
               key: "{vm>key}",
               text: "{vm>text}"
@@ -347,6 +349,7 @@ sap.ui.define([
 
           suggestionItems: {
             path: sSugPath,
+            templateShareable: false,
             template: new SuggestionItem({ text: "{vm>key}" })
           },
 

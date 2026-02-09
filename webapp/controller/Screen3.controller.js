@@ -47,6 +47,10 @@ sap.ui.define([
 
     // ==================== INIT ====================
     onInit: function () {
+
+      var oVm = this._getOVm();
+      oVm.setProperty("/mdcCfg/screen3", { modelName: "detail", collectionPath: "/Records", properties: [] });
+
       this._log("onInit");
       this.getOwnerComponent().getRouter().getRoute("Screen3").attachPatternMatched(this._onRouteMatched, this);
 
@@ -245,18 +249,21 @@ sap.ui.define([
         template: new Button({ icon: "sap-icon://enter-more", type: "Transparent", press: this.onGoToScreen4FromRow.bind(this) })
       }));
 
-      this._colStatoS3 = new MdcColumn({ width: "70px", header: "Stato", visible: true, dataProperty: "Stato", sortProperty: "Stato", filterProperty: "Stato",
-        template: this._createStatusCellTemplate("Stato")
-      });
+      var mP = MdcColumn.getMetadata().getAllProperties();
+      var oStatoProps = { width: "70px", header: "Stato", visible: true, dataProperty: "Stato",
+        template: this._createStatusCellTemplate("Stato") };
+      if (mP.propertyKey) oStatoProps.propertyKey = "Stato";
+      this._colStatoS3 = new MdcColumn(oStatoProps);
       oTbl.addColumn(this._colStatoS3);
 
       aCfgUnique.forEach(function (f) {
         var sKey = String(f.ui || "").trim();
         if (!sKey) return;
         var sHeader = (f.label || sKey) + (f.required ? " *" : "");
-        oTbl.addColumn(new MdcColumn({ header: sHeader, visible: true, dataProperty: sKey, sortProperty: sKey, filterProperty: sKey,
-          template: this._createCellTemplate(sKey, f)
-        }));
+        var oColProps = { header: sHeader, visible: true, dataProperty: sKey,
+          template: this._createCellTemplate(sKey, f) };
+        if (mP.propertyKey) oColProps.propertyKey = sKey;
+        oTbl.addColumn(new MdcColumn(oColProps));
       }.bind(this));
     },
 

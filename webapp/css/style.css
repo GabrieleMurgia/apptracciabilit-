@@ -1,67 +1,300 @@
-/* Enter your custom styles here */
+/* ============================================================
+   TRACCIABILITÀ APP – Improved Styles
+   ============================================================ */
 
-.alignTableButton{
-    justify-content: space-between;
-    position: relative;
-    top: 47px;
-    z-index: 1000;
-    padding: 0 50px;
+/* ---------- PAGE LAYOUT: fill full height ---------- */
+.fullHeightPage {
+  height: 100%;
 }
-
-.sapUiTableCCnt{
-  height: 100vh!important;
+.fullHeightPage .sapMPageEnableScrolling > section {
+  height: 100%;
 }
-.sapUiTable{
-   height: 100%!important;
-}
-.FirstTitle{
-  font-size: 30px!important;
-  margin: 20px!important;
-}
-
-.left20{
-    position: relative;
-    /* left: 50px; */
-}
-
-.left20-f{
-    margin-left: 30px;
-}
-
-.hdrDynPair{
-  justify-content: space-around;
-  align-items: center;
-  margin-left: 20px;
-  margin-top: 6px;
-  gap: 10px;
-}
-
-.hdrDynPair div{
+.fullHeightPage > section {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.hdr3LblBoxTmpl{
-  
+/* ---------- CUSTOM HEADER ---------- */
+.appCustomHeader {
+  background: #1a1a2e;
+  color: #fff;
+}
+.appCustomHeader .sapMBarChild,
+.appCustomHeader .sapMTitle {
+  color: #fff !important;
+}
+.appCustomHeader .sapMBtn .sapMBtnIcon {
+  color: #fff !important;
 }
 
-.alignTableButton .sapMTBStandard{
-    border-bottom: none!important;
+/* ---------- SUB-HEADER BAR (dynamic fields + ODA) ---------- */
+.subHeaderBar {
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%) !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+  padding: 4px 12px !important;
+  min-height: auto !important;
+  height: auto !important;
 }
 
-/* neutralizza eventuale bold ereditato (Screen3) */
+/* Allow wrapping inside the OverflowToolbar */
+.subHeaderBar > .sapMTBContent {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Header key-value pairs (card style) */
 .hdrDynPair {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 12px;
+  margin: 3px 4px;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  max-width: 100%;
   font-weight: normal;
 }
 
-/* extra safety: il valore non deve mai essere bold */
+.hdrDynLbl {
+  font-size: 0.8125rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .hdrDynVal {
-  font-weight: normal !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem;
+  color: #1e293b;
+  word-break: break-word;
+  overflow-wrap: break-word;
   font-family: Arial, Helvetica, sans-serif !important;
 }
 
+/* ---------- ODA STATUS CHIP ---------- */
+.odaStatusChip {
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 12px;
+  flex-shrink: 0;
+}
+
+.odaLabel {
+  font-size: 0.8125rem;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.odaStatusChip .sapMObjStatus {
+  font-size: 0.8125rem;
+}
+
+/* ---------- TABLE CONTROL BAR (filters + actions) ---------- */
+.tableControlBar {
+  position: relative;
+      top: 38px;
+    padding: 0 30px;
+  z-index: 100;
+  gap: 8px;
+}
+
+.tableControlBar .sapMTBStandard {
+  border-bottom: none !important;
+}
+
+.filterGroup {
+  gap: 12px;
+}
+
+.statusFilterBox {
+  gap: 4px;
+}
+
+.searchFilterBox {
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.searchInput {
+  min-width: 180px;
+  max-width: 22rem;
+}
+
+.filterLabel {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+/* Status chips */
+.statusChip {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.statusChip:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Action toolbar */
+.actionToolbar {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ---------- MDC TABLE: FULL SIZE + SCROLL ---------- */
+.fullSizeTable {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fullSizeTable .sapUiTableCCnt {
+  height: 100% !important;
+}
+.fullSizeTable .sapUiTable {
+  height: 100% !important;
+}
+
+/* Horizontal scroll */
+.fullSizeTable .sapUiTableCtrlScr,
+.fullSizeTable .sapUiTableHSb {
+  overflow-x: auto !important;
+}
+
+/* Vertical scroll */
+.fullSizeTable .sapUiTableVSb {
+  overflow-y: auto !important;
+}
+
+.fullSizeTable .sapUiMdcTable {
+  height: 100%;
+}
+
+/* ---------- ROW HIGHLIGHT (error) ---------- */
 .s3PostErrorRow .sapUiTableCell,
 .s3PostErrorRow.sapMListTblRow > td {
-  background-color: #ffe5e5 !important;
+  background-color: #fee2e2 !important;
+}
+
+/* ---------- FOOTER ---------- */
+.fullHeightPage .sapMPageFooter {
+  border-top: 1px solid #e2e8f0;
+}
+
+/* ---------- FIRST TITLE (other screens) ---------- */
+.FirstTitle {
+  font-size: 1.75rem !important;
+  margin: 20px !important;
+}
+
+/* ============================================================
+   RESPONSIVE / MOBILE
+   ============================================================ */
+
+/* Tablets */
+@media screen and (max-width: 1024px) {
+  .tableControlBar {
+    padding: 0 8px;
+  }
+  .searchInput {
+    min-width: 140px;
+    max-width: 16rem;
+  }
+  .hdrDynPair {
+    padding: 3px 8px;
+    margin: 2px 3px;
+  }
+}
+
+/* Phones */
+@media screen and (max-width: 600px) {
+
+  /* Hide logo on small screens */
+  .hideLogo {
+    display: none !important;
+  }
+
+  /* Sub-header: horizontal scroll when fields overflow */
+  .subHeaderBar {
+    padding: 4px 8px !important;
+  }
+  .subHeaderBar > .sapMTBContent {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .hdrDynPair {
+    padding: 3px 8px;
+    margin: 2px 3px;
+    font-size: 0.75rem;
+  }
+  .hdrDynLbl {
+    font-size: 0.75rem;
+  }
+  .hdrDynVal {
+    font-size: 0.75rem;
+  }
+
+  /* Control bar: stack vertically */
+  .tableControlBar {
+    /* top: 47px; */
+    top: 38px;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    /* padding: 0 4px; */
+    padding: 0 30px;
+    gap: 4px;
+  }
+
+  .filterGroup {
+    flex-direction: column !important;
+    gap: 6px;
+  }
+
+  .statusFilterBox {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .searchFilterBox {
+    margin-left: 0;
+  }
+
+  .searchInput {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  /* Action buttons: icons only on mobile */
+  .actionBtn .sapMBtnContent .sapMBtnText {
+    display: none;
+  }
+  .actionBtn {
+    min-width: auto !important;
+  }
+
+  /* Table: horizontal swipe */
+  .fullSizeTable {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .odaStatusChip {
+    padding: 3px 8px;
+  }
+}
+
+/* Very small screens */
+@media screen and (max-width: 380px) {
+  .statusChip .sapMObjStatusText {
+    display: none;
+  }
 }

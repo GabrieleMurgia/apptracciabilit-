@@ -6,20 +6,18 @@
   xmlns:core="sap.ui.core"
   xmlns:mdc="sap.ui.mdc">
 
-  <Page id="page4" title="Dettaglio">
+  <Page id="page4" title="Dettaglio" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
 
     <customHeader>
-      <Toolbar id="toolbar4">
+      <Toolbar id="toolbar4" class="appCustomHeader">
         <Bar id="bar4">
           <contentLeft>
-            <Image id="imageLogo4" src="IMG/Valentino.png" decorative="false" width="200px"/>
-            <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack"/>
+            <Image id="imageLogo4" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/>
+            <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
-
           <contentMiddle>
-            <Title id="title4" text="Dettaglio"/>
+            <Title id="title4" text="Dettaglio" level="H3"/>
           </contentMiddle>
-
           <contentRight>
             <ToolbarSpacer id="bar4SpacerRight"/>
           </contentRight>
@@ -27,112 +25,80 @@
       </Toolbar>
     </customHeader>
 
+    <!-- subHeader: only IBar types allowed -->
     <subHeader>
-      <!-- reso uguale a Screen3 per stile coerente -->
-      <OverflowToolbar id="toolbarInfo4" design="Transparent">
+      <OverflowToolbar id="toolbarInfo4" design="Transparent" class="subHeaderBar">
 
         <HBox
           id="hdr4Dynamic"
-          width="100%"
           fitContainer="true"
           wrap="Wrap"
-          alignItems="Baseline"
+          alignItems="Center"
           visible="{= ${detail>/Header4Fields} &amp;&amp; ${detail>/Header4Fields}.length > 0 }"
           items="{detail>/Header4Fields}">
-
           <items>
-            <HBox
-              id="hdr4PairTmpl"
-              class="hdrDynPair "
-              >
-
-              <HBox
-                id="hdr4LblBoxTmpl"
-            >
-
-                <Label id="hdr4LblTmpl" text="{detail>label}:" design="Bold"/>
-              </HBox>
-
+            <HBox id="hdr4PairTmpl" class="hdrDynPair" alignItems="Center">
+              <Label id="hdr4LblTmpl" text="{detail>label}:" design="Bold" class="hdrDynLbl"/>
               <Text id="hdr4ValTmpl" text="{detail>value}" class="hdrDynVal"/>
             </HBox>
           </items>
-
         </HBox>
 
       </OverflowToolbar>
     </subHeader>
 
     <content>
-     <!--  <VBox id="box4" width="100%"> -->
 
-        <HBox
-          id="hboxToolbarTable4"
-          width="100%"
-          justifyContent="End"
-          alignItems="Center"
-          class="sapUiTinyMargin alignTableButton">
+      <HBox
+        id="hboxToolbarTable4"
+        width="100%"
+        justifyContent="SpaceBetween"
+        alignItems="Center"
+        class="tableControlBar"
+        wrap="Wrap">
 
-          <HBox id="hboxFilter4" class="sapUiTinyMarginEnd left20-f" alignItems="Center">
-            <Label id="lblFilter4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd"/>
-            <Input
-              id="inputFilter4"
-              width="22rem"
-              liveChange=".onGlobalFilter"
-              placeholder="Filtro testuale su tutti i campi"/>
-
-            <Button id="btnColFilters4" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters"/>
-            <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort"/>
-            <Button id="btnResetFS4" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort"/>
-          </HBox>
-
-          <Toolbar id="tblToolbar4" design="Transparent">
-            <ToolbarSpacer id="footerToolbar4sp"/>
-                        <Button
-              id="btnAddRow02"
-              text="Aggiungi riga"
-              type="Emphasized"
-              icon="sap-icon://add"
-              enabled="{detail>/__canAddRow}"
-              press=".onAddRow"/>
-
-            <Button
-              id="btnDeleteRows02"
-              text="Elimina righe"
-              type="Negative"
-              icon="sap-icon://delete"
-              enabled="{detail>/__canAddRow}"
-              press=".onDeleteRows"/>
-            <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint"/>
-            <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel"/>
-          </Toolbar>
-
+        <HBox id="hboxFilter4" alignItems="Center" class="searchFilterBox">
+          <Label id="lblFilter4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd filterLabel"/>
+          <Input id="inputFilter4" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
+          <Button id="btnColFilters4" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
+          <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
+          <Button id="btnResetFS4" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
         </HBox>
 
-        <mdc:Table
-          id="mdcTable4"
-          type="Table"
-          width="100%"
-          height="100vh"
-          selectionMode="Multi"
-          p13nMode="Column"
-  delegate='{
-    "name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate",
-    "payload":{
-      "cfgModel":"vm",
-      "cfgPath":"/mdcCfg/screen4",
-      "defaultModel":"detail",
-      "defaultPath":"/Rows"
-    }
-  }'>          <!-- colonne create in controller -->
-        </mdc:Table>
+        <Toolbar id="tblToolbar4" design="Transparent" class="actionToolbar">
+          <ToolbarSpacer id="footerToolbar4sp"/>
+          <Button id="btnAddRow02" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
+          <Button id="btnDeleteRows02" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/>
+          <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint" type="Transparent"/>
+          <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
+        </Toolbar>
 
-   <!--    </VBox> -->
+      </HBox>
+
+      <mdc:Table
+        id="mdcTable4"
+        type="Table"
+        width="100%"
+        height="100%"
+        selectionMode="Multi"
+        p13nMode="Column"
+        class="fullSizeTable"
+        delegate='{
+          "name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate",
+          "payload":{
+            "cfgModel":"vm",
+            "cfgPath":"/mdcCfg/screen4",
+            "defaultModel":"detail",
+            "defaultPath":"/Rows"
+          }
+        }'>
+      </mdc:Table>
+
     </content>
 
     <footer>
       <OverflowToolbar id="footerToolbar4">
         <ToolbarSpacer id="footerSpacer4"/>
-        <!-- <Button id="btnSaveLocal4" text="Salva" icon="sap-icon://save" type="Emphasized" press=".onSave"/> -->
       </OverflowToolbar>
     </footer>
 

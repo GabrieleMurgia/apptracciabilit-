@@ -238,7 +238,62 @@ sap.ui.define([
       var s = String(v || "").trim();
       if (!s) return [];
       return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
-    }
+    },
+
+      _bindRecords: async function (aRecords) {
+      var oDetail = this._getODetail();
+      var a = aRecords || [];
+
+      oDetail.setProperty("/RecordsAll", a);
+      oDetail.setProperty("/Records", a);
+      oDetail.setProperty("/RecordsCount", a.length);
+
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
+
+      var aSt = a.map(function (r) {
+        return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
+      });
+
+      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
+      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
+      var anyCH = aSt.some(function (s) { return s === "CH"; });
+
+      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
+
+      oDetail.setProperty("/__status", sAgg);
+      oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
+      oDetail.setProperty("/__role", sRole);
+
+      this._refreshHeader3Fields();
+      this._snapshotRecords = deepClone(a);
+
+      var oTbl = this.byId("mdcTable3");
+      var aCfg01Table = oDetail.getProperty("/_mmct/s01Table") || [];
+      this._ensureMdcCfgScreen3(aCfg01Table);
+      this._resetInlineHeaderControls();
+      await this._rebuildColumnsHard(oTbl, aCfg01Table);
+
+      if (oTbl && oTbl.initialized) await oTbl.initialized();
+      if (oTbl) oTbl.setModel(oDetail, "detail");
+
+      await this._applyInlineHeaderFilterSort(oTbl);
+
+      this._applyClientFilters();
+
+      if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();
+
+      await this._forceP13nAllVisible(oTbl, "t0");
+      await this._applyInlineHeaderFilterSort(oTbl);
+
+      setTimeout(function () {
+        this._forceP13nAllVisible(oTbl, "t300");
+        setTimeout(function () { this._applyInlineHeaderFilterSort(oTbl); }.bind(this), 350);
+      }.bind(this), 300);
+
+      this._logTable("TABLE STATE @ after _bindRecords");
+      this._ensurePostErrorRowHooks(oTbl);
+    },
 
   };
 });

@@ -257,7 +257,83 @@ sap.ui.define([
       if (aErr.length > 1) sToast += " (+ altri " + (aErr.length - 1) + ")";
 
       sap.m.MessageToast.show(sToast, { duration: 6000, width: "30em" });
-    }
+    },
+
+        _touchCodAggParent: function (p, sPath) {
+      if (!p) return;
+
+      var ca = this._getCodAgg(p);
+      var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
+
+      if (ca === "N") return;
+
+      var newCa = ca;
+      if (isNew) {
+        newCa = "I";
+      } else if (ca === "" || ca === "I") {
+        newCa = "U";
+      }
+
+      var parentChanged = (newCa !== ca);
+      if (parentChanged) {
+        p.CodAgg = newCa;
+        if (p.CODAGG !== undefined) delete p.CODAGG;
+
+        try {
+          var oDetail = this._getODetail();
+          if (oDetail) {
+            if (sPath && typeof sPath === "string") {
+              oDetail.setProperty(sPath + "/CodAgg", p.CodAgg);
+            }
+
+            var idx = (p.idx != null) ? parseInt(p.idx, 10) : NaN;
+            if (!isNaN(idx)) {
+              var aAll = oDetail.getProperty("/RecordsAll") || [];
+              for (var i = 0; i < aAll.length; i++) {
+                if (parseInt(aAll[i] && aAll[i].idx, 10) === idx) {
+                  oDetail.setProperty("/RecordsAll/" + i + "/CodAgg", p.CodAgg);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (e) { }
+      }
+
+      var g = this._toStableString(p.guidKey || p.Guid || p.GUID);
+      if (!g) return;
+
+      var oVm = this._getOVm();
+      var sKey = this._getExportCacheKey();
+      var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+      if (!Array.isArray(aRaw)) aRaw = [];
+
+      var changed = false;
+
+      aRaw.forEach(function (r) {
+        if (!r) return;
+        if (this._rowGuidKey(r) !== g) return;
+
+        var rc = this._getCodAgg(r);
+        var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
+
+        if (rc === "N" || rc === "D") return;
+
+        if (rIsNew) {
+          if (r.CodAgg !== "I") { r.CodAgg = "I"; changed = true; }
+        } else {
+          if (rc === "" || rc === "I") {
+            if (r.CodAgg !== "U") { r.CodAgg = "U"; changed = true; }
+          }
+        }
+
+        if (r.CODAGG !== undefined) { delete r.CODAGG; changed = true; }
+      }.bind(this));
+
+      if (changed) {
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+      }
+    },
 
   };
 });

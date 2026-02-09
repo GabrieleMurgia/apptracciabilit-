@@ -132,17 +132,6 @@ sap.ui.define([
     return true;
   });
 },
-/*     onToggleHeaderSort: function () {
-      var oUi = this.getView().getModel("ui");
-      if (!oUi) return;
-
-      var bNow = !!oUi.getProperty("/showHeaderSort");
-      oUi.setProperty("/showHeaderSort", !bNow);
-
-      
-      var oTbl = this.byId("mdcTable4");
-      this._applyInlineHeaderFilterSort(oTbl);
-    }, */
 
     onToggleHeaderSort: function () {
   var oUi = this.getView().getModel("ui");
@@ -935,12 +924,6 @@ if (!sCat) {
 var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
 
 // ===== HEADER DINAMICA SCREEN4 (Livello 00 + Testata2) =====
-/* var a00All = sCat ? this._cfgForScreen(sCat, "00") : [];
-var aHdr4 = (a00All || []).filter(function (f) { return !!(f && f.testata2); });
-
-// salvo in detail
-oDetail.setProperty("/_mmct/s00", a00All);
-oDetail.setProperty("/_mmct/hdr4", aHdr4); */
 
 var oHdr = this._buildHeader4FromMmct00(sCat);
 
@@ -974,14 +957,6 @@ if (sCat) {
 }
 
 // 6) assicura campi presenti nella riga synthetic per evitare binding strani (multi = array)
-/* (aSelected || []).forEach(function (row) {
-  (aCfg02 || []).forEach(function (f) {
-    if (!f || !f.ui) return;
-    var k = f.ui;
-    if (row[k] === undefined || row[k] === null) row[k] = f.multiple ? [] : "";
-    if (f.multiple && !Array.isArray(row[k])) row[k] = [];
-  });
-}); */
 
 (aSelected || []).forEach(function (row) {
   (aCfg02 || []).forEach(function (f) {
@@ -1417,10 +1392,6 @@ if (this._sortState && this._sortState.key) {
     })
   }
           });
-/*           oCtrl.bindAggregation("items", {
-            path: "vm>/domainsByName/" + sDomain,
-            template: new Item({ key: "{vm>key}", text: "{vm>key}", additionalText: "{vm>text}", })
-          }); */
 
           oCtrl.attachSelectionFinish(function () {
             var a = oCtrl.getSelectedKeys ? oCtrl.getSelectedKeys() : [];

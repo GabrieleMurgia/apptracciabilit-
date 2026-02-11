@@ -221,7 +221,12 @@ sap.ui.define([
 
           if (Array.isArray(vCurr) && Array.isArray(vSnap)) {
             if (vCurr.length !== vSnap.length) return true;
-            return vCurr.some(function (v, j) { return v !== vSnap[j]; });
+            return vCurr.some(function (v, j) {
+              if (v !== null && typeof v === "object") {
+                return JSON.stringify(v) !== JSON.stringify(vSnap[j]);
+              }
+              return v !== vSnap[j];
+            });
           }
 
           return vCurr !== vSnap;

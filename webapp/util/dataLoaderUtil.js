@@ -95,11 +95,13 @@ sap.ui.define([
       // REAL
       BusyIndicator.show(0);
 
+      debugger
       var pDataSet = new Promise(function (resolve, reject) {
         oODataModel.read("/DataSet", {
           filters: aFilters,
           urlParameters: { "sap-language": "IT" },
           success: function (oData) {
+            debugger
             resolve((oData && oData.results) || []);
           },
           error: reject

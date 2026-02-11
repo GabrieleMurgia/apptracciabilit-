@@ -427,6 +427,15 @@ sap.ui.define([
       Screen4CacheUtil.setSelectedParentForScreen4(result.row, oVm, this.getOwnerComponent());
       Screen4CacheUtil.ensureScreen4CacheForParentIdx(result.idx, result.guid, oVm, this._getCacheKeySafe());
       this._applyClientFilters();
+
+      // Scroll to the newly added row
+      var oTbl = this.byId("mdcTable3");
+      var aFiltered = oDetail.getProperty("/Records") || [];
+      var iNewRowIndex = aFiltered.length - 1;
+      if (iNewRowIndex >= 0) {
+        MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
+      }
+
       MessageToast.show("Riga aggiunta");
     },
 

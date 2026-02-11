@@ -178,12 +178,14 @@ sap.ui.define([
           var key = entry[0];
           var value = entry[1];
           if (Array.isArray(value)) {
-            return [key, [].concat(new Set(value)).sort()];
+            return [key, [...new Set(value)].sort()];
           }
           return [key, value];
         });
         return Object.fromEntries(cleanEntries);
       };
+
+      debugger
 
       aSnapshot = aSnapshot.map(normalizeObject);
       aCurrent = aCurrent.map(normalizeObject);

@@ -423,6 +423,68 @@ sap.ui.define([
     } catch (e2) { }
   }
 
+  /**
+   * Scroll the MDC table to a specific row index and optionally focus it.
+   * Works with both sap.ui.table.Table (Grid Table) and sap.m.Table (Responsive Table).
+   *
+   * @param {sap.ui.mdc.Table} oMdc - The MDC table wrapper
+   * @param {number} iRowIndex - Zero-based row index to scroll to
+   * @param {number} [iDelay=200] - Delay in ms before scrolling (to let the model update propagate)
+   */
+  function scrollToRow(oMdc, iRowIndex, iDelay) {
+    if (!oMdc || iRowIndex < 0) return;
+    iDelay = (iDelay !== undefined) ? iDelay : 200;
+
+    setTimeout(function () {
+      try {
+        var oInner = getInnerTableFromMdc(oMdc);
+        if (!oInner) return;
+
+        // sap.ui.table.Table (Grid Table) — has setFirstVisibleRow
+        if (typeof oInner.setFirstVisibleRow === "function") {
+          oInner.setFirstVisibleRow(iRowIndex);
+
+          // Try to focus the row after scroll
+          setTimeout(function () {
+            try {
+              var aRows = oInner.getRows && oInner.getRows();
+              if (aRows && aRows.length) {
+                var iVisibleIdx = iRowIndex - oInner.getFirstVisibleRow();
+                var oTargetRow = aRows[iVisibleIdx];
+                if (oTargetRow && oTargetRow.getDomRef) {
+                  var oDom = oTargetRow.getDomRef();
+                  if (oDom) oDom.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+              }
+            } catch (e) { /* ignore focus errors */ }
+          }, 100);
+          return;
+        }
+
+        // sap.m.Table (Responsive Table) — use DOM scrollIntoView
+        var aItems = oInner.getItems && oInner.getItems();
+        if (aItems && aItems.length) {
+          var oTarget = aItems[Math.min(iRowIndex, aItems.length - 1)];
+          if (oTarget && oTarget.getDomRef) {
+            var oDom = oTarget.getDomRef();
+            if (oDom) {
+              oDom.scrollIntoView({ behavior: "smooth", block: "center" });
+              // Try to focus the first focusable element in the row
+              setTimeout(function () {
+                try {
+                  var oFocusable = oDom.querySelector("input, button, [tabindex]");
+                  if (oFocusable) oFocusable.focus();
+                } catch (e) { /* ignore */ }
+              }, 100);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[MdcTableUtil] scrollToRow error", e);
+      }
+    }, iDelay);
+  }
+
   return {
     // inner table
     getInnerTableFromMdc: getInnerTableFromMdc,
@@ -439,7 +501,10 @@ sap.ui.define([
     // selection helpers
     getSelectedObjectsFromMdc: getSelectedObjectsFromMdc,
     clearSelectionMdc: clearSelectionMdc,
-    selectFirstRowMdc: selectFirstRowMdc
+    selectFirstRowMdc: selectFirstRowMdc,
+
+    // scroll
+    scrollToRow: scrollToRow
 
     // NOTE: _ensureMdcCfgScreen3, _rebuildColumnsHard, _createStatusCellTemplate
     // were removed — they used `this` (controller context) and belong in Screen3_controller.js.

@@ -2,12 +2,12 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
-  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/common",
   "apptracciabilita/apptracciabilita/util/postUtil"
-], function (BusyIndicator, MessageToast, MessageBox, N, PostUtil) {
+], function (BusyIndicator, MessageToast, MessageBox, Common, PostUtil) {
   "use strict";
 
-  var deepClone = N.deepClone;
+  var deepClone = Common.deepClone;
 
   return {
 
@@ -42,7 +42,7 @@ sap.ui.define([
       var req01 = maps.req01 || {};
       var req02 = maps.req02 || {};
 
-      var isEmpty = N.isEmpty;
+      var isEmpty = Common.isEmpty;
 
       function toStr(v) { return String(v == null ? "" : v).trim(); }
 
@@ -465,7 +465,7 @@ sap.ui.define([
 
         error: function (oError) {
           BusyIndicator.hide();
-          var msg = PostUtil.readODataError(oError) || "Errore in salvataggio (vedi Console)";
+          var msg = Common.readODataError(oError) || "Errore in salvataggio (vedi Console)";
           console.error("[SaveUtil] POST ERROR", oError);
           MessageToast.show(msg);
           if (onFullError) onFullError(oError);

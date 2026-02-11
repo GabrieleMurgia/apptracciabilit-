@@ -16,13 +16,16 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
+  "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
+
 
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
   BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
   N, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, TableColumnAutoSize,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, RecordsUtil, TableColumnAutoSize,
+  PercUtil,
   MockData
 ) {
   "use strict";
@@ -113,6 +116,7 @@ sap.ui.define([
     },
 
     // ==================== DIRTY / CODAGG ====================
+
     _markDirty: function () {
       var oD = this.getView().getModel("detail"); if (!oD) return;
       oD.setProperty("/__dirty", true);
@@ -122,6 +126,9 @@ sap.ui.define([
         oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false);
       }
       this._applyUiPermissions();
+
+      // Live check percentage sum after each edit — with cell coloring
+      RecordsUtil.checkPercAndApply(this.byId("mdcTable4"), oD, { rowsPath: "/RowsAll" });
     },
 
     _hookDirtyOnEdit: function (oCtrl) {
@@ -463,6 +470,10 @@ sap.ui.define([
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__dirty")) { MessageToast.show("Nessuna modifica da salvare"); return; }
+
+        // Validate percentage sum
+        if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
+
         var aRows = oD.getProperty("/RowsAll") || [];
         var oVm = this._getOVm(), sCK = this._getDataCacheKey();
         var sGuid = N.toStableString(oD.getProperty("/guidKey")), sFibra = N.toStableString(oD.getProperty("/Fibra"));

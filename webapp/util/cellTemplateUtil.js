@@ -202,7 +202,6 @@ sap.ui.define([
       if(_hasSuggestionsForField(rel) && evtId === "change"){
         let otherV = isInput.getModel().getData().Records.map(i => i[rel])
         let cValue = src.getValue()
-        debugger
         if(otherV.filter(i => i === cValue).length > 1){
             MessageBox.confirm(
             "Il valore \"" + cValue + "\" è già presente nei valori \"" + rel + "\".\n",

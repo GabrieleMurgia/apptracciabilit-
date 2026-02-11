@@ -26,7 +26,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/screen4CacheUtil",
   "apptracciabilita/apptracciabilita/util/touchCodAggUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
 
 ], function (
   BaseController, JSONModel, MessageToast, MessageBox,
@@ -34,7 +34,8 @@ sap.ui.define([
   N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
   SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
-  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize
+  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize,
+  PercUtil
 ) {
   "use strict";
 
@@ -341,7 +342,11 @@ sap.ui.define([
     },
 
     // ==================== FILTERS (delegati a FilterSortUtil) ====================
-    _applyClientFilters: function () { FilterSortUtil.applyClientFilters(this._getODetail(), this._inlineFS, this.byId("mdcTable3")); },
+    _applyClientFilters: function () {
+      FilterSortUtil.applyClientFilters(this._getODetail(), this._inlineFS, this.byId("mdcTable3"));
+      // Apply percentage validation visual states
+      RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll", showToast: false });
+    },
     onStatusFilterPress: function (oEvt) { FilterSortUtil.onStatusFilterPress(oEvt, this._getODetail(), this._applyClientFilters.bind(this)); },
     onGlobalFilter: function (oEvt) { FilterSortUtil.onGlobalFilter(oEvt, this._getODetail(), this._applyClientFilters.bind(this)); },
     _onInlineColFilterLiveChange: function (oEvt) { FilterSortUtil.onInlineColFilterLiveChange(oEvt, this._inlineFS, this._applyClientFilters.bind(this)); },
@@ -382,6 +387,8 @@ sap.ui.define([
     // ==================== TOUCH CODAGG (delegato) ====================
     _touchCodAggParent: function (p, sPath) {
       TouchCodAggUtil.touchCodAggParent(p, sPath, { oDetail: this._getODetail(), oVm: this._getOVm(), cacheKey: this._getExportCacheKey() });
+      // Live percentage check on edit
+      RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" });
     },
 
     // ==================== NAV SCREEN4 ====================
@@ -474,6 +481,9 @@ sap.ui.define([
 
     // ==================== SAVE ====================
     onSave: function () {
+      // Validate percentage fields (e.g. QtaFibra sum <= 100%)
+      if (!RecordsUtil.validatePercBeforeSave(this._getODetail(), "/RecordsAll")) return;
+
       var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
       if (!vr.ok) {
         var top = vr.errors.slice(0, 15).map(function (e) { return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")"; }).join("\n");

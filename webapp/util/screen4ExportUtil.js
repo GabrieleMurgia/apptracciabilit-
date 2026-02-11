@@ -1,7 +1,7 @@
 sap.ui.define([
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/common"
-], function (MessageToast, Common) {
+  "apptracciabilita/apptracciabilita/util/normalize"
+], function (MessageToast, N) {
   "use strict";
 
   var S4Export = {

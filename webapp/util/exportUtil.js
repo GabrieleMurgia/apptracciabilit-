@@ -3,14 +3,14 @@ sap.ui.define([
   "sap/ui/export/Spreadsheet",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/postUtil"
-], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, Common, StatusUtil, PostUtil) {
+], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, StatusUtil, PostUtil) {
   "use strict";
 
   var EdmType = exportLibrary.EdmType;
-  var deepClone = Common.deepClone;
+  var deepClone = N.deepClone;
 
   return {
 

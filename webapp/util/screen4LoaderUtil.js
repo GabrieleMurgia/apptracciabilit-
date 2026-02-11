@@ -3,15 +3,16 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/statusUtil"
-], function (Filter, FilterOperator, BusyIndicator, MessageToast, Common, StatusUtil) {
+], function (Filter, FilterOperator, BusyIndicator, MessageToast, N, StatusUtil) {
   "use strict";
 
   var validForce = ["ST", "AP", "RJ", "CH"];
 
-  function rowGuidKey(r) { return Common.toStableString(r && (r.Guid || r.GUID || r.ItmGuid || r.ItemGuid || r.GUID_ITM || r.GUID_ITM2)); }
-  function rowFibra(r) { return Common.toStableString(r && (r.Fibra || r.FIBRA || r.Fiber || r.FIBER)); }
+  // Delegate to normalize.js (single source of truth)
+  var rowGuidKey = N.rowGuidKey;
+  var rowFibra = N.rowFibra;
   function pickCat(o) { return o ? String(o.CatMateriale || o.CATMATERIALE || o.CAT_MATERIALE || o.CATMAT || o.Cat_Materiale || "").trim() : ""; }
 
   function buildCfgFallbackFromObject(oAny) {

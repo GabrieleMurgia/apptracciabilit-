@@ -1,6 +1,10 @@
 /**
- * postUtil.js — POST-related helpers (payload building, error handling, validation).
+ * postUtil.js — POST-specific helpers (payload building, error handling, validation).
  *
+ * REFACTORED: Removed re-exports from normalize.js.
+ * For getCodAgg, normalizeVendor10, readODataError, uuidv4, genGuidNew,
+ * normalizeMultiString, isTemplateRow, isBaseCodAgg, isEmpty, normEsito, normMsg
+ * → import directly from "apptracciabilita/apptracciabilita/util/normalize"
  */
 sap.ui.define([
   "apptracciabilita/apptracciabilita/util/normalize"
@@ -8,19 +12,6 @@ sap.ui.define([
   "use strict";
 
   return {
-
-    // Re-exports for backward compatibility (callers that do PostUtil.getCodAgg etc.)
-    normEsito: N.normEsito,
-    normMsg: N.normMsg,
-    normalizeVendor10: N.normalizeVendor10,
-    readODataError: N.readODataError,
-    uuidv4: N.uuidv4,
-    genGuidNew: N.genGuidNew,
-    normalizeMultiString: N.normalizeMultiString,
-    getCodAgg: N.getCodAgg,
-    isBaseCodAgg: N.isBaseCodAgg,
-    isTemplateRow: N.isTemplateRow,
-    isEmptyRequiredValue: N.isEmpty,
 
     // -------------------------------------------------------
     // POST response extraction
@@ -44,7 +35,7 @@ sap.ui.define([
     },
 
     // -------------------------------------------------------
-    // Multi-field helpers
+    // Multi-field helpers (MMCT-aware)
     // -------------------------------------------------------
 
     /**
@@ -216,10 +207,5 @@ sap.ui.define([
 
       sap.m.MessageToast.show(sToast, { duration: 6000, width: "30em" });
     }
-
-    // NOTE: _touchCodAggParent was removed from this file.
-    // It used `this._getODetail()`, `this._getOVm()` etc. which are controller
-    // methods — it never worked as a standalone utility function.
-    // This logic now lives in touchCodAggUtil.js (which is called from the controller).
   };
 });

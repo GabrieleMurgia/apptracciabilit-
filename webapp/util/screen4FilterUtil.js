@@ -7,9 +7,9 @@ sap.ui.define([
   "sap/m/HBox",
   "sap/m/VBox",
   "sap/ui/core/Item",
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil"
-], function (Input, ComboBox, MultiComboBox, Text, Button, HBox, VBox, Item, Common, MdcTableUtil) {
+], function (Input, ComboBox, MultiComboBox, Text, Button, HBox, VBox, Item, N, MdcTableUtil) {
   "use strict";
 
   var S4Filter = {
@@ -28,7 +28,7 @@ sap.ui.define([
             if (k === "__metadata" || k === "AllData") return false;
             var v = r[k];
             if (v === null || v === undefined) return false;
-            return Common.valToText(v).toUpperCase().indexOf(q) >= 0;
+            return N.valToText(v).toUpperCase().indexOf(q) >= 0;
           });
         });
       }
@@ -46,7 +46,7 @@ sap.ui.define([
             if (f.type === "text") {
               var sNeed = String(f.value || "").trim().toUpperCase();
               if (!sNeed) return true;
-              return Common.valToText(rv).toUpperCase().indexOf(sNeed) >= 0;
+              return N.valToText(rv).toUpperCase().indexOf(sNeed) >= 0;
             }
             if (f.type === "key") {
               var sKey = String(f.value || "").trim();

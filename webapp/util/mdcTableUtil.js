@@ -423,137 +423,6 @@ sap.ui.define([
     } catch (e2) { }
   }
 
-      function _ensureMdcCfgScreen3(aCfg01) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-
-      var seen = Object.create(null);
-      var aProps = [];
-
-      (aCfg01 || []).forEach(function (f) {
-        var name = String(f && f.ui || "").trim();
-        if (!name) return;
-
-        if (name.toUpperCase() === "STATO") name = "Stato";
-
-        var k = name.toUpperCase();
-        if (seen[k]) return;
-        seen[k] = true;
-
-        aProps.push({
-          name: name,
-          label: f.label || name,
-          dataType: "String",
-          domain: f.domain || "",
-          required: !!f.required
-        });
-      });
-
-      if (!seen["STATO"]) {
-        aProps.unshift({
-          name: "Stato",
-          label: "Stato",
-          dataType: "String",
-          domain: "",
-          required: false
-        });
-      }
-
-      oVm.setProperty("/mdcCfg/screen3", {
-        modelName: "detail",
-        collectionPath: "/Records",
-        properties: aProps
-      });
-
-      this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
-    }
-
-      async function _rebuildColumnsHard(oTbl, aCfg01) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
-
-      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-      aOld.slice().forEach(function (c) {
-        oTbl.removeColumn(c);
-        c.destroy();
-      });
-
-      var seen = Object.create(null);
-      var aCfgUnique = (aCfg01 || []).filter(function (f) {
-        var ui = String(f && f.ui || "").trim();
-        if (!ui) return false;
-
-        if (ui.toUpperCase() === "STATO") return false;
-
-        var k = ui.toUpperCase();
-        if (seen[k]) return false;
-        seen[k] = true;
-        return true;
-      });
-
-      oTbl.addColumn(new MdcColumn({
-        header: "Dettaglio",
-        visible: true,
-        width: "100px",
-        template: new Button({
-          icon: "sap-icon://enter-more",
-          type: "Transparent",
-          press: this.onGoToScreen4FromRow.bind(this)
-        })
-      }));
-
-      this._colStatoS3 = new MdcColumn({
-        width: "70px",
-        header: "Stato",
-        visible: true,
-        dataProperty: "Stato",
-        sortProperty: "Stato",
-        filterProperty: "Stato",
-        template: this._createStatusCellTemplate("Stato")
-      });
-      oTbl.addColumn(this._colStatoS3);
-
-      aCfgUnique.forEach(function (f) {
-        var sKeyRaw = String(f.ui || "").trim();
-        if (!sKeyRaw) return;
-
-        var sKey = sKeyRaw;
-        var sHeader = (f.label || sKeyRaw) + (f.required ? " *" : "");
-
-        oTbl.addColumn(new MdcColumn({
-          header: sHeader,
-          visible: true,
-          dataProperty: sKey,
-          sortProperty: sKey,
-          filterProperty: sKey,
-          template: this._createCellTemplate(sKey, f)
-        }));
-      }.bind(this));
-    }
-      function _createStatusCellTemplate(sKey) {
-      var sBindKey = (String(sKey || "").toUpperCase() === "STATO") ? "Stato" : sKey;
-
-      var sStateExpr =
-        "{= (${detail>" + sBindKey + "} === '' ? 'Warning' : " +
-        "(${detail>" + sBindKey + "} === 'AP' ? 'Success' : " +
-        "(${detail>" + sBindKey + "} === 'RJ' ? 'Error' : " +
-        "(${detail>" + sBindKey + "} === 'CH' ? 'Information' : " +
-        "(${detail>" + sBindKey + "} === 'ST' ? 'Warning' : 'None')))))}";
-
-      return new HBox({
-        width: "100%",
-        justifyContent: "Center",
-        alignItems: "Center",
-        items: [
-          new ObjectStatus({
-            text: "",
-            icon: "sap-icon://circle-task",
-            state: sStateExpr,
-            tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
-          })
-        ]
-      });
-    }
-
   return {
     // inner table
     getInnerTableFromMdc: getInnerTableFromMdc,
@@ -570,12 +439,9 @@ sap.ui.define([
     // selection helpers
     getSelectedObjectsFromMdc: getSelectedObjectsFromMdc,
     clearSelectionMdc: clearSelectionMdc,
-    selectFirstRowMdc: selectFirstRowMdc,
+    selectFirstRowMdc: selectFirstRowMdc
 
-    //
-    selectFirstRowMdc:selectFirstRowMdc,
-    _ensureMdcCfgScreen3:_ensureMdcCfgScreen3,
-    _rebuildColumnsHard:_rebuildColumnsHard,
-    _createStatusCellTemplate:_createStatusCellTemplate
+    // NOTE: _ensureMdcCfgScreen3, _rebuildColumnsHard, _createStatusCellTemplate
+    // were removed — they used `this` (controller context) and belong in Screen3_controller.js.
   };
 });

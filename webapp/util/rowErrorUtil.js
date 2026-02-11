@@ -1,7 +1,7 @@
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/postUtil"
-], function (Common, PostUtil) {
+], function (N, PostUtil) {
   "use strict";
 
   return {
@@ -164,9 +164,9 @@ sap.ui.define([
       if (!Array.isArray(aAll)) aAll = [];
 
       var toStableString = opts.toStableString;
-      var normalizeVendor10 = PostUtil.normalizeVendor10;
-      var normEsito = PostUtil.normEsito;
-      var normMsg = PostUtil.normMsg;
+      var normalizeVendor10 = N.normalizeVendor10;
+      var normEsito = N.normEsito;
+      var normMsg = N.normMsg;
 
       var mIdxByGuid = {};
       var mIdxByBiz = {};

@@ -391,7 +391,29 @@ sap.ui.define([], function () {
   }
 
   // -------------------------------------------------------
+  // Safe string helpers (previously in Screen2_controller.js)
+  // -------------------------------------------------------
+
+  /**
+   * Coerce to string, null/undefined -> "".
+   */
+  function safeStr(x) {
+    return (x === null || x === undefined) ? "" : String(x);
+  }
+
+  /**
+   * Lowercase safe string.
+   */
+  function lc(x) {
+    return safeStr(x).toLowerCase();
+  }
+
+  // -------------------------------------------------------
   // Public API
+  //
+  // This is the SINGLE SOURCE OF TRUTH for all data
+  // normalization. Other modules should import from here
+  // instead of duplicating these functions.
   // -------------------------------------------------------
 
   return {
@@ -402,6 +424,8 @@ sap.ui.define([], function () {
     valToText: valToText,
     normCode: normCode,
     isEmpty: isEmpty,
+    safeStr: safeStr,
+    lc: lc,
 
     // Vendor
     normalizeVendor10: normalizeVendor10,

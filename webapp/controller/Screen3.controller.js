@@ -154,7 +154,7 @@ sap.ui.define([
           this._hydrateAndFormat(aRows);
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
           var mTplGuid = {};
-          (aRows || []).forEach(function (r) { if (PostUtil.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
+          (aRows || []).forEach(function (r) { if (Common.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
           aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[Common.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
@@ -199,7 +199,7 @@ sap.ui.define([
     _hydrateAndFormat: function (aRows) {
       var oDetail = this._getODetail();
       var oVm = this.getOwnerComponent().getModel("vm");
-      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, PostUtil.getCodAgg.bind(PostUtil));
+      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, Common.getCodAgg);
       this._log("_hydrateMmctFromRows", result);
       var mMulti = PostUtil.getMultiFieldsMap(oDetail);
       PostUtil.formatIncomingRowsMultiSeparators(aRows, mMulti);
@@ -440,11 +440,11 @@ sap.ui.define([
       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per aggiungere righe");
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
-      var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: PostUtil.getCodAgg });
-      var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: PostUtil.isBaseCodAgg.bind(PostUtil) });
+      var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: Common.getCodAgg });
+      var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: Common.isBaseCodAgg });
 
-      var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: PostUtil.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: PostUtil.genGuidNew });
-      var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: PostUtil.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
+      var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: Common.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: Common.genGuidNew });
+      var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: Common.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
 
       var aAll = (oDetail.getProperty("/RecordsAll") || []).slice(); aAll.push(result.row); oDetail.setProperty("/RecordsAll", aAll);
       var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(result.row); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
@@ -491,7 +491,7 @@ sap.ui.define([
 
     // ==================== SAVE ====================
     onSave: function () {
-      var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: PostUtil.getCodAgg });
+      var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: Common.getCodAgg });
       if (!vr.ok) {
         var top = vr.errors.slice(0, 15).map(function (e) { return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")"; }).join("\n");
         return MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top + (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
@@ -499,7 +499,7 @@ sap.ui.define([
 
       var oVm = this.getOwnerComponent().getModel("vm"), mock = (oVm && oVm.getProperty("/mock")) || {};
       var oDetail = this._getODetail();
-      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "E_ZEMAF", vendor10: PostUtil.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, getCodAgg: PostUtil.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: PostUtil.normalizeMultiString, uuidv4: PostUtil.uuidv4 });
+      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "E_ZEMAF", vendor10: Common.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, getCodAgg: Common.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: Common.normalizeMultiString, uuidv4: Common.uuidv4 });
 
       var self = this;
       SaveUtil.executePost({ oModel: this.getOwnerComponent().getModel(), payload: oPayload, mock: !!mock.mockS3,

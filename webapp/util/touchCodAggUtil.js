@@ -1,42 +1,57 @@
+/**
+ * touchCodAggUtil.js — CodAgg management helpers.
+ *
+ */
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/common",
-  "apptracciabilita/apptracciabilita/util/postUtil",
-  "apptracciabilita/apptracciabilita/util/recordsUtil"
-], function (Common, PostUtil, RecordsUtil) {
+  "apptracciabilita/apptracciabilita/util/normalize"
+], function (N) {
   "use strict";
 
   var TouchCodAggUtil = {
 
     /**
-     * Legge CodAgg normalizzato da un oggetto riga/record.
+     * Read CodAgg (normalized) from a row/record object.
      */
-    getCodAgg: function (o) {
-      return String(o && (o.CodAgg != null ? o.CodAgg : (o.CODAGG != null ? o.CODAGG : ""))).trim().toUpperCase();
-    },
+    getCodAgg: N.getCodAgg,
 
     /**
-     * Marca CodAgg = "U" su una singola riga S4 (se non già "N"/"D").
+     * Mark CodAgg = "U" on a single detail row (Screen4 level).
+     * Skips rows already marked "D".
      */
     touchCodAggRow: function (row) {
-      if (!row) return;
-      var ca = TouchCodAggUtil.getCodAgg(row);
-      var g = String(row.Guid || row.GUID || row.guidKey || "").trim();
-      var isNew = !!row.__isNew || (g.indexOf("-new") >= 0);
+      if (!row) {
+        return;
+      }
+      var ca = N.getCodAgg(row);
+      var isNew = N.isNewRow(row);
 
-      if (isNew) { row.CodAgg = "U"; return; }
-      if (ca === "" || ca === "N" || ca === "I") { row.CodAgg = "U"; }
+      if (isNew) {
+        row.CodAgg = "U";
+        return;
+      }
+      if (ca === "" || ca === "N" || ca === "I") {
+        row.CodAgg = "U";
+      }
     },
 
     /**
-     * Aggiorna il CodAgg del parent e delle righe raw in cache.
+     * Update CodAgg on a parent row and its raw rows in cache.
+     *
+     * @param {object} p - Parent row object
+     * @param {string} sPath - Binding path in oDetail model (e.g. "/Records/3")
+     * @param {object} opts - { oDetail, oVm, cacheKey }
      */
     touchCodAggParent: function (p, sPath, opts) {
-      if (!p) return;
+      if (!p) {
+        return;
+      }
 
-      var ca = PostUtil.getCodAgg(p);
-      var isNew = !!p.__isNew || String(p.guidKey || p.Guid || p.GUID || "").indexOf("-new") >= 0;
+      var ca = N.getCodAgg(p);
+      var isNew = N.isNewRow(p);
 
-      if (ca === "N") return;
+      if (ca === "N") {
+        return;
+      }
 
       var newCa = ca;
       if (isNew) {
@@ -48,7 +63,9 @@ sap.ui.define([
       var parentChanged = (newCa !== ca);
       if (parentChanged) {
         p.CodAgg = newCa;
-        if (p.CODAGG !== undefined) delete p.CODAGG;
+        if (p.CODAGG !== undefined) {
+          delete p.CODAGG;
+        }
 
         try {
           var oDetail = opts.oDetail;
@@ -67,37 +84,59 @@ sap.ui.define([
               }
             }
           }
-        } catch (e) { }
+        } catch (e) {
+          console.warn("[touchCodAggUtil] touchCodAggParent detail update failed", e.message);
+        }
       }
 
-      var g = Common.toStableString(p.guidKey || p.Guid || p.GUID);
-      if (!g) return;
+      // Update raw rows in VM cache
+      var g = N.toStableString(N.getGuid(p));
+      if (!g) {
+        return;
+      }
 
       var oVm = opts.oVm;
       var sKey = opts.cacheKey;
       var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
-      if (!Array.isArray(aRaw)) aRaw = [];
+      if (!Array.isArray(aRaw)) {
+        aRaw = [];
+      }
 
       var changed = false;
 
       aRaw.forEach(function (r) {
-        if (!r) return;
-        if (RecordsUtil.rowGuidKey(r) !== g) return;
+        if (!r) {
+          return;
+        }
+        if (N.rowGuidKey(r) !== g) {
+          return;
+        }
 
-        var rc = PostUtil.getCodAgg(r);
-        var rIsNew = !!r.__isNew || String(r.Guid || r.GUID || r.guidKey || "").indexOf("-new") >= 0;
+        var rc = N.getCodAgg(r);
+        var rIsNew = N.isNewRow(r);
 
-        if (rc === "N" || rc === "D") return;
+        if (rc === "N" || rc === "D") {
+          return;
+        }
 
         if (rIsNew) {
-          if (r.CodAgg !== "I") { r.CodAgg = "I"; changed = true; }
+          if (r.CodAgg !== "I") {
+            r.CodAgg = "I";
+            changed = true;
+          }
         } else {
           if (rc === "" || rc === "I") {
-            if (r.CodAgg !== "U") { r.CodAgg = "U"; changed = true; }
+            if (r.CodAgg !== "U") {
+              r.CodAgg = "U";
+              changed = true;
+            }
           }
         }
 
-        if (r.CODAGG !== undefined) { delete r.CODAGG; changed = true; }
+        if (r.CODAGG !== undefined) {
+          delete r.CODAGG;
+          changed = true;
+        }
       });
 
       if (changed) {

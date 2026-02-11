@@ -27,14 +27,16 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/rowManagementUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/screen4CacheUtil",
-  "apptracciabilita/apptracciabilita/util/touchCodAggUtil"
+  "apptracciabilita/apptracciabilita/util/touchCodAggUtil",
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
+
 ], function (
   Controller, History, JSONModel, MessageToast, MessageBox,
   Button, MdcColumn, HBox, ObjectStatus, StateUtil,
   Common, VmCache, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
   SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
-  Screen4CacheUtil, TouchCodAggUtil
+  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize
 ) {
   "use strict";
 
@@ -331,7 +333,8 @@ sap.ui.define([
       this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
       MdcTableUtil.resetInlineHeaderControls(this._inlineFS);
       await this._rebuildColumnsHard(oTbl, aCfg01Table);
-
+      /* COLONNE DINAMICHE */
+      TableColumnAutoSize.autoSize(this.byId("mdcTable3"), 60);
       if (oTbl && oTbl.initialized) await oTbl.initialized();
       if (oTbl) oTbl.setModel(oDetail, "detail");
 

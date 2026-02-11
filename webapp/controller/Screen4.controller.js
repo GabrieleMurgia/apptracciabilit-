@@ -18,12 +18,14 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
+
 
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
   Controller, History, JSONModel, MessageToast, MdcColumn, StateUtil,
   Common, VmCache, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader,TableColumnAutoSize,
   MockData
 ) {
   "use strict";
@@ -319,6 +321,8 @@ sap.ui.define([
       var oD = this.getView().getModel("detail"), oTbl = this.byId("mdcTable4"); if (!oTbl) return;
       this._ensureMdcCfgScreen4(oD.getProperty("/_mmct/s02") || []);
       await this._rebuildColumnsHard(oTbl, oD.getProperty("/_mmct/s02") || []);
+      /* COLONNE DINAMICHE */
+      TableColumnAutoSize.autoSize(this.byId("mdcTable4"), 60);
       if (oTbl.initialized) await oTbl.initialized();
       oTbl.setModel(oD, "detail");
       this._snapshotRows = Common.deepClone(oD.getProperty("/RowsAll") || []);

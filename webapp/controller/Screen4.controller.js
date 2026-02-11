@@ -1,13 +1,11 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/routing/History",
+  "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
   "sap/ui/mdc/table/Column",
   "sap/ui/mdc/p13n/StateUtil",
 
-  "apptracciabilita/apptracciabilita/util/common",
-  "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/domains",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
@@ -20,22 +18,24 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
 
-
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
-  Controller, History, JSONModel, MessageToast, MdcColumn, StateUtil,
-  Common, VmCache, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader,TableColumnAutoSize,
+  BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
+  N, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, TableColumnAutoSize,
   MockData
 ) {
   "use strict";
 
-  return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
+  return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
+
+    _sLogPrefix: "[S4]",
+    _sMockFlag: "mockS4",
 
     // ==================== INIT ====================
     onInit: function () {
 
-      var oVm = this._ensureVmCache();
+      var oVm = this._getOVm();
       oVm.setProperty("/mdcCfg/screen4", { modelName: "detail", collectionPath: "/Rows", properties: [] });
 
       this._log("onInit");
@@ -64,9 +64,7 @@ sap.ui.define([
       } catch (e) { }
     },
 
-    // ==================== LOGGING ====================
-    _log: function () { var a = Array.prototype.slice.call(arguments); a.unshift("[S4] " + Common.ts()); console.log.apply(console, a); },
-    _dbg: function () { if (this._DBG === false) return; var a = Array.prototype.slice.call(arguments); a.unshift("[S4DBG] " + Common.ts()); console.log.apply(console, a); },
+    // _log and _dbg inherited from BaseController
 
     // ==================== ROUTE ====================
     _onRouteMatched: function (oEvent) {
@@ -100,8 +98,7 @@ sap.ui.define([
     },
 
     // ==================== CACHE / CONFIG ====================
-    _ensureVmCache: function () { return VmCache.ensureVmCache(this.getOwnerComponent()); },
-    _getCacheKeySafe: function () { return VmCache.getCacheKeySafe(this._sVendorId, this._sMaterial); },
+    // _getOVm (= _ensureVmCache), _getCacheKeySafe inherited from BaseController
     _getDataCacheKey: function () {
       var mock = (this.getOwnerComponent().getModel("vm").getProperty("/mock")) || {};
       return (!!(mock.mockS3 || mock.mockS4) ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
@@ -158,7 +155,7 @@ sap.ui.define([
 
     // ==================== STATUS ====================
     _updateVmRecordStatus: function (sCK, sGuid, sFibra, sRole, sStatus) {
-      var oVm = this._ensureVmCache();
+      var oVm = this._getOVm();
       var aRecs = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
       if (!Array.isArray(aRecs) || !aRecs.length) return;
       var idx = aRecs.findIndex(function (r) {
@@ -193,13 +190,13 @@ sap.ui.define([
       function gv(k) { if (oRec[k] != null && oRec[k] !== "") return oRec[k]; if (r0[k] != null && r0[k] !== "") return r0[k]; return ""; }
       oD.setProperty("/Header4Fields", aHdr.slice()
         .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
-        .map(function (f) { var k = String(f.ui || "").trim(); return { key: k, label: f.label || k, value: Common.valToText(gv(k)) }; })
+        .map(function (f) { var k = String(f.ui || "").trim(); return { key: k, label: f.label || k, value: N.valToText(gv(k)) }; })
         .filter(function (x) { return x.key.toUpperCase() !== "FORNITORE"; }));
     },
 
     // ==================== LOAD SELECTED RECORD ROWS ====================
     _loadSelectedRecordRows: function (fnDone) {
-      var oVm = this._ensureVmCache(), sKey = this._getDataCacheKey(), self = this;
+      var oVm = this._getOVm(), sKey = this._getDataCacheKey(), self = this;
       var aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
       var aRecords = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
 
@@ -218,14 +215,14 @@ sap.ui.define([
           self._applyUiPermissions(); if (typeof fnDone === "function") fnDone(); return;
         }
 
-        var sGuid = Common.toStableString(oRec.guidKey || oRec.Guid || oRec.GUID || oRec.ItmGuid || oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || "");
-        var sRecFibra = Common.toStableString(oRec.Fibra || oRec.FIBRA || oRec.Fiber || oRec.FIBER || "");
-        var aByGuid = aAllRows.filter(function (r) { return Common.toStableString(S4Loader.rowGuidKey(r) || (r && r.guidKey)) === Common.toStableString(sGuid); });
+        var sGuid = N.toStableString(oRec.guidKey || oRec.Guid || oRec.GUID || oRec.ItmGuid || oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || "");
+        var sRecFibra = N.toStableString(oRec.Fibra || oRec.FIBRA || oRec.Fiber || oRec.FIBER || "");
+        var aByGuid = aAllRows.filter(function (r) { return N.toStableString(S4Loader.rowGuidKey(r) || (r && r.guidKey)) === N.toStableString(sGuid); });
 
         if (!aByGuid.length) {
-          var oS = Common.deepClone(oSel || oRec) || {};
+          var oS = N.deepClone(oSel || oRec) || {};
           oS.guidKey = sGuid; oS.Guid = sGuid; oS.GUID = sGuid;
-          oS.Fibra = sRecFibra || Common.toStableString((oSel && (oSel.Fibra || oSel.FIBRA)) || "") || "";
+          oS.Fibra = sRecFibra || N.toStableString((oSel && (oSel.Fibra || oSel.FIBRA)) || "") || "";
           if (oS.Approved == null) oS.Approved = 0; if (oS.ToApprove == null) oS.ToApprove = 1; if (oS.Rejected == null) oS.Rejected = 0;
           oS.__synthetic = true; oS.__localId = oS.__localId || ("SYNTH_" + Date.now());
           aAllRows = aAllRows.slice(); aAllRows.push(oS);
@@ -295,7 +292,7 @@ sap.ui.define([
 
     // ==================== MDC TABLE ====================
     _ensureMdcCfgScreen4: function (aCfg02) {
-      var oVm = this._ensureVmCache();
+      var oVm = this._getOVm();
       oVm.setProperty("/mdcCfg/screen4", { modelName: "detail", collectionPath: "/Rows",
         properties: S4Filter.dedupeCfgByUi(aCfg02).map(function (f) {
           return { name: f.ui, label: f.label || f.ui, dataType: "String", domain: f.domain || "", required: !!f.required };
@@ -325,7 +322,7 @@ sap.ui.define([
       TableColumnAutoSize.autoSize(this.byId("mdcTable4"), 60);
       if (oTbl.initialized) await oTbl.initialized();
       oTbl.setModel(oD, "detail");
-      this._snapshotRows = Common.deepClone(oD.getProperty("/RowsAll") || []);
+      this._snapshotRows = N.deepClone(oD.getProperty("/RowsAll") || []);
       if (typeof oTbl.rebind === "function") oTbl.rebind();
       await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
       var self = this;
@@ -416,7 +413,7 @@ sap.ui.define([
           oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false);
         }
         oD.setProperty("/RowsAll", aRem); oD.setProperty("/__dirty", true);
-        var oVm = this._ensureVmCache(), sCK = this._getDataCacheKey(), sGuid = Common.toStableString(oD.getProperty("/guidKey"));
+        var oVm = this._getOVm(), sCK = this._getDataCacheKey(), sGuid = N.toStableString(oD.getProperty("/guidKey"));
         var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
         aRem.forEach(function (l) { if (!l.CodAgg) l.CodAgg = "U"; });
         oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC.concat(aRem));
@@ -432,7 +429,7 @@ sap.ui.define([
         if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
         var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
         var oBase = aAll.find(function (r) { var ca = TouchCodAggUtil.getCodAgg(r); return ca === "N" || ca === ""; }) || aAll[0];
-        var oNew = Common.deepClone(oBase) || {};
+        var oNew = N.deepClone(oBase) || {};
         var shouldUpd = false;
         try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
           .filter(function (i) { return i.Guid === oNew.Guid; })
@@ -445,8 +442,8 @@ sap.ui.define([
         aAll = aAll.slice(); aAll.push(oNew);
         oD.setProperty("/RowsAll", aAll); oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
         oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false); oD.setProperty("/__dirty", true);
-        var oVm = this._ensureVmCache(), sCK = this._getDataCacheKey();
-        var sGuid = Common.toStableString(oD.getProperty("/guidKey")), sFibra = Common.toStableString(oD.getProperty("/Fibra"));
+        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
+        var sGuid = N.toStableString(oD.getProperty("/guidKey")), sFibra = N.toStableString(oD.getProperty("/Fibra"));
         var aC = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
         aC.forEach(function (r) { if (S4Loader.rowGuidKey(r) === sGuid && S4Loader.rowFibra(r) === sFibra) { r.Approved = 0; r.Rejected = 0; r.ToApprove = 1; } });
         aC = aC.slice(); aC.push(oNew); oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
@@ -462,14 +459,14 @@ sap.ui.define([
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__dirty")) { MessageToast.show("Nessuna modifica da salvare"); return; }
         var aRows = oD.getProperty("/RowsAll") || [];
-        var oVm = this._ensureVmCache(), sCK = this._getDataCacheKey();
-        var sGuid = Common.toStableString(oD.getProperty("/guidKey")), sFibra = Common.toStableString(oD.getProperty("/Fibra"));
+        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
+        var sGuid = N.toStableString(oD.getProperty("/guidKey")), sFibra = N.toStableString(oD.getProperty("/Fibra"));
         var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
         oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC.concat(aRows));
         this._updateVmRecordStatus(sCK, sGuid, sFibra,
           String(oD.getProperty("/__role") || "").trim().toUpperCase(),
           String(oD.getProperty("/__status") || "ST").trim().toUpperCase());
-        this._snapshotRows = Common.deepClone(aRows); oD.setProperty("/__dirty", false);
+        this._snapshotRows = N.deepClone(aRows); oD.setProperty("/__dirty", false);
         this._applyUiPermissions(); MessageToast.show("Salvato (locale/cache)");
       } catch (e) { console.error("[S4] onSaveLocal ERROR", e); MessageToast.show("Errore salvataggio"); }
     },
@@ -479,14 +476,13 @@ sap.ui.define([
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
 
     // ==================== NAVIGATION ====================
-    _markSkipS3BackendOnce: function () { this._ensureVmCache().setProperty("/__skipS3BackendOnce", true); },
+    _markSkipS3BackendOnce: function () { this._getOVm().setProperty("/__skipS3BackendOnce", true); },
+    _getNavBackFallback: function () {
+      return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
+    },
     onNavBack: function () {
       this._markSkipS3BackendOnce();
-      var sPrev = History.getInstance().getPreviousHash();
-      if (sPrev !== undefined) window.history.go(-1);
-      else this.getOwnerComponent().getRouter().navTo("Screen3", {
-        vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A"
-      }, true);
+      this._performNavBack();
     }
   });
 });

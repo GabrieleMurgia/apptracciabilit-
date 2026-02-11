@@ -1,237 +1,182 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/routing/History",
+  "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/mockData"
-], function (Controller, History, JSONModel, Filter, FilterOperator, BusyIndicator, MessageToast, MockData) {
+], function (BaseController, JSONModel, Filter, FilterOperator, BusyIndicator, MessageToast, N, MockData) {
   "use strict";
 
-function getODataErrorMessage(oError) {
-  try {
-    if (oError && oError.responseText) {
-      var o = JSON.parse(oError.responseText);
-      var v = o && o.error && o.error.message && (o.error.message.value || o.error.message);
-      if (v) return String(v);
-    }
-    if (oError && oError.message) return String(oError.message);
-  } catch (e) { /* ignore */ }
-  return "Errore imprevisto";
-}
+  // Local helpers (use N.safeStr / N.lc from normalize.js)
+  var safeStr = N.safeStr;
+  var lc = N.lc;
 
-function recomputeSupportFields(row) {
-  var searchAll = [
-    safeStr(row.Material),
-    safeStr(row.MaterialOriginal),
-    safeStr(row.MaterialDescription),
-    safeStr(row.DescCatMateriale),
-    safeStr(row.Stagione),
-    safeStr(row.MatStatus),
-    safeStr(row.Open),
-    safeStr(row.Rejected),
-    safeStr(row.Pending),
-    safeStr(row.Approved)
-  ].join(" ");
-
-  row.StagioneLC = lc(row.Stagione);
-  row.MaterialLC = lc(row.Material);
-  row.DescCatMaterialeLC = lc(row.DescCatMateriale)
-  row.MaterialOriginalLC = lc(row.MaterialOriginal);
-  row.SearchAllLC = lc(searchAll);
-}
-
-  function ts() { return new Date().toISOString(); }
-
-  function safeStr(x) { return (x === null || x === undefined) ? "" : String(x); }
-  function lc(x) { return safeStr(x).toLowerCase(); }
-
-function looksLikeMatCode(s) {
-  s = safeStr(s).trim();
-  if (!s || s.length < 6) return false;
-  if (/^[A-Z]+$/.test(s) && s.length < 10) return false; 
-  return /^[A-Za-z0-9._-]+$/.test(s);
-}
-
-  function chooseMaterialKey(m) {
-    var mat = safeStr(m && m.Materiale).trim();
-    var desc = safeStr(m && m.DescMateriale).trim();
-
-    if (!mat) return desc;
-    if (!desc) return mat;
-
-    if (!looksLikeMatCode(desc)) return mat;
-    if (looksLikeMatCode(mat) && desc !== mat) return desc;
-
-    return mat;
+  function getODataErrorMessage(oError) {
+    try {
+      if (oError && oError.responseText) {
+        var o = JSON.parse(oError.responseText);
+        var v = o && o.error && o.error.message && (o.error.message.value || o.error.message);
+        if (v) return String(v);
+      }
+      if (oError && oError.message) return String(oError.message);
+    } catch (e) { /* ignore */ }
+    return "Errore imprevisto";
   }
 
-  // crea una riga coerente (MOCK + BACKEND) e i campi supporto filtri
-function buildRow(m) {
-  // 1:1 Mapping dai dati originali (m)
-  var materialOrig = safeStr(m.Materiale).trim();
-  var desc = safeStr(m.DescMateriale).trim();
-  var descCat = safeStr(m.DescCatMateriale).trim();
-  var season = safeStr(m.Stagione).trim();
-  var status = safeStr(m.MatStatus).trim();
+  function recomputeSupportFields(row) {
+    var searchAll = [
+      safeStr(row.Material),
+      safeStr(row.MaterialOriginal),
+      safeStr(row.MaterialDescription),
+      safeStr(row.DescCatMateriale),
+      safeStr(row.Stagione),
+      safeStr(row.MatStatus),
+      safeStr(row.Open),
+      safeStr(row.Rejected),
+      safeStr(row.Pending),
+      safeStr(row.Approved)
+    ].join(" ");
 
-  // Mapping stati e numeri
-  var open = safeStr(m.Open).trim();
-  var rejected = Number(m.Rejected) || 0;
-  var pending = Number(m.ToApprove) || 0; // Backend usa ToApprove
-  var approved = Number(m.Approved) || 0;
-
-  // Stringa per ricerca globale (concatena i valori reali)
-  var searchAll = [
-    materialOrig, 
-    desc,
-    descCat,
-    season, 
-    status,
-    open, 
-    rejected, 
-    pending, 
-    approved
-  ].join(" ");
-
-  return {
-    // Ora 'Material' punta direttamente al codice, non più al risultato di chooseMaterialKey
-    Material: materialOrig, 
-    MaterialOriginal: materialOrig,
-    MaterialDescription: desc,
-    DescCatMateriale: descCat,  
-
-    Stagione: season,
-    MatStatus: status,
-
-    OpenPo: open === "X" ? 1 : 0,
-    Open: open,
-    Rejected: rejected,
-    Pending: pending,
-    ToApprove: pending,
-    Approved: approved,
-
-    // Campi per filtri case-insensitive (Lowecase)
-    StagioneLC: lc(season),
-    MaterialLC: lc(materialOrig),
-    DescCatMaterialeLC: lc(descCat),
-    MaterialOriginalLC: lc(materialOrig),
-    SearchAllLC: lc(searchAll)
-  };
-}
-
-  return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
-
-  onMatStatusPress: function (oEvent) {
-  
-  var oBtn = oEvent.getSource();
-  var oCtx = oBtn.getBindingContext(); // contesto JSONModel della riga
-  if (!oCtx) return;
-
-  var oRow = oCtx.getObject() || {};
-  var sPath = oCtx.getPath(); // es: "/Materials/3"
-
-  // valori da inviare
-  var sVendor = safeStr(this._sVendorId).trim();
-  // se vuoi padding vendor e hai MockData.padVendor, usa questo:
-  if (MockData && typeof MockData.padVendor === "function") {
-    sVendor = MockData.padVendor(sVendor);
+    row.StagioneLC = lc(row.Stagione);
+    row.MaterialLC = lc(row.Material);
+    row.DescCatMaterialeLC = lc(row.DescCatMateriale);
+    row.MaterialOriginalLC = lc(row.MaterialOriginal);
+    row.SearchAllLC = lc(searchAll);
   }
 
-  var sMateriale = safeStr(oRow.MaterialOriginal || oRow.Material).trim();
-  var sStagione = safeStr(oRow.Stagione).trim();
+  function buildRow(m) {
+    var materialOrig = safeStr(m.Materiale).trim();
+    var desc = safeStr(m.DescMateriale).trim();
+    var descCat = safeStr(m.DescCatMateriale).trim();
+    var season = safeStr(m.Stagione).trim();
+    var status = safeStr(m.MatStatus).trim();
 
-  // toggle status
-  var sCurr = safeStr(oRow.MatStatus).trim();
-  var sNewStatus = (sCurr === "LOCK") ? "RELE" : "LOCK";
+    var open = safeStr(m.Open).trim();
+    var rejected = Number(m.Rejected) || 0;
+    var pending = Number(m.ToApprove) || 0;
+    var approved = Number(m.Approved) || 0;
 
-  var oPayload = {
-    Fornitore: sVendor,
-    Materiale: sMateriale,
-    Stagione: sStagione,
-    MatStatus: sNewStatus
-  };
+    var searchAll = [
+      materialOrig, desc, descCat, season, status,
+      open, rejected, pending, approved
+    ].join(" ");
 
-  // se sei in MOCK, aggiorna localmente (così non “rompe” in test)
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var bMockS2 = !!mock.mockS2;
-  if (bMockS2) {
-    var oJson = this.getView().getModel();
-    oJson.setProperty(sPath + "/MatStatus", sNewStatus);
+    return {
+      Material: materialOrig,
+      MaterialOriginal: materialOrig,
+      MaterialDescription: desc,
+      DescCatMateriale: descCat,
 
-    var r = oJson.getProperty(sPath);
-    recomputeSupportFields(r);
-    oJson.refresh(true);
+      Stagione: season,
+      MatStatus: status,
 
-    MessageToast.show("MOCK: stato aggiornato a " + sNewStatus);
-    return;
+      OpenPo: open === "X" ? 1 : 0,
+      Open: open,
+      Rejected: rejected,
+      Pending: pending,
+      ToApprove: pending,
+      Approved: approved,
+
+      StagioneLC: lc(season),
+      MaterialLC: lc(materialOrig),
+      DescCatMaterialeLC: lc(descCat),
+      MaterialOriginalLC: lc(materialOrig),
+      SearchAllLC: lc(searchAll)
+    };
   }
 
-  var oODataModel = this.getOwnerComponent().getModel();  // OData v2
-  var oJsonModel = this.getView().getModel();
+  return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
 
-  // evita doppio click
-  oBtn.setEnabled(false);
-  BusyIndicator.show(0);
+    _sLogPrefix: "[S2]",
 
-  oODataModel.create("/MaterialStatusSet", oPayload, {
-    success: function (oData) {
-      BusyIndicator.hide();
-      oBtn.setEnabled(true);
+    onMatStatusPress: function (oEvent) {
+      var oBtn = oEvent.getSource();
+      var oCtx = oBtn.getBindingContext();
+      if (!oCtx) return;
 
-      // fallback: se il backend non rimanda MatStatus, uso quello inviato
-      var sReturnedStatus = safeStr((oData && oData.MatStatus) || sNewStatus).trim();
+      var oRow = oCtx.getObject() || {};
+      var sPath = oCtx.getPath();
 
-      oJsonModel.setProperty(sPath + "/MatStatus", sReturnedStatus);
-
-      // se torna la stagione aggiornata
-      if (oData && oData.Stagione !== undefined) {
-        oJsonModel.setProperty(sPath + "/Stagione", safeStr(oData.Stagione).trim());
+      var sVendor = safeStr(this._sVendorId).trim();
+      if (MockData && typeof MockData.padVendor === "function") {
+        sVendor = MockData.padVendor(sVendor);
       }
 
-      // opzionale: se il backend rimanda anche questi campi, li aggiorno
-      if (oData && oData.Open !== undefined) {
-        var open = safeStr(oData.Open).trim();
-        oJsonModel.setProperty(sPath + "/Open", open);
-        oJsonModel.setProperty(sPath + "/OpenPo", open === "X" ? 1 : 0);
+      var sMateriale = safeStr(oRow.MaterialOriginal || oRow.Material).trim();
+      var sStagione = safeStr(oRow.Stagione).trim();
+      var sCurr = safeStr(oRow.MatStatus).trim();
+      var sNewStatus = (sCurr === "LOCK") ? "RELE" : "LOCK";
+
+      var oPayload = {
+        Fornitore: sVendor,
+        Materiale: sMateriale,
+        Stagione: sStagione,
+        MatStatus: sNewStatus
+      };
+
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      var bMockS2 = !!mock.mockS2;
+
+      if (bMockS2) {
+        var oJson = this.getView().getModel();
+        oJson.setProperty(sPath + "/MatStatus", sNewStatus);
+        var r = oJson.getProperty(sPath);
+        recomputeSupportFields(r);
+        oJson.refresh(true);
+        MessageToast.show("MOCK: stato aggiornato a " + sNewStatus);
+        return;
       }
-      if (oData && oData.Rejected !== undefined) {
-        oJsonModel.setProperty(sPath + "/Rejected", Number(oData.Rejected) || 0);
-      }
-      if (oData && oData.ToApprove !== undefined) {
-        var pend = Number(oData.ToApprove) || 0;
-        oJsonModel.setProperty(sPath + "/Pending", pend);
-        oJsonModel.setProperty(sPath + "/ToApprove", pend);
-      }
-      if (oData && oData.Approved !== undefined) {
-        oJsonModel.setProperty(sPath + "/Approved", Number(oData.Approved) || 0);
-      }
 
-      // ricalcolo campi filtro
-      var row = oJsonModel.getProperty(sPath);
-      recomputeSupportFields(row);
-      oJsonModel.refresh(true);
+      var oODataModel = this.getOwnerComponent().getModel();
+      var oJsonModel = this.getView().getModel();
 
-      MessageToast.show("Stato aggiornato con successo");
-    },
-    error: function (oError) {
-      BusyIndicator.hide();
-      oBtn.setEnabled(true);
+      oBtn.setEnabled(false);
+      BusyIndicator.show(0);
 
-      console.error("[Screen2] MaterialStatusSet POST error", oError);
-      MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError));
-    }
-  });
-},
+      oODataModel.create("/MaterialStatusSet", oPayload, {
+        success: function (oData) {
+          BusyIndicator.hide();
+          oBtn.setEnabled(true);
 
+          var sReturnedStatus = safeStr((oData && oData.MatStatus) || sNewStatus).trim();
+          oJsonModel.setProperty(sPath + "/MatStatus", sReturnedStatus);
 
-    _log: function () {
-      var a = Array.prototype.slice.call(arguments);
-      a.unshift("[Screen2] " + ts());
-      console.log.apply(console, a);
+          if (oData && oData.Stagione !== undefined) {
+            oJsonModel.setProperty(sPath + "/Stagione", safeStr(oData.Stagione).trim());
+          }
+          if (oData && oData.Open !== undefined) {
+            var openVal = safeStr(oData.Open).trim();
+            oJsonModel.setProperty(sPath + "/Open", openVal);
+            oJsonModel.setProperty(sPath + "/OpenPo", openVal === "X" ? 1 : 0);
+          }
+          if (oData && oData.Rejected !== undefined) {
+            oJsonModel.setProperty(sPath + "/Rejected", Number(oData.Rejected) || 0);
+          }
+          if (oData && oData.ToApprove !== undefined) {
+            var pend = Number(oData.ToApprove) || 0;
+            oJsonModel.setProperty(sPath + "/Pending", pend);
+            oJsonModel.setProperty(sPath + "/ToApprove", pend);
+          }
+          if (oData && oData.Approved !== undefined) {
+            oJsonModel.setProperty(sPath + "/Approved", Number(oData.Approved) || 0);
+          }
+
+          var row = oJsonModel.getProperty(sPath);
+          recomputeSupportFields(row);
+          oJsonModel.refresh(true);
+          MessageToast.show("Stato aggiornato con successo");
+        },
+        error: function (oError) {
+          BusyIndicator.hide();
+          oBtn.setEnabled(true);
+          console.error("[Screen2] MaterialStatusSet POST error", oError);
+          MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError));
+        }
+      });
     },
 
     onInit: function () {
@@ -271,7 +216,6 @@ function buildRow(m) {
       }
 
       oViewModel.setProperty("/CurrentVendorName", sVendorName);
-
       this._loadMaterials();
     },
 
@@ -283,9 +227,6 @@ function buildRow(m) {
 
       this._log("_loadMaterials mock?", { mockS2: bMockS2, mock: mock });
 
-      // =========================
-      // MOCK Screen2
-      // =========================
       if (bMockS2) {
         var sVendorWanted = MockData.padVendor(this._sVendorId);
         var sUserId = String((oVm && oVm.getProperty("/userId")) || "E_ZEMAF").trim();
@@ -294,13 +235,9 @@ function buildRow(m) {
         this._log("[MOCK FILE] loading MaterialDataSet.json", { userId: sUserId, vendorId: sVendorWanted });
 
         MockData.loadMaterialDataSetGeneric().then(function (aAll) {
-          // se vuoi filtrare qui, fallo (ora lasciamo tutto)
-          var aFiltered = aAll;
-
-          var aMaterials = aFiltered.map(buildRow);
-          oViewModel.setProperty("/showMatStatusCol", aMaterials.some(r => String(r.MatStatus||"").trim() !== "DMMY"));
+          var aMaterials = aAll.map(buildRow);
+          oViewModel.setProperty("/showMatStatusCol", aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; }));
           oViewModel.setProperty("/Materials", aMaterials);
-
           this._applyFilters();
         }.bind(this)).catch(function (err) {
           console.error("[Screen2][MOCK FILE] ERROR", err);
@@ -312,36 +249,29 @@ function buildRow(m) {
         return;
       }
 
-      // =========================
-      // BACKEND read MaterialDataSet
-      // =========================
       var oODataModel = this.getOwnerComponent().getModel();
       var that = this;
-
       var sVendorId = this._sVendorId;
       var sUserId2 = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
 
       BusyIndicator.show(0);
-      
+
       var aFilters = [
         new Filter("Fornitore", FilterOperator.EQ, sVendorId),
-        new Filter("UserID", FilterOperator.EQ, sUserId2),
-        /* new Filter("Stagione", FilterOperator.EQ, sUserId2), */
+        new Filter("UserID", FilterOperator.EQ, sUserId2)
       ];
 
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
-          
-          
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
           var aMaterials = aResults.map(buildRow);
 
           oViewModel.setProperty("/Materials", aMaterials);
-            oViewModel.setProperty("/showMatStatusCol",
-    aMaterials.some(r => String(r.MatStatus || "").trim() !== "DMMY")
-  );
+          oViewModel.setProperty("/showMatStatusCol",
+            aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; })
+          );
           that._applyFilters();
         },
         error: function (oError) {
@@ -362,12 +292,10 @@ function buildRow(m) {
       if (!oBinding) return;
 
       var bOnlyIncomplete = this.byId("switchOnlyIncomplete2").getState();
-
       var sSeasonText = (this.byId("inputSeasonFilter2").getValue() || "").trim().toLowerCase();
       var sMaterialOnly = (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase();
       var sGeneral = (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase();
       var sDescCat = (this.byId("inputDescCatFilter2").getValue() || "").trim().toLowerCase();
-
 
       var aFilters = [];
 
@@ -383,8 +311,8 @@ function buildRow(m) {
       }
 
       if (sDescCat) {
-  aFilters.push(new Filter("DescCatMaterialeLC", FilterOperator.Contains, sDescCat));
-}
+        aFilters.push(new Filter("DescCatMaterialeLC", FilterOperator.Contains, sDescCat));
+      }
 
       if (sSeasonText) {
         aFilters.push(new Filter("StagioneLC", FilterOperator.Contains, sSeasonText));
@@ -394,7 +322,7 @@ function buildRow(m) {
         aFilters.push(new Filter({
           filters: [
             new Filter("MaterialLC", FilterOperator.Contains, sMaterialOnly),
-            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly),
+            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly)
           ],
           and: false
         }));
@@ -404,20 +332,18 @@ function buildRow(m) {
         aFilters.push(new Filter("SearchAllLC", FilterOperator.Contains, sGeneral));
       }
 
-
       oBinding.filter(aFilters, "Application");
     },
 
     onMaterialPress: function (oEvent) {
-        var oSrc = oEvent.getParameter("srcControl");
-  if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
-    return; // click su bottone: non navigo
-  }
+      var oSrc = oEvent.getParameter("srcControl");
+      if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
+        return;
+      }
       var oItem = oEvent.getSource().getSelectedItem();
       var oCtx = oItem.getBindingContext();
 
-      
-      var sSeason = oCtx.getProperty("Stagione")
+      var sSeason = oCtx.getProperty("Stagione");
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
       var sMaterialOrig = oCtx.getProperty("MaterialOriginal");
@@ -428,26 +354,23 @@ function buildRow(m) {
           var cache = oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} };
           cache.recordsByKey = cache.recordsByKey || {};
 
-          var sOpen = safeStr(oCtx.getProperty("Open")).trim();     // 'X' oppure ''
-var nOpenPo = Number(oCtx.getProperty("OpenPo")) || 0;    // 1/0 (opzionale)
+          var sOpen = safeStr(oCtx.getProperty("Open")).trim();
+          var nOpenPo = Number(oCtx.getProperty("OpenPo")) || 0;
 
-var k = "MATINFO|" + String(this._sVendorId) + "|" + String(sMaterial);
-cache.recordsByKey[k] = {
-  desc: sMaterialDesc,
-  orig: sMaterialOrig,
-  open: sOpen,
-  openPo: nOpenPo
-};
-
+          var k = "MATINFO|" + String(this._sVendorId) + "|" + String(sMaterial);
+          cache.recordsByKey[k] = {
+            desc: sMaterialDesc,
+            orig: sMaterialOrig,
+            open: sOpen,
+            openPo: nOpenPo
+          };
 
           oVm.setProperty("/cache", cache);
         }
       } catch (e) {
         console.warn("[Screen2] cache MATINFO error", e);
       }
-      /* QUA INSERIRE */
-      
-      
+
       this.getOwnerComponent().getRouter().navTo("Screen3", {
         vendorId: encodeURIComponent(this._sVendorId),
         material: encodeURIComponent(sMaterial),
@@ -456,17 +379,9 @@ cache.recordsByKey[k] = {
       });
     },
 
-    onNavBack: function () {
-      var oHistory = History.getInstance();
-      var sPreviousHash = oHistory.getPreviousHash();
-
-      if (sPreviousHash !== undefined) {
-        window.history.go(-1);
-      } else {
-        this.getOwnerComponent().getRouter().navTo("Screen1", {
-          mode: this._sMode || "A"
-        }, true);
-      }
+    // NavBack fallback: torna a Screen1
+    _getNavBackFallback: function () {
+      return { route: "Screen1", params: { mode: this._sMode || "A" } };
     }
   });
 });

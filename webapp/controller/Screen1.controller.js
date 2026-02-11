@@ -1,12 +1,13 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/routing/History",
+  "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator"
-], function (Controller, History, Filter, FilterOperator) {
+], function (BaseController, Filter, FilterOperator) {
   "use strict";
 
-  return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen1", {
+  return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen1", {
+
+    _sLogPrefix: "[S1]",
 
     onInit: function () {
       var oRouter = this.getOwnerComponent().getRouter();
@@ -17,7 +18,6 @@ sap.ui.define([
       var oArgs = oEvent.getParameter("arguments");
       this._sMode = oArgs.mode; // 'A', 'M', 'T'
 
-      // Modello "vm" globale(da view0) 
       var oVm = this.getOwnerComponent().getModel("vm");
       this.getView().setModel(oVm, "vm");
 
@@ -39,7 +39,7 @@ sap.ui.define([
         return;
       }
 
-      var sVendorId   = oCtx.getProperty("Fornitore");
+      var sVendorId = oCtx.getProperty("Fornitore");
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.navTo("Screen2", {
         vendorId: encodeURIComponent(sVendorId),
@@ -52,7 +52,7 @@ sap.ui.define([
     },
 
     _applyFilters: function () {
-      var oTable   = this.byId("tableVendors1");
+      var oTable = this.byId("tableVendors1");
       var oBinding = oTable && oTable.getBinding("items");
       if (!oBinding) {
         return;
@@ -66,11 +66,11 @@ sap.ui.define([
       if (bOnlyIncomplete) {
         aFilters.push(new Filter({
           filters: [
-            new Filter("Open",      FilterOperator.EQ, "X"),
+            new Filter("Open", FilterOperator.EQ, "X"),
             new Filter("ToApprove", FilterOperator.GT, 0),
-            new Filter("Rejected",  FilterOperator.GT, 0)
+            new Filter("Rejected", FilterOperator.GT, 0)
           ],
-          and: false 
+          and: false
         }));
       }
 
@@ -78,7 +78,7 @@ sap.ui.define([
       if (sText) {
         aFilters.push(new Filter({
           filters: [
-            new Filter("ReagSoc",  FilterOperator.Contains, sText),
+            new Filter("ReagSoc", FilterOperator.Contains, sText),
             new Filter("Fornitore", FilterOperator.Contains, sText)
           ],
           and: false
@@ -88,15 +88,9 @@ sap.ui.define([
       oBinding.filter(aFilters, "Application");
     },
 
-    onNavBack: function () {
-      var oHistory = History.getInstance();
-      var sPreviousHash = oHistory.getPreviousHash();
-
-      if (sPreviousHash !== undefined) {
-        window.history.go(-1);
-      } else {
-        this.getOwnerComponent().getRouter().navTo("Screen0", {}, true);
-      }
+    // NavBack fallback: torna a Screen0
+    _getNavBackFallback: function () {
+      return { route: "Screen0", params: {} };
     }
   });
 });

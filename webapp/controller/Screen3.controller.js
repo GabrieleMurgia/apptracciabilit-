@@ -1,6 +1,5 @@
 sap.ui.define([
-  "sap/ui/core/mvc/Controller",
-  "sap/ui/core/routing/History",
+  "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
@@ -11,8 +10,7 @@ sap.ui.define([
   "sap/ui/mdc/p13n/StateUtil",
 
   // ===== UTIL =====
-  "apptracciabilita/apptracciabilita/util/common",
-  "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/domains",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
@@ -31,20 +29,21 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
 
 ], function (
-  Controller, History, JSONModel, MessageToast, MessageBox,
+  BaseController, JSONModel, MessageToast, MessageBox,
   Button, MdcColumn, HBox, ObjectStatus, StateUtil,
-  Common, VmCache, Domains, StatusUtil, MdcTableUtil, P13nUtil,
+  N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
   SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
   Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize
 ) {
   "use strict";
 
-  var ts = Common.ts;
-  var deepClone = Common.deepClone;
+  var deepClone = N.deepClone;
 
-  return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
+  return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
 
+    _sLogPrefix: "[S3]",
+    _sMockFlag: "mockS3",
     PARENT_TABLE_ID: "mdcTable3",
 
     // ==================== INIT ====================
@@ -71,34 +70,9 @@ sap.ui.define([
       setTimeout(function () { this._logTable("TABLE STATE @ after onInit"); }.bind(this), 0);
     },
 
-    // ==================== LOG ====================
-    _log: function () {
-      var a = Array.prototype.slice.call(arguments);
-      a.unshift("[S3] " + ts());
-      console.log.apply(console, a);
-    },
+    // _log inherited from BaseController
 
-    _logTable: function (label) {
-      var oTbl = this.byId("mdcTable3");
-      if (!oTbl) return this._log(label, "NO TABLE");
-      var aCols = (oTbl.getColumns && oTbl.getColumns()) || [];
-      this._log(label, { id: oTbl.getId(), colsCount: aCols.length, visibleCols: aCols.filter(function (c) { return c.getVisible && c.getVisible(); }).length, delegate: oTbl.getDelegate && oTbl.getDelegate() });
-    },
-
-    // ==================== HELPERS ====================
-    _getOVm: function () { return VmCache.ensureVmCache(this.getOwnerComponent()); },
-    _getODetail: function () { return this.getView().getModel("detail"); },
-    _getCacheKeySafe: function () { return VmCache.getCacheKeySafe(this._sVendorId, this._sMaterial); },
-    _getExportCacheKey: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      return (mock.mockS3 ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
-    },
-    _isMockS3Enabled: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      return !!(mock && mock.mockS3);
-    },
+    // _getOVm, _getODetail, _getCacheKeySafe, _getExportCacheKey inherited from BaseController
 
     // ==================== ROUTE ====================
     _onRouteMatched: function (oEvent) {
@@ -154,8 +128,8 @@ sap.ui.define([
           this._hydrateAndFormat(aRows);
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
           var mTplGuid = {};
-          (aRows || []).forEach(function (r) { if (Common.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
-          aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[Common.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+          (aRows || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
+          aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
           if (resC.hasSignalProp) this._getODetail().setProperty("/OpenOda", resC.flag);
@@ -199,7 +173,7 @@ sap.ui.define([
     _hydrateAndFormat: function (aRows) {
       var oDetail = this._getODetail();
       var oVm = this.getOwnerComponent().getModel("vm");
-      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, Common.getCodAgg);
+      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, N.getCodAgg);
       this._log("_hydrateMmctFromRows", result);
       var mMulti = PostUtil.getMultiFieldsMap(oDetail);
       PostUtil.formatIncomingRowsMultiSeparators(aRows, mMulti);
@@ -402,7 +376,7 @@ sap.ui.define([
     },
     _markRowsWithPostErrors: function (aRespLines) {
       var self = this;
-      RowErrorUtil.markRowsWithPostErrors(aRespLines, { oDetail: this._getODetail(), toStableString: Common.toStableString, applyClientFilters: this._applyClientFilters.bind(this), ensurePostErrorRowHooks: function () { var oTbl = self.byId("mdcTable3"); self._ensurePostErrorRowHooks(oTbl); self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl)); } });
+      RowErrorUtil.markRowsWithPostErrors(aRespLines, { oDetail: this._getODetail(), toStableString: N.toStableString, applyClientFilters: this._applyClientFilters.bind(this), ensurePostErrorRowHooks: function () { var oTbl = self.byId("mdcTable3"); self._ensurePostErrorRowHooks(oTbl); self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl)); } });
     },
 
     // ==================== TOUCH CODAGG (delegato) ====================
@@ -422,7 +396,7 @@ sap.ui.define([
         if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
         Screen4CacheUtil.setSelectedParentForScreen4(oRow, this._getOVm(), this.getOwnerComponent());
-        Screen4CacheUtil.ensureScreen4CacheForParentIdx(iIdx, Common.toStableString(oRow.guidKey || oRow.GUID || oRow.Guid), this._getOVm(), this._getCacheKeySafe());
+        Screen4CacheUtil.ensureScreen4CacheForParentIdx(iIdx, N.toStableString(oRow.guidKey || oRow.GUID || oRow.Guid), this._getOVm(), this._getCacheKeySafe());
 
         this.getOwnerComponent().getRouter().navTo("Screen4", { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), recordKey: encodeURIComponent(String(iIdx)), mode: this._sMode || "A" });
       } catch (e) { console.error("onGoToScreen4FromRow ERROR", e); }
@@ -440,11 +414,11 @@ sap.ui.define([
       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per aggiungere righe");
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
-      var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: Common.getCodAgg });
-      var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: Common.isBaseCodAgg });
+      var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
+      var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
 
-      var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: Common.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: Common.genGuidNew });
-      var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: Common.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
+      var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: N.genGuidNew });
+      var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
 
       var aAll = (oDetail.getProperty("/RecordsAll") || []).slice(); aAll.push(result.row); oDetail.setProperty("/RecordsAll", aAll);
       var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(result.row); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
@@ -473,11 +447,11 @@ sap.ui.define([
 
       var oVm = this._getOVm(), sKeyCache = this._getExportCacheKey();
       var mDelPair = {}, mDelGuid = {};
-      aSel.forEach(function (p) { var g = Common.toStableString(p && (p.guidKey || p.GUID || p.Guid)), f = Common.toStableString(p && p.Fibra); if (g && f) mDelPair[g + "||" + f] = true; else if (g) mDelGuid[g] = true; });
+      aSel.forEach(function (p) { var g = N.toStableString(p && (p.guidKey || p.GUID || p.Guid)), f = N.toStableString(p && p.Fibra); if (g && f) mDelPair[g + "||" + f] = true; else if (g) mDelGuid[g] = true; });
       oVm.setProperty("/cache/recordsByKey/" + sKeyCache, (oVm.getProperty("/cache/recordsByKey/" + sKeyCache) || []).filter(function (r) { return aIdxToRemove.indexOf(parseInt(r && r.idx, 10)) < 0; }));
 
       var aRowsCacheBefore = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
-      aSel.forEach(function (p) { PostUtil.stashDeleteForPostFromCache(p, aRowsCacheBefore, oDetail, { toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey }); }.bind(this));
+      aSel.forEach(function (p) { PostUtil.stashDeleteForPostFromCache(p, aRowsCacheBefore, oDetail, { toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey }); }.bind(this));
       oVm.setProperty("/cache/dataRowsByKey/" + sKeyCache, (oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || []).filter(function (r) { var g = RecordsUtil.rowGuidKey(r), f = RecordsUtil.rowFibra(r); return !(mDelPair[g + "||" + f] || mDelGuid[g]); }));
 
       Screen4CacheUtil.purgeScreen4CacheByParentIdx(aIdxToRemove, oVm, this._getCacheKeySafe());
@@ -491,7 +465,7 @@ sap.ui.define([
 
     // ==================== SAVE ====================
     onSave: function () {
-      var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: Common.getCodAgg });
+      var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
       if (!vr.ok) {
         var top = vr.errors.slice(0, 15).map(function (e) { return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")"; }).join("\n");
         return MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top + (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
@@ -499,7 +473,7 @@ sap.ui.define([
 
       var oVm = this.getOwnerComponent().getModel("vm"), mock = (oVm && oVm.getProperty("/mock")) || {};
       var oDetail = this._getODetail();
-      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "E_ZEMAF", vendor10: Common.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: Common.toStableString, getCodAgg: Common.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: Common.normalizeMultiString, uuidv4: Common.uuidv4 });
+      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "E_ZEMAF", vendor10: N.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, getCodAgg: N.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: N.normalizeMultiString, uuidv4: N.uuidv4 });
 
       var self = this;
       SaveUtil.executePost({ oModel: this.getOwnerComponent().getModel(), payload: oPayload, mock: !!mock.mockS3,
@@ -531,21 +505,16 @@ sap.ui.define([
 
     // ==================== EXPORT ====================
     onExportExcel: async function () {
-      await ExportUtil.exportExcel({ oVm: this.getOwnerComponent().getModel("vm"), oDetail: this._getODetail(), toStableString: Common.toStableString, statusText: RecordsUtil.statusText, inlineFS: this._inlineFS, vendorId: this._sVendorId, material: this._sMaterial, cacheKey: this._getExportCacheKey() });
+      await ExportUtil.exportExcel({ oVm: this.getOwnerComponent().getModel("vm"), oDetail: this._getODetail(), toStableString: N.toStableString, statusText: RecordsUtil.statusText, inlineFS: this._inlineFS, vendorId: this._sVendorId, material: this._sMaterial, cacheKey: this._getExportCacheKey() });
     },
     onPrint: function () { MessageToast.show("Stampa: TODO"); },
 
     // ==================== NAV BACK ====================
-    onNavBack: function () {
-      if (RecordsUtil.hasUnsavedChanges(this._getODetail(), this._snapshotRecords)) {
-        var self = this;
-        MessageBox.warning("Hai modificato i dati. Sei sicuro di voler uscire senza salvare?", { title: "Modifiche non salvate", actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL], emphasizedAction: MessageBox.Action.CANCEL, onClose: function (s) { if (s === MessageBox.Action.OK) self._performNavBack(); } });
-      } else { this._performNavBack(); }
+    _hasUnsavedChanges: function () {
+      return RecordsUtil.hasUnsavedChanges(this._getODetail(), this._snapshotRecords);
     },
-    _performNavBack: function () {
-      var h = History.getInstance().getPreviousHash();
-      if (h !== undefined) window.history.go(-1);
-      else this.getOwnerComponent().getRouter().navTo("Screen2", { vendorId: encodeURIComponent(this._sVendorId), mode: this._sMode || "A" }, true);
+    _getNavBackFallback: function () {
+      return { route: "Screen2", params: { vendorId: encodeURIComponent(this._sVendorId), mode: this._sMode || "A" } };
     }
   });
 });

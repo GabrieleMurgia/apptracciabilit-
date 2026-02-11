@@ -4,9 +4,8 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/statusUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil"
-], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, StatusUtil, PostUtil) {
+  "apptracciabilita/apptracciabilita/util/statusUtil"
+], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, StatusUtil) {
   "use strict";
 
   var EdmType = exportLibrary.EdmType;
@@ -169,7 +168,7 @@ sap.ui.define([
       try {
         var oVm = opts.oVm;
         var oDetail = opts.oDetail;
-        var getCodAgg = PostUtil.getCodAgg;
+        var getCodAgg = N.getCodAgg;
         var toStableString = opts.toStableString;
         var statusText = opts.statusText;
         var inlineFS = opts.inlineFS;

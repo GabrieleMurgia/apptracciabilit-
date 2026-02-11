@@ -449,6 +449,11 @@ sap.ui.define([
         aC = aC.slice(); aC.push(oNew); oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
         this._applyUiPermissions(); this._applyFiltersAndSort();
         var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
+
+        // Scroll to the newly added row
+        var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
+        MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
+
         MessageToast.show("Riga aggiunta");
       } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
     },

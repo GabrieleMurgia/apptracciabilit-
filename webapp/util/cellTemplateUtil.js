@@ -198,7 +198,30 @@ sap.ui.define([
       var rel = getBindingRelPath(src);
       var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
 
-      if (rel && isInput && (evtId === "change" || evtId === "submit") && _hasSuggestionsForField(rel)) {
+      
+      if(_hasSuggestionsForField(rel) && evtId === "change"){
+        let otherV = isInput.getModel().getData().Records.map(i => i[rel])
+        let cValue = src.getValue()
+        debugger
+        if(otherV.filter(i => i === cValue).length > 1){
+            MessageBox.confirm(
+            "Il valore \"" + cValue + "\" è già presente nei valori \"" + rel + "\".\n",
+            {
+              actions: [MessageBox.Action.OK],
+              emphasizedAction: MessageBox.Action.OK,
+              onClose: function (action) {
+                if (action === MessageBox.Action.OK) {
+                  try { src.data("__oldVal", newVal); } catch (e) {}
+                  src.setValue('')
+                }
+              }
+            }
+          );
+          return; 
+        }
+      }
+
+      if (rel && isInput && (evtId === "change" /* || evtId === "submit" <- CREA DOPPIO CONFIRM */) && _hasSuggestionsForField(rel)) {
         var newVal = _normStr(src.getValue());
         if (newVal && !_isValueInSuggestions(rel, newVal)) {
           var oldVal = _normStr(src.data("__oldVal"));

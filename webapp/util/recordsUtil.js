@@ -185,8 +185,6 @@ sap.ui.define([
         return Object.fromEntries(cleanEntries);
       };
 
-      debugger
-
       aSnapshot = aSnapshot.map(normalizeObject);
       aCurrent = aCurrent.map(normalizeObject);
 

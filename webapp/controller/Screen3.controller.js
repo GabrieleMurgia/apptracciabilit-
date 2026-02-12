@@ -83,6 +83,12 @@ sap.ui.define([
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
       this._log("_onRouteMatched args", oArgs);
+
+      // Preserve snapshot when returning from Screen4 (will be restored after _bindRecords)
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
+      var aSavedSnapshot = (bReturningFromS4 && this._snapshotRecords) ? this._snapshotRecords : null;
+
       this._snapshotRecords = null;
 
       var oUi = this.getView().getModel("ui");
@@ -99,7 +105,7 @@ sap.ui.define([
       if (oInp && oInp.setValue) oInp.setValue("");
 
       this._logTable("TABLE STATE @ before _loadDataOnce");
-      this._loadDataOnce();
+      this._loadDataOnce(aSavedSnapshot);
     },
 
     _readOpenOdaFromMatInfoCache: function () {
@@ -115,7 +121,7 @@ sap.ui.define([
     },
 
     // ==================== LOAD DATA ====================
-    _loadDataOnce: function () {
+    _loadDataOnce: function (aSavedSnapshot) {
       var oVm = this._getOVm();
       var sKey = this._getExportCacheKey();
       var aRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
@@ -135,6 +141,10 @@ sap.ui.define([
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
           if (resC.hasSignalProp) this._getODetail().setProperty("/OpenOda", resC.flag);
           this._bindRecords(aRecs);
+          // Restore previous snapshot when returning from Screen4
+          if (aSavedSnapshot) {
+            this._snapshotRecords = aSavedSnapshot;
+          }
         } catch (e) { console.warn("[S3] cache bind failed", e); }
       }
 
@@ -423,6 +433,11 @@ sap.ui.define([
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
       var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
       var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
+
+      if (!aTplRows || !aTplRows.length) {
+        MessageToast.show("Template mancante: non esiste una riga con CodAgg = \"N\" da usare come modello");
+        return;
+      }
 
       var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: N.genGuidNew });
       var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });

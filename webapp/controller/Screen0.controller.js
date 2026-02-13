@@ -423,7 +423,7 @@ sap.ui.define([
 
                 UserInfosMMCT: oData.UserInfosMMCT?.results || [],
                 UserInfosVend: oData.UserInfosVend?.results || [],
-                UserInfosDomains: oData.UserInfosDomains?.results || [],
+                UserInfosDomains: oData.UserInfosDomains?.results || [], /* s */
 
                 domainsByName: domainsByName,
                 domainsByKey: domainsByKey,

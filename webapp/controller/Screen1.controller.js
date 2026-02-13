@@ -16,14 +16,15 @@ sap.ui.define([
 
     _onRouteMatched: function (oEvent) {
       var oArgs = oEvent.getParameter("arguments");
-      this._sMode = oArgs.mode; // 'A', 'M', 'T'
+      this._sMode = oArgs.mode;
 
-      var oVm = this.getOwnerComponent().getModel("vm");
-      this.getView().setModel(oVm, "vm");
-
-      this._sUserType = oVm.getProperty("/userType");
-
-      this._applyFilters();
+      var self = this;
+      this._ensureUserInfosLoaded().then(function () {
+        var oVm = self.getOwnerComponent().getModel("vm");
+        self.getView().setModel(oVm, "vm");
+        self._sUserType = oVm.getProperty("/userType");
+        self._applyFilters();
+      });
     },
 
     onVendorPress: function (oEvent) {

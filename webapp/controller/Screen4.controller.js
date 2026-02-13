@@ -76,28 +76,32 @@ sap.ui.define([
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sRecordKey = decodeURIComponent(oArgs.recordKey || "0");
-      this._log("_onRouteMatched args", oArgs);
 
-      this._snapshotRows = null;
-      this._filterState = { globalQuery: "", colFilters: {}, sortState: null };
-      var oInp = this.byId("inputFilter4");
-      if (oInp && oInp.setValue) oInp.setValue("");
-      S4Filter.syncHeaderFilterCtrlsFromState(true, {}, this._hdrFilter);
+      var self = this;
+      this._ensureUserInfosLoaded().then(function () {
+        self._log("_onRouteMatched args", oArgs);
 
-      var oDetail = this.getView().getModel("detail");
-      oDetail.setData({
-        VendorId: this._sVendorId, Material: this._sMaterial, recordKey: this._sRecordKey,
-        guidKey: "", Fibra: "", RowsAll: [], Rows: [], RowsCount: 0, Header4Fields: [],
-        _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
-        __dirty: false, __role: "", __status: "",
-        __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
-      }, true);
+        self._snapshotRows = null;
+        self._filterState = { globalQuery: "", colFilters: {}, sortState: null };
+        var oInp = self.byId("inputFilter4");
+        if (oInp && oInp.setValue) oInp.setValue("");
+        S4Filter.syncHeaderFilterCtrlsFromState(true, {}, self._hdrFilter);
 
-      this._applyUiPermissions();
-      S4Filter.resetHeaderCaches(this._hdrFilter, this._hdrSortBtns);
-      this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-      this._hdrSortBtns = {};
-      this._loadSelectedRecordRows(function () { this._bindRowsAndColumns(); }.bind(this));
+        var oDetail = self.getView().getModel("detail");
+        oDetail.setData({
+          VendorId: self._sVendorId, Material: self._sMaterial, recordKey: self._sRecordKey,
+          guidKey: "", Fibra: "", RowsAll: [], Rows: [], RowsCount: 0, Header4Fields: [],
+          _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
+          __dirty: false, __role: "", __status: "",
+          __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
+        }, true);
+
+        self._applyUiPermissions();
+        S4Filter.resetHeaderCaches(self._hdrFilter, self._hdrSortBtns);
+        self._hdrFilter = { boxesByKey: {}, seenLast: {} };
+        self._hdrSortBtns = {};
+        self._loadSelectedRecordRows(function () { self._bindRowsAndColumns(); }.bind(self));
+      });
     },
 
     // ==================== CACHE / CONFIG ====================

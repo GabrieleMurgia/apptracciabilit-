@@ -82,30 +82,34 @@ sap.ui.define([
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
-      this._log("_onRouteMatched args", oArgs);
 
-      // Preserve snapshot when returning from Screen4 (will be restored after _bindRecords)
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
-      var aSavedSnapshot = (bReturningFromS4 && this._snapshotRecords) ? this._snapshotRecords : null;
+      var self = this;
+      this._ensureUserInfosLoaded().then(function () {
+        self._log("_onRouteMatched args", oArgs);
 
-      this._snapshotRecords = null;
+        // Preserve snapshot when returning from Screen4
+        var oVm = self.getOwnerComponent().getModel("vm");
+        var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
+        var aSavedSnapshot = (bReturningFromS4 && self._snapshotRecords) ? self._snapshotRecords : null;
 
-      var oUi = this.getView().getModel("ui");
-      if (oUi) { oUi.setProperty("/showHeaderFilters", false); oUi.setProperty("/showHeaderSort", true); }
+        self._snapshotRecords = null;
 
-      var oDetail = this._getODetail();
-      oDetail.setData({ Header3Fields: [], VendorId: this._sVendorId, Material: this._sMaterial, RecordsAll: [], Records: [], RecordsCount: 0, _mmct: { cat: "", s01: [], s02: [] }, __q: "", __statusFilter: "" }, true);
+        var oUi = self.getView().getModel("ui");
+        if (oUi) { oUi.setProperty("/showHeaderFilters", false); oUi.setProperty("/showHeaderSort", true); }
 
-      var sOpenCache = this._readOpenOdaFromMatInfoCache();
-      if (sOpenCache) oDetail.setProperty("/OpenOda", sOpenCache);
+        var oDetail = self._getODetail();
+        oDetail.setData({ Header3Fields: [], VendorId: self._sVendorId, Material: self._sMaterial, RecordsAll: [], Records: [], RecordsCount: 0, _mmct: { cat: "", s01: [], s02: [] }, __q: "", __statusFilter: "" }, true);
 
-      this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
-      var oInp = this.byId("inputFilter3");
-      if (oInp && oInp.setValue) oInp.setValue("");
+        var sOpenCache = self._readOpenOdaFromMatInfoCache();
+        if (sOpenCache) oDetail.setProperty("/OpenOda", sOpenCache);
 
-      this._logTable("TABLE STATE @ before _loadDataOnce");
-      this._loadDataOnce(aSavedSnapshot);
+        self._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
+        var oInp = self.byId("inputFilter3");
+        if (oInp && oInp.setValue) oInp.setValue("");
+
+        self._logTable("TABLE STATE @ before _loadDataOnce");
+        self._loadDataOnce(aSavedSnapshot);
+      });
     },
 
     _readOpenOdaFromMatInfoCache: function () {

@@ -198,25 +198,28 @@ sap.ui.define([
       this._sMode = oArgs.mode || "A";
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
 
-      this._log("route matched", { mode: this._sMode, vendorId: this._sVendorId });
+      var self = this;
+      this._ensureUserInfosLoaded().then(function () {
+        self._log("route matched", { mode: self._sMode, vendorId: self._sVendorId });
 
-      var oViewModel = this.getView().getModel();
-      oViewModel.setProperty("/CurrentVendorId", this._sVendorId);
+        var oViewModel = self.getView().getModel();
+        oViewModel.setProperty("/CurrentVendorId", self._sVendorId);
 
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sVendorName = this._sVendorId;
+        var oVm = self.getOwnerComponent().getModel("vm");
+        var sVendorName = self._sVendorId;
 
-      if (oVm) {
-        var aVendors = oVm.getProperty("/userVendors") || oVm.getProperty("/UserInfosVend") || [];
-        var oVendor = aVendors.find(function (v) {
-          return safeStr(v.Fornitore || v.VENDOR || v.Lifnr) === safeStr(this._sVendorId);
-        }.bind(this));
+        if (oVm) {
+          var aVendors = oVm.getProperty("/userVendors") || oVm.getProperty("/UserInfosVend") || [];
+          var oVendor = aVendors.find(function (v) {
+            return safeStr(v.Fornitore || v.VENDOR || v.Lifnr) === safeStr(self._sVendorId);
+          });
 
-        if (oVendor) sVendorName = oVendor.ReagSoc || oVendor.RagSoc || oVendor.Name || sVendorName;
-      }
+          if (oVendor) sVendorName = oVendor.ReagSoc || oVendor.RagSoc || oVendor.Name || sVendorName;
+        }
 
-      oViewModel.setProperty("/CurrentVendorName", sVendorName);
-      this._loadMaterials();
+        oViewModel.setProperty("/CurrentVendorName", sVendorName);
+        self._loadMaterials();
+      });
     },
 
     _loadMaterials: function () {

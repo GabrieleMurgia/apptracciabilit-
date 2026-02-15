@@ -448,29 +448,59 @@ sap.ui.define([
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
         var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
-        var oBase = aAll.find(function (r) { var ca = TouchCodAggUtil.getCodAgg(r); return ca === "N" || ca === ""; }) || aAll[0];
-        var oNew = N.deepClone(oBase) || {};
-        var shouldUpd = false;
-        try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
-          .filter(function (i) { return i.Guid === oNew.Guid; })
-          .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0; } catch (e) { }
-        oNew.CodAgg = shouldUpd ? "U" : "I"; oNew.__isNew = true; delete oNew.__metadata;
-        oNew.__readOnly = false; oNew.Approved = 0; oNew.Rejected = 0; oNew.ToApprove = 1;
-        oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+
+        // Use the first row only for structural fields (Guid, Fornitore, Materiale, CatMateriale)
+        var oBase = aAll[0] || {};
+        var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
+
+        // Build a clean new row with only structural fields, all others empty
+        var oNew = {};
+        oNew.Guid = sGuid;
+        oNew.GUID = sGuid;
+        oNew.guidKey = sGuid;
+        oNew.Fornitore = oBase.Fornitore || "";
+        oNew.Materiale = oBase.Materiale || "";
+        oNew.CatMateriale = oBase.CatMateriale || oD.getProperty("/_mmct/cat") || "";
+        oNew.Stagione = oBase.Stagione || "";
+        oNew.Plant = oBase.Plant || "";
+        oNew.Fibra = "";
+        oNew.Stato = "ST";
+        oNew.Note = "";
+
+        // Initialize all s02 config fields as empty
         var self = this;
-        (oD.getProperty("/_mmct/s02") || []).forEach(function (f) { if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]); });
+        (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
+          if (!f || !f.ui) return;
+          var k = String(f.ui).trim();
+          if (oNew[k] !== undefined) return; // don't override structural fields
+          oNew[k] = f.multiple ? [] : "";
+        });
+
+        var shouldUpd = false;
+        try {
+          shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
+            .filter(function (i) { return i.Guid === oNew.Guid; })
+            .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
+        } catch (e) { }
+
+        oNew.CodAgg = shouldUpd ? "U" : "I";
+        oNew.__isNew = true;
+        oNew.__readOnly = false;
+        oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+
         aAll = aAll.slice(); aAll.push(oNew);
-        oD.setProperty("/RowsAll", aAll); oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
-        oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false); oD.setProperty("/__dirty", true);
+        oD.setProperty("/RowsAll", aAll);
+        oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
+        oD.setProperty("/__dirty", true);
+
         var oVm = this._getOVm(), sCK = this._getDataCacheKey();
-        var sGuid = N.toStableString(oD.getProperty("/guidKey")), sFibra = N.toStableString(oD.getProperty("/Fibra"));
-        var aC = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
-        aC.forEach(function (r) { if (S4Loader.rowGuidKey(r) === sGuid && S4Loader.rowFibra(r) === sFibra) { r.Approved = 0; r.Rejected = 0; r.ToApprove = 1; } });
-        aC = aC.slice(); aC.push(oNew); oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
+        aC.push(oNew);
+        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+
         this._applyUiPermissions(); this._applyFiltersAndSort();
         var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
 
-        // Scroll to the newly added row
         var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
         MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
 

@@ -214,7 +214,7 @@ sap.ui.define([
       var sForceStato = "";
 
       // tipo utente mock
-      var sMockUserType = "I"; // "E" / "I" / "S"
+      var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
       var sOverrideUserTypeWhenReal = ""; // es: "I"

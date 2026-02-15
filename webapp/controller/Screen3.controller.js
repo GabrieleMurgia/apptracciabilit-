@@ -470,6 +470,86 @@ sap.ui.define([
       MessageToast.show("Riga aggiunta");
     },
 
+    // ==================== COPY ROW ====================
+    onCopyRow: function () {
+      var oDetail = this._getODetail();
+      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+      if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per copiare righe");
+
+      var aSel = this._getSelectedParentObjectsFromMdc();
+      if (!aSel.length) return MessageToast.show("Seleziona un record da copiare");
+      if (aSel.length > 1) return MessageToast.show("Seleziona un solo record da copiare");
+
+      var oSource = aSel[0];
+      var sSourceGuid = N.toStableString(oSource.guidKey || oSource.Guid || oSource.GUID || "");
+      if (!sSourceGuid) return MessageToast.show("Record senza Guid, impossibile copiare");
+
+      var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
+
+      // Find all raw rows for this record
+      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+      var aSourceRaws = aRawAll.filter(function (r) {
+        return N.toStableString(RecordsUtil.rowGuidKey(r)) === sSourceGuid;
+      });
+      if (!aSourceRaws.length) return MessageToast.show("Nessuna riga dettaglio trovata per questo record");
+
+      // Generate new Guid for the copy
+      var sNewGuid = N.genGuidNew();
+
+      // Build new parent record (clone of selected, with new Guid/idx)
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+      var iMax = -1;
+      aAll.forEach(function (r) { var n = parseInt(r && r.idx, 10); if (!isNaN(n) && n > iMax) iMax = n; });
+      var iNewIdx = iMax + 1;
+
+      var oNewParent = N.deepClone(oSource);
+      oNewParent.idx = iNewIdx;
+      oNewParent.GUID = sNewGuid;
+      oNewParent.Guid = sNewGuid;
+      oNewParent.guidKey = sNewGuid;
+      oNewParent.CodAgg = "I";
+      oNewParent.Stato = "ST";
+      oNewParent.StatoText = RecordsUtil.statusText("ST");
+      oNewParent.__status = "ST";
+      oNewParent.__isNew = true;
+      oNewParent.__state = "NEW";
+      oNewParent.__canEdit = true;
+      oNewParent.__canApprove = false;
+      oNewParent.__canReject = false;
+      oNewParent.__readOnly = false;
+      oNewParent.Note = "";
+
+      // Clone all raw rows with new Guid
+      var aNewRaws = aSourceRaws.map(function (r) {
+        var x = N.deepClone(r);
+        x.Guid = sNewGuid;
+        x.GUID = sNewGuid;
+        x.guidKey = sNewGuid;
+        x.CodAgg = "I";
+        x.Stato = "ST";
+        x.Note = "";
+        x.__isNew = true;
+        delete x.__metadata;
+        return x;
+      });
+
+      // Add to model and cache
+      aAll = aAll.slice(); aAll.push(oNewParent); oDetail.setProperty("/RecordsAll", aAll);
+      var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(oNewParent); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
+      var aRW = (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).slice(); oVm.setProperty("/cache/dataRowsByKey/" + sCacheKey, aRW.concat(aNewRaws));
+
+      Screen4CacheUtil.setSelectedParentForScreen4(oNewParent, oVm, this.getOwnerComponent());
+      Screen4CacheUtil.ensureScreen4CacheForParentIdx(iNewIdx, sNewGuid, oVm, this._getCacheKeySafe());
+      this._applyClientFilters();
+
+      var oTbl = this.byId("mdcTable3");
+      var aFiltered = oDetail.getProperty("/Records") || [];
+      var iNewRowIndex = aFiltered.length - 1;
+      if (iNewRowIndex >= 0) MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
+
+      MessageToast.show("Record copiato (" + aNewRaws.length + " righe dettaglio)");
+    },
+
     // ==================== DELETE ROWS ====================
     onDeleteRows: function () {
       var oDetail = this._getODetail();

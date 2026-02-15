@@ -478,6 +478,59 @@ sap.ui.define([
       } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
     },
 
+    // ==================== COPY ROW ====================
+    onCopyRow: function () {
+      try {
+        var oD = this.getView().getModel("detail"); if (!oD) return;
+        if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per copiare righe"); return; }
+
+        var aSel = this._getSelectedRowObjects();
+        if (!aSel.length) { MessageToast.show("Seleziona una riga da copiare"); return; }
+        if (aSel.length > 1) { MessageToast.show("Seleziona una sola riga da copiare"); return; }
+
+        var oSource = aSel[0];
+        var oNew = N.deepClone(oSource) || {};
+
+        // Keep same Guid (same record group), but mark as new detail row
+        var shouldUpd = false;
+        try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
+          .filter(function (i) { return i.Guid === oNew.Guid; })
+          .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0; } catch (e) { }
+        oNew.CodAgg = shouldUpd ? "U" : "I";
+        oNew.__isNew = true;
+        oNew.__readOnly = false;
+        oNew.__localId = "COPY_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        oNew.Stato = "ST";
+        oNew.Note = "";
+        delete oNew.__metadata;
+
+        var self = this;
+        (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
+          if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
+        });
+
+        var aAll = (oD.getProperty("/RowsAll") || []).slice();
+        aAll.push(oNew);
+        oD.setProperty("/RowsAll", aAll);
+        oD.setProperty("/__dirty", true);
+
+        // Add to raw cache
+        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
+        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
+        aC.push(oNew);
+        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+
+        this._applyUiPermissions();
+        this._applyFiltersAndSort();
+        var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
+
+        var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
+        MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
+
+        MessageToast.show("Riga copiata");
+      } catch (e) { console.error("[S4] onCopyRow ERROR", e); MessageToast.show("Errore copia riga"); }
+    },
+
     // ==================== SAVE ====================
     onSaveLocal: function () {
       try {

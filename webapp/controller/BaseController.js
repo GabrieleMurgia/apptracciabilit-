@@ -411,22 +411,44 @@ sap.ui.define([
       var oDetail = this._getODetail();
       if (!oDetail) return;
 
-      // Build a set of guidKeys for fast lookup
-      var mSelectedKeys = {};
+      // Build composite keys (Guid + Fibra) for precise matching in Screen4,
+      // and simple Guid keys for Screen3 (where one record = all fibras)
+      var aCompositeKeys = []; // [{guid, fibra}]
       aSelected.forEach(function (r) {
-        var sKey = r && (r.guidKey || r.Guid || r.GUID || "");
-        if (sKey) mSelectedKeys[sKey] = true;
+        if (!r) return;
+        var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
+        var sFibra = String(r.Fibra || r.FIBRA || "").trim();
+        if (sGuid) {
+          aCompositeKeys.push({ guid: sGuid, fibra: sFibra });
+        }
       });
 
+      console.log("[BaseController] _applyStatusChange", {
+        newStatus: sNewStatus,
+        compositeKeys: JSON.parse(JSON.stringify(aCompositeKeys)),
+        selectedCount: aSelected.length
+      });
+
+      function matchesRow(r) {
+        var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
+        var sFibra = String(r.Fibra || r.FIBRA || "").trim();
+        return aCompositeKeys.some(function (ck) {
+          // If selected row has a Fibra, match both Guid and Fibra (Screen4 precision)
+          if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
+          // Otherwise match by Guid only (Screen3: one record = all fibras)
+          return ck.guid === sGuid;
+        });
+      }
+
       // Update RecordsAll (Screen3) or RowsAll (Screen4)
+      var iUpdated = 0;
       var aAllPaths = ["/RecordsAll", "/RowsAll"];
       aAllPaths.forEach(function (sPath) {
         var aAll = oDetail.getProperty(sPath);
         if (!Array.isArray(aAll)) return;
         aAll.forEach(function (r) {
-          if (!r) return;
-          var sKey = r.guidKey || r.Guid || r.GUID || "";
-          if (!mSelectedKeys[sKey]) return;
+          if (!r || !matchesRow(r)) return;
+          iUpdated++;
 
           r.Stato = sNewStatus;
           r.__status = sNewStatus;
@@ -442,24 +464,37 @@ sap.ui.define([
         });
       });
 
-      // Also update raw cache rows
+      console.log("[BaseController] _applyStatusChange updated", iUpdated, "rows in model");
+
+      // Also update raw cache rows — match with Guid+Fibra precision
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey);
+      var iRawUpdated = 0;
       if (Array.isArray(aRawAll)) {
         aRawAll.forEach(function (r) {
           if (!r) return;
+          // Raw rows don't have guidKey, use Guid directly
           var sGuid = String(r.Guid || r.GUID || "").trim();
-          // Match by guid in selected keys
-          var bMatch = Object.keys(mSelectedKeys).some(function (k) {
-            return sGuid && k.indexOf(sGuid) >= 0 || sGuid === k;
+          var sFibra = String(r.Fibra || r.FIBRA || "").trim();
+
+          var bMatch = aCompositeKeys.some(function (ck) {
+            if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
+            return ck.guid === sGuid;
           });
           if (!bMatch) return;
+          iRawUpdated++;
 
           r.Stato = sNewStatus;
           if (sNewStatus === "RJ" && sNote) r.Note = sNote;
+
+          // Mark as updated so POST includes this row
+          r.CodAgg = "U";
+          if (r.CODAGG !== undefined) delete r.CODAGG;
         });
       }
+
+      console.log("[BaseController] _applyStatusChange updated", iRawUpdated, "raw cache rows");
 
       oDetail.refresh(true);
 

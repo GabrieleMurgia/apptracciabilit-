@@ -242,14 +242,23 @@ sap.ui.define([
         }
 
         var aSelected = aByGuid;
-        var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase(), gSt = "ST";
-        aSelected.forEach(function (r) { gSt = StatusUtil.mergeStatus(gSt, StatusUtil.normStatoRow(r, oVm)); });
+        var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
+        // Conservative aggregate: all AP→AP, any RJ→RJ, any CH→CH, else ST
+        var aRowSt = aSelected.map(function (r) { return StatusUtil.normStatoRow(r, oVm); });
+        var gSt;
+        if (aRowSt.length && aRowSt.every(function (s) { return s === "AP"; })) { gSt = "AP"; }
+        else if (aRowSt.some(function (s) { return s === "RJ"; })) { gSt = "RJ"; }
+        else if (aRowSt.some(function (s) { return s === "CH"; })) { gSt = "CH"; }
+        else { gSt = "ST"; }
+
         var bEdit = StatusUtil.canEdit(sRole, gSt);
-        aSelected.forEach(function (r) { r.Stato = StatusUtil.normStatoRow(r, oVm); r.__readOnly = !bEdit; });
+        aSelected.forEach(function (r) { r.Stato = StatusUtil.normStatoRow(r, oVm); r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato); });
         oD.setProperty("/__role", sRole); oD.setProperty("/__status", gSt); oD.setProperty("/__canEdit", bEdit);
         oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-        oD.setProperty("/__canApprove", StatusUtil.canApprove(sRole, gSt));
-        oD.setProperty("/__canReject", StatusUtil.canReject(sRole, gSt));
+        // Show approve/reject buttons if any row is still approvable (ST or CH)
+        var bHasApprovable = aRowSt.some(function (s) { return s === "ST" || s === "CH"; });
+        oD.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+        oD.setProperty("/__canReject", sRole === "I" && bHasApprovable);
 
         var r0 = aSelected[0] || {};
         var sCat = S4Loader.pickCat(r0) || S4Loader.pickCat(oRec) || (oSel ? S4Loader.pickCat(oSel) : "") || "";
@@ -500,19 +509,18 @@ sap.ui.define([
 
     _onStatusChangeApplied: function (sNewStatus, aSelected) {
       var oD = this.getView().getModel("detail");
-      // Recalculate permissions
       var oVm = this.getOwnerComponent().getModel("vm");
       var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
       var aAll = oD.getProperty("/RowsAll") || [];
-      var aSt = aAll.map(function (r) { return String((r && (r.Stato || r.__status)) || "ST").trim().toUpperCase(); });
-      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
-      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
-      var anyCH = aSt.some(function (s) { return s === "CH"; });
-      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
 
-      oD.setProperty("/__status", sAgg);
-      oD.setProperty("/__canApprove", StatusUtil.canApprove(sRole, sAgg));
-      oD.setProperty("/__canReject", StatusUtil.canReject(sRole, sAgg));
+      // Check if there are still rows that can be approved/rejected (status ST or CH)
+      var bHasApprovable = aAll.some(function (r) {
+        var st = String((r && (r.Stato || r.__status)) || "ST").trim().toUpperCase();
+        return st === "ST" || st === "CH";
+      });
+
+      oD.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+      oD.setProperty("/__canReject", sRole === "I" && bHasApprovable);
 
       this._applyFiltersAndSort();
     },

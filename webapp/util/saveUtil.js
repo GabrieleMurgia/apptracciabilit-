@@ -322,7 +322,14 @@ sap.ui.define([
 
           r.Guid = gGroup;
 
+          // Preserve per-row Stato and Note ALWAYS — each raw row has its own
+          // status lifecycle (approve/reject happens per-Fibra in Screen4)
+          var sRowStato = norm(r.Stato);
+          var sRowNote = r.Note != null ? String(r.Note) : "";
+
           aParentKeys.forEach(function (k) {
+            // NEVER override Stato/Note from parent — each row keeps its own
+            if (k === "Stato" || k === "Note") return;
             if (p && p[k] !== undefined) r[k] = p[k];
           });
 
@@ -330,8 +337,22 @@ sap.ui.define([
             if (!k) return;
             if (k.indexOf("__") === 0) return;
             if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+            // NEVER override Stato/Note from parent
+            if (k === "Stato" || k === "Note") return;
             if (r[k] === undefined || isEmpty(r[k])) r[k] = p[k];
           });
+
+          // Restore preserved Stato (always) — fallback to parent only if row has none
+          if (sRowStato) {
+            r.Stato = sRowStato;
+          } else {
+            var stP = norm(p && (p.__status || p.Stato));
+            if (stP) r.Stato = stP;
+          }
+          // Restore preserved Note (always)
+          if (sRowNote) {
+            r.Note = sRowNote;
+          }
 
           if (!isEmpty(p.Fibra)) {
             if (r.Guid && r.Guid.includes && r.Guid.includes("new")) {

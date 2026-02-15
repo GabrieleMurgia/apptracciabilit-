@@ -88,6 +88,7 @@ sap.ui.define([
             Stato: stRow,
             StatoText: statusTextFn(stRow),
             __status: stRow,
+            __allStatuses: [stRow],
 
             __canEdit: StatusUtil.canEdit(sRole, stRow),
             __canApprove: StatusUtil.canApprove(sRole, stRow),
@@ -105,19 +106,32 @@ sap.ui.define([
           a.push(oRec);
 
         } else {
-          var merged = StatusUtil.mergeStatus(oRec.__status, stRow);
-          if (merged !== oRec.__status) {
-            oRec.__status = merged;
-            oRec.Stato = merged;
-            oRec.StatoText = statusTextFn(merged);
-
-            oRec.__canEdit = StatusUtil.canEdit(sRole, merged);
-            oRec.__canApprove = StatusUtil.canApprove(sRole, merged);
-            oRec.__canReject = StatusUtil.canReject(sRole, merged);
-
-            oRec.__readOnly = !oRec.__canEdit;
-          }
+          oRec.__allStatuses.push(stRow);
         }
+      });
+
+      // Recompute aggregate status for each record from all collected per-row statuses.
+      // Logic: ALL must be AP for parent to be AP; any RJ → RJ; any ST → ST; else CH.
+      a.forEach(function (oRec) {
+        var aS = oRec.__allStatuses || [];
+        var sAgg;
+        if (aS.length && aS.every(function (s) { return s === "AP"; })) {
+          sAgg = "AP";
+        } else if (aS.some(function (s) { return s === "RJ"; })) {
+          sAgg = "RJ";
+        } else if (aS.some(function (s) { return s === "CH"; })) {
+          sAgg = "CH";
+        } else {
+          sAgg = "ST";
+        }
+        oRec.__status = sAgg;
+        oRec.Stato = sAgg;
+        oRec.StatoText = statusTextFn(sAgg);
+        oRec.__canEdit = StatusUtil.canEdit(sRole, sAgg);
+        oRec.__canApprove = StatusUtil.canApprove(sRole, sAgg);
+        oRec.__canReject = StatusUtil.canReject(sRole, sAgg);
+        oRec.__readOnly = !oRec.__canEdit;
+        delete oRec.__allStatuses;
       });
 
       return a;

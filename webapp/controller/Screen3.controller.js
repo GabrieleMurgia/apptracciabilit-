@@ -140,10 +140,15 @@ sap.ui.define([
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
           var mTplGuid = {};
           (aRows || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
+
+          // Always rebuild parent records from raw rows so status/note changes from Screen4 propagate
+          var oDetail = this._getODetail();
+          aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
+
           aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
-          if (resC.hasSignalProp) this._getODetail().setProperty("/OpenOda", resC.flag);
+          if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
           this._bindRecords(aRecs);
           // Restore previous snapshot when returning from Screen4
           if (aSavedSnapshot) {
@@ -551,20 +556,19 @@ sap.ui.define([
     _getApproveTableId: function () { return "mdcTable3"; },
 
     _onStatusChangeApplied: function (sNewStatus, aSelected) {
-      // Recalculate aggregate status and permissions
       var oDetail = this._getODetail();
       var oVm = this.getOwnerComponent().getModel("vm");
       var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
       var aAll = oDetail.getProperty("/RecordsAll") || [];
-      var aSt = aAll.map(function (r) { return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase(); });
-      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
-      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
-      var anyCH = aSt.some(function (s) { return s === "CH"; });
-      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
 
-      oDetail.setProperty("/__status", sAgg);
-      oDetail.setProperty("/__canApprove", StatusUtil.canApprove(sRole, sAgg));
-      oDetail.setProperty("/__canReject", StatusUtil.canReject(sRole, sAgg));
+      // Check if there are still records that can be approved/rejected
+      var bHasApprovable = aAll.some(function (r) {
+        var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
+        return st === "ST" || st === "CH";
+      });
+
+      oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
 
       this._applyClientFilters();
     },

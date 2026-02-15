@@ -495,6 +495,28 @@ sap.ui.define([
     onPrint: function () { S4Export.onPrint(this.getView().getModel("detail")); },
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
 
+    // ==================== APPROVE / REJECT (Screen4-specific) ====================
+    _getApproveTableId: function () { return "mdcTable4"; },
+
+    _onStatusChangeApplied: function (sNewStatus, aSelected) {
+      var oD = this.getView().getModel("detail");
+      // Recalculate permissions
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
+      var aAll = oD.getProperty("/RowsAll") || [];
+      var aSt = aAll.map(function (r) { return String((r && (r.Stato || r.__status)) || "ST").trim().toUpperCase(); });
+      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
+      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
+      var anyCH = aSt.some(function (s) { return s === "CH"; });
+      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
+
+      oD.setProperty("/__status", sAgg);
+      oD.setProperty("/__canApprove", StatusUtil.canApprove(sRole, sAgg));
+      oD.setProperty("/__canReject", StatusUtil.canReject(sRole, sAgg));
+
+      this._applyFiltersAndSort();
+    },
+
     // ==================== NAVIGATION ====================
     _markSkipS3BackendOnce: function () { this._getOVm().setProperty("/__skipS3BackendOnce", true); },
     _getNavBackFallback: function () {

@@ -547,6 +547,28 @@ sap.ui.define([
     },
     onPrint: function () { MessageToast.show("Stampa: TODO"); },
 
+    // ==================== APPROVE / REJECT (Screen3-specific) ====================
+    _getApproveTableId: function () { return "mdcTable3"; },
+
+    _onStatusChangeApplied: function (sNewStatus, aSelected) {
+      // Recalculate aggregate status and permissions
+      var oDetail = this._getODetail();
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+      var aSt = aAll.map(function (r) { return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase(); });
+      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
+      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
+      var anyCH = aSt.some(function (s) { return s === "CH"; });
+      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
+
+      oDetail.setProperty("/__status", sAgg);
+      oDetail.setProperty("/__canApprove", StatusUtil.canApprove(sRole, sAgg));
+      oDetail.setProperty("/__canReject", StatusUtil.canReject(sRole, sAgg));
+
+      this._applyClientFilters();
+    },
+
     // ==================== NAV BACK ====================
     _hasUnsavedChanges: function () {
       return RecordsUtil.hasUnsavedChanges(this._getODetail(), this._snapshotRecords);

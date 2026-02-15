@@ -278,6 +278,199 @@ sap.ui.define([
 
     _getNavBackFallback: function () {
       return { route: "Screen0", params: {} };
+    },
+
+    // ==================== APPROVE / REJECT ====================
+
+    /**
+     * Get selected record objects from the MDC table.
+     * Uses MdcTableUtil which handles selection plugins correctly.
+     * Override _getApproveTableId() in subclass if needed.
+     * @returns {object[]} Array of selected row objects
+     */
+    _getSelectedRowsForApproval: function () {
+      var sTableId = this._getApproveTableId ? this._getApproveTableId() : (this.PARENT_TABLE_ID || "mdcTable3");
+      var oMdc = this.byId(sTableId);
+      if (!oMdc) return [];
+
+      var MdcTableUtil = sap.ui.require("apptracciabilita/apptracciabilita/util/mdcTableUtil");
+      if (MdcTableUtil && typeof MdcTableUtil.getSelectedObjectsFromMdc === "function") {
+        return MdcTableUtil.getSelectedObjectsFromMdc(oMdc, "detail") || [];
+      }
+
+      // Fallback: try MDC-level API
+      if (typeof oMdc.getSelectedContexts === "function") {
+        return (oMdc.getSelectedContexts() || []).map(function (ctx) {
+          return ctx.getObject ? ctx.getObject() : null;
+        }).filter(Boolean);
+      }
+
+      return [];
+    },
+
+    /**
+     * Approve selected rows: set Stato = "AP" and POST.
+     */
+    onApprove: function () {
+      var aSelected = this._getSelectedRowsForApproval();
+      if (!aSelected.length) {
+        sap.m.MessageToast.show("Seleziona almeno un record da approvare");
+        return;
+      }
+
+      var self = this;
+      sap.m.MessageBox.confirm(
+        "Vuoi approvare " + aSelected.length + " record selezionati?",
+        {
+          title: "Conferma Approvazione",
+          onClose: function (sAction) {
+            if (sAction === sap.m.MessageBox.Action.OK) {
+              self._applyStatusChange(aSelected, "AP", "");
+            }
+          }
+        }
+      );
+    },
+
+    /**
+     * Reject selected rows: open dialog for notes, then set Stato = "RJ".
+     */
+    onReject: function () {
+      var aSelected = this._getSelectedRowsForApproval();
+      if (!aSelected.length) {
+        sap.m.MessageToast.show("Seleziona almeno un record da rifiutare");
+        return;
+      }
+
+      var self = this;
+
+      // Create reject dialog with notes field
+      if (!this._oRejectDialog) {
+        this._oRejectNoteTA = new sap.m.TextArea({
+          width: "100%",
+          rows: 4,
+          placeholder: "Descrivi il motivo del rifiuto...",
+          valueLiveUpdate: true
+        });
+
+        this._oRejectDialog = new sap.m.Dialog({
+          title: "Rifiuta Record",
+          type: "Message",
+          state: "Warning",
+          content: [
+            new sap.m.VBox({
+              items: [
+                new sap.m.Text({ text: "Stai rifiutando " + aSelected.length + " record. Inserisci il motivo del rifiuto:" }),
+                this._oRejectNoteTA
+              ]
+            })
+          ],
+          beginButton: new sap.m.Button({
+            text: "Rifiuta",
+            type: "Reject",
+            press: function () {
+              var sNote = (self._oRejectNoteTA.getValue() || "").trim();
+              if (!sNote) {
+                sap.m.MessageToast.show("Il motivo del rifiuto è obbligatorio");
+                return;
+              }
+              self._oRejectDialog.close();
+              self._applyStatusChange(aSelected, "RJ", sNote);
+            }
+          }),
+          endButton: new sap.m.Button({
+            text: "Annulla",
+            press: function () {
+              self._oRejectDialog.close();
+            }
+          }),
+          afterClose: function () {
+            self._oRejectNoteTA.setValue("");
+          }
+        });
+      }
+
+      // Update text with current selection count
+      var oContent = this._oRejectDialog.getContent()[0];
+      if (oContent && oContent.getItems) {
+        oContent.getItems()[0].setText("Stai rifiutando " + aSelected.length + " record. Inserisci il motivo del rifiuto:");
+      }
+
+      this._oRejectDialog.open();
+    },
+
+    /**
+     * Apply status change to selected rows and trigger save.
+     * Override _onStatusChangeApplied() in subclass for screen-specific logic.
+     *
+     * @param {object[]} aSelected - Selected row objects
+     * @param {string} sNewStatus - "AP" or "RJ"
+     * @param {string} sNote - Rejection note (empty for approval)
+     */
+    _applyStatusChange: function (aSelected, sNewStatus, sNote) {
+      var oDetail = this._getODetail();
+      if (!oDetail) return;
+
+      // Build a set of guidKeys for fast lookup
+      var mSelectedKeys = {};
+      aSelected.forEach(function (r) {
+        var sKey = r && (r.guidKey || r.Guid || r.GUID || "");
+        if (sKey) mSelectedKeys[sKey] = true;
+      });
+
+      // Update RecordsAll (Screen3) or RowsAll (Screen4)
+      var aAllPaths = ["/RecordsAll", "/RowsAll"];
+      aAllPaths.forEach(function (sPath) {
+        var aAll = oDetail.getProperty(sPath);
+        if (!Array.isArray(aAll)) return;
+        aAll.forEach(function (r) {
+          if (!r) return;
+          var sKey = r.guidKey || r.Guid || r.GUID || "";
+          if (!mSelectedKeys[sKey]) return;
+
+          r.Stato = sNewStatus;
+          r.__status = sNewStatus;
+          r.StatoText = (sNewStatus === "AP") ? "Approvato" : "Rifiutato";
+          r.__readOnly = true;
+          r.__canEdit = false;
+          r.__canApprove = false;
+          r.__canReject = false;
+
+          if (sNewStatus === "RJ" && sNote) {
+            r.Note = sNote;
+          }
+        });
+      });
+
+      // Also update raw cache rows
+      var oVm = this._getOVm();
+      var sCacheKey = this._getExportCacheKey();
+      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey);
+      if (Array.isArray(aRawAll)) {
+        aRawAll.forEach(function (r) {
+          if (!r) return;
+          var sGuid = String(r.Guid || r.GUID || "").trim();
+          // Match by guid in selected keys
+          var bMatch = Object.keys(mSelectedKeys).some(function (k) {
+            return sGuid && k.indexOf(sGuid) >= 0 || sGuid === k;
+          });
+          if (!bMatch) return;
+
+          r.Stato = sNewStatus;
+          if (sNewStatus === "RJ" && sNote) r.Note = sNote;
+        });
+      }
+
+      oDetail.refresh(true);
+
+      // Notify subclass
+      if (typeof this._onStatusChangeApplied === "function") {
+        this._onStatusChangeApplied(sNewStatus, aSelected);
+      }
+
+      sap.m.MessageToast.show(
+        aSelected.length + " record " + (sNewStatus === "AP" ? "approvati" : "rifiutati") + ". Premi Salva per confermare."
+      );
     }
   });
 });

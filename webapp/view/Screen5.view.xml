@@ -1,0 +1,132 @@
+<mvc:View
+  id="screen5View"
+  controllerName="apptracciabilita.apptracciabilita.controller.Screen5"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:mdc="sap.ui.mdc"
+  displayBlock="true">
+
+  <Page id="page5" title="Dati in Tabella" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
+
+    <customHeader>
+      <Toolbar id="toolbar5" class="appCustomHeader">
+        <Bar id="bar5">
+          <contentLeft>
+            <Image id="imageLogo5" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/>
+            <Button id="buttonBack5" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
+          </contentLeft>
+          <contentMiddle>
+            <Title id="title5" text="Dati in Tabella" level="H3"/>
+          </contentMiddle>
+          <contentRight>
+            <ToolbarSpacer id="bar5SpacerRight"/>
+          </contentRight>
+        </Bar>
+      </Toolbar>
+    </customHeader>
+
+    <subHeader>
+      <OverflowToolbar id="toolbarInfo5" design="Transparent" class="subHeaderBar">
+
+        <!-- Search mask: Category selection -->
+        <HBox id="hboxSearchMask5" alignItems="Center" class="searchFilterBox">
+          <Label id="lblCatMat5" text="Categoria Materiale:" class="sapUiSmallMarginEnd filterLabel"/>
+          <ComboBox
+            id="comboCatMat5"
+            width="250px"
+            placeholder="Seleziona categoria..."
+            items="{vm>/userCategoriesList}"
+            selectedKey="{detail>/selectedCat}">
+            <items>
+              <core:Item id="catItem5" key="{vm>key}" text="{vm>text}"/>
+            </items>
+          </ComboBox>
+          <Button id="btnLoadData5" text="Cerca" type="Emphasized" icon="sap-icon://search" press=".onLoadData" class="sapUiSmallMarginBegin"/>
+        </HBox>
+
+        <ToolbarSpacer id="hdr5Spacer"/>
+
+        <!-- Record count -->
+        <ObjectStatus
+          id="osRecordCount5"
+          text="{= 'Righe: ' + (${detail>/RowsCount} || 0) }"
+          state="None"/>
+
+      </OverflowToolbar>
+    </subHeader>
+
+    <content>
+
+      <!-- Filters + actions toolbar -->
+      <HBox
+        id="hboxToolbarTable5"
+        width="100%"
+        justifyContent="SpaceBetween"
+        alignItems="Center"
+        class="tableControlBar"
+        wrap="Wrap">
+
+        <HBox id="hboxToolbarTable5-1" wrap="Wrap" alignItems="Center" class="filterGroup">
+
+          <HBox id="hboxStatusFilter5" class="statusFilterBox" alignItems="Center" wrap="Wrap">
+            <Label id="lblStatus5" text="Stato:" class="sapUiTinyMarginEnd filterLabel"/>
+            <ObjectStatus id="stAll5" text="TUTTI" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="statusChip">
+              <customData><core:CustomData id="cdStAll5" key="status" value=""/></customData>
+            </ObjectStatus>
+            <ObjectStatus id="stST5" text="In attesa" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="statusChip">
+              <customData><core:CustomData id="cdStST5" key="status" value="ST"/></customData>
+            </ObjectStatus>
+            <ObjectStatus id="stAP5" text="Approvato" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
+              <customData><core:CustomData id="cdStAP5" key="status" value="AP"/></customData>
+            </ObjectStatus>
+            <ObjectStatus id="stRJ5" text="Respinto" icon="sap-icon://circle-task" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
+              <customData><core:CustomData id="cdStRJ5" key="status" value="RJ"/></customData>
+            </ObjectStatus>
+            <ObjectStatus id="stCH5" text="Modificato" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">
+              <customData><core:CustomData id="cdStCH5" key="status" value="CH"/></customData>
+            </ObjectStatus>
+          </HBox>
+
+          <HBox id="hboxFilter5" alignItems="Center" class="searchFilterBox">
+            <Label id="lblFilter5" text="Cercare:" labelFor="inputFilter5" class="sapUiTinyMarginEnd filterLabel"/>
+            <Input id="inputFilter5" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
+            <Button id="btnColFilters5x" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
+            <Button id="btnSort5x" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
+            <Button id="btnResetFS5x" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
+          </HBox>
+
+        </HBox>
+
+        <Toolbar id="tblToolbar5" design="Transparent" class="actionToolbar">
+          <ToolbarSpacer id="footerToolbar5sp"/>
+          <Button id="tbPrint5" icon="sap-icon://print" tooltip="Stampa" press=".onPrint" type="Transparent"/>
+          <Button id="tbExcel5" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
+        </Toolbar>
+
+      </HBox>
+
+      <!-- MDC Table -->
+      <mdc:Table
+        id="mdcTable5"
+        type="Table"
+        width="100%"
+        height="100%"
+        selectionMode="Multi"
+        p13nMode="Column"
+        class="fullSizeTable"
+        delegate='{
+          "name":"apptracciabilita/apptracciabilita/delegates/MdcGenericTableDelegate",
+          "payload":{
+            "cfgModel":"vm",
+            "cfgPath":"/mdcCfg/screen5",
+            "defaultModel":"detail",
+            "defaultPath":"/Rows"
+          }
+        }'>
+      </mdc:Table>
+
+    </content>
+
+  </Page>
+</mvc:View>

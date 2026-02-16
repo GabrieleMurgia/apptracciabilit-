@@ -108,10 +108,15 @@
           "target": "Screen3"
         },
         {
-  "name": "Screen4",
-  "pattern": "detail/{vendorId}/{material}/{recordKey}/{mode}",
-  "target": "Screen4"
-}
+          "name": "Screen4",
+          "pattern": "detail/{vendorId}/{material}/{recordKey}/{mode}",
+          "target": "Screen4"
+        },
+        {
+          "name": "Screen5",
+          "pattern": "dati-tabella",
+          "target": "Screen5"
+        }
       ],
       "targets": {
         "Screen0": {
@@ -136,19 +141,26 @@
           "viewName": "Screen2"
         },
         "Screen3": {
-  "viewType": "XML",
-  "transition": "slide",
-  "clearControlAggregation": false,
-  "viewId": "Screen3",
-  "viewName": "Screen3"
-},
-"Screen4": {
-  "viewType": "XML",
-  "transition": "slide",
-  "clearControlAggregation": false,
-  "viewId": "Screen4",
-  "viewName": "Screen4"
-}
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen3",
+          "viewName": "Screen3"
+        },
+        "Screen4": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen4",
+          "viewName": "Screen4"
+        },
+        "Screen5": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "Screen5",
+          "viewName": "Screen5"
+        }
       }
     },
     "rootView": {

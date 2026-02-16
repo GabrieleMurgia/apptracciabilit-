@@ -208,8 +208,6 @@ sap.ui.define([
       var bMockS3 = false;
       var bMockS4 = false;
 
-
-
       var iVendorIdx = 0;
       var sForceStato = "";
 
@@ -217,7 +215,7 @@ sap.ui.define([
       var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = ""; // es: "I"
+      var sOverrideUserTypeWhenReal = "I"; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
@@ -425,7 +423,7 @@ sap.ui.define([
 
                 UserInfosMMCT: oData.UserInfosMMCT?.results || [],
                 UserInfosVend: oData.UserInfosVend?.results || [],
-                UserInfosDomains: oData.UserInfosDomains?.results || [], /* s */
+                UserInfosDomains: oData.UserInfosDomains?.results || [],
 
                 domainsByName: domainsByName,
                 domainsByKey: domainsByKey,
@@ -515,7 +513,7 @@ sap.ui.define([
     },
 
     onPressFlowC: function () {
-      this.getOwnerComponent().getRouter().navTo("Screen1", { mode: "T" });
+      this.getOwnerComponent().getRouter().navTo("Screen5");
     }
   });
 });

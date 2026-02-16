@@ -68,13 +68,33 @@ sap.ui.define([
       this._ensureUserInfosLoaded().then(function () {
         self._log("_onRouteMatched");
 
-        // Build categories list for ComboBox from mmctFieldsByCat
+        // Build categories list for ComboBox
         var oVm = self.getOwnerComponent().getModel("vm");
         var mCats = oVm.getProperty("/mmctFieldsByCat") || {};
-        var aCatList = Object.keys(mCats).map(function (k) {
+        var aCatKeys = Object.keys(mCats);
+
+        // Fallback: also extract CatMateriale from raw userCategories/userMMCT
+        if (!aCatKeys.length) {
+          var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
+          var catSeen = {};
+          (aMMCT || []).forEach(function (cat) {
+            var c = cat && (cat.CatMateriale || cat.CATMATERIALE || cat.Categoria || "");
+            c = String(c || "").trim();
+            if (c && !catSeen[c]) { catSeen[c] = true; aCatKeys.push(c); }
+            // Also check nested fields
+            var aFields = (cat.UserMMCTFields && cat.UserMMCTFields.results) || [];
+            aFields.forEach(function (f) {
+              var fc = String(f && f.CatMateriale || "").trim();
+              if (fc && !catSeen[fc]) { catSeen[fc] = true; aCatKeys.push(fc); }
+            });
+          });
+        }
+
+        var aCatList = aCatKeys.map(function (k) {
           return { key: k, text: k };
         }).sort(function (a, b) { return a.text.localeCompare(b.text); });
         oVm.setProperty("/userCategoriesList", aCatList);
+        self._log("Categories built", { count: aCatList.length, keys: aCatKeys });
 
         // Reset detail
         var oDetail = self.getView().getModel("detail");
@@ -168,8 +188,62 @@ sap.ui.define([
       PostUtil.formatIncomingRowsMultiSeparators(aRows, mMulti);
 
       // Mark ALL rows as read-only (Screen5 is view-only)
+      // Resolve domain keys to display texts (e.g. "BA" -> "Blue Angel")
+      var mDomByKey = oVm.getProperty("/domainsByKey") || {};
+      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
+      var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
+
+      // Build map: fieldName -> domainName for fields that have a domain
+      var mFieldDomain = {};
+      [aCfg01, aCfg02].forEach(function (arr) {
+        (arr || []).forEach(function (f) {
+          if (!f || !f.ui || !f.domain) return;
+          var sDom = String(f.domain).trim();
+          if (sDom && mDomByKey[sDom]) {
+            mFieldDomain[String(f.ui).trim()] = sDom;
+          }
+        });
+      });
+
       aRows.forEach(function (r) {
-        if (r) r.__readOnly = true;
+        if (!r) return;
+        r.__readOnly = true;
+
+        // Resolve domain keys to display texts and deduplicate
+        Object.keys(mFieldDomain).forEach(function (sField) {
+          var v = r[sField];
+          if (v == null || v === "") return;
+          var sDom = mFieldDomain[sField];
+          var mKeys = mDomByKey[sDom] || {};
+
+          if (Array.isArray(v)) {
+            // Multi-value array: resolve each key, deduplicate
+            var seen = {};
+            r[sField] = v.map(function (k) {
+              var sk = String(k || "").trim();
+              var txt = mKeys[sk] || sk;
+              if (seen[txt]) return null;
+              seen[txt] = true;
+              return txt;
+            }).filter(Boolean);
+          } else {
+            // String: may be semicolon-separated keys
+            var sVal = String(v);
+            var parts = sVal.split(/[;|]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+            if (parts.length > 1) {
+              var seen2 = {};
+              r[sField] = parts.map(function (k) {
+                var txt = mKeys[k] || k;
+                if (seen2[txt]) return null;
+                seen2[txt] = true;
+                return txt;
+              }).filter(Boolean).join("; ");
+            } else {
+              var sk = sVal.trim();
+              if (mKeys[sk]) r[sField] = mKeys[sk];
+            }
+          }
+        });
       });
 
       // Set data

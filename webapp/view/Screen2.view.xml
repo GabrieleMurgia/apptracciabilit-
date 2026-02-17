@@ -47,21 +47,25 @@
                     change=".onFilterChanged" />
 
                 <Label id="labelDescCatFilter2" text="Cat. Materiale" />
-<SearchField
-  id="inputDescCatFilter2"
-  width="12rem"
-  liveChange=".onFilterChanged"
-  search=".onFilterChanged"
-  placeholder="Es. Pelle, Tessuto..." />
+                <MultiComboBox
+                    id="inputDescCatFilter2"
+                    width="14rem"
+                    items="{ path: '/DescCatMaterialeValues', sorter: { path: 'text' } }"
+                    selectionChange=".onFilterChanged"
+                    placeholder="Es. Pelle, Tessuto...">
+                    <core:Item id="random1" key="{key}" text="{text}" />
+                </MultiComboBox>
 
                 <!-- filtro Stagione -->
                 <Label id="labelSeasonFilter2" text="Stagione" />
-                <SearchField
+                <MultiComboBox
                     id="inputSeasonFilter2"
-                    width="8rem"
-                    liveChange=".onFilterChanged"
-                    search=".onFilterChanged"
-                    placeholder="Es. 44..." />
+                    width="10rem"
+                    items="{ path: '/StagioneValues', sorter: { path: 'text' } }"
+                    selectionChange=".onFilterChanged"
+                    placeholder="Es. 44...">
+                    <core:Item id="random2" key="{key}" text="{text}" />
+                </MultiComboBox>
 
                 <!-- filtro Materiale -->
                 <Label id="labelMaterialOnly2" text="Materiale" />

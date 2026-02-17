@@ -88,6 +88,31 @@ sap.ui.define([
     };
   }
 
+  /**
+   * Extracts distinct values for MultiComboBox filters from the materials array
+   * and sets them on the view model.
+   */
+  function _extractDistinctFilterValues(aMaterials, oViewModel) {
+    var oSeenCat = {}, oSeenSeason = {};
+    var aDescCatValues = [], aStagioneValues = [];
+
+    aMaterials.forEach(function (r) {
+      var cat = (r.DescCatMateriale || "").trim();
+      if (cat && !oSeenCat[cat]) {
+        oSeenCat[cat] = true;
+        aDescCatValues.push({ key: cat, text: cat });
+      }
+      var stag = (r.Stagione || "").trim();
+      if (stag && !oSeenSeason[stag]) {
+        oSeenSeason[stag] = true;
+        aStagioneValues.push({ key: stag, text: stag });
+      }
+    });
+
+    oViewModel.setProperty("/DescCatMaterialeValues", aDescCatValues);
+    oViewModel.setProperty("/StagioneValues", aStagioneValues);
+  }
+
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
 
     _sLogPrefix: "[S2]",
@@ -188,7 +213,9 @@ sap.ui.define([
         CurrentVendorName: "",
         MatCategories: [],
         SelectedMatCat: "",
-        Materials: []
+        Materials: [],
+        DescCatMaterialeValues: [],
+        StagioneValues: []
       });
       this.getView().setModel(oModel);
     },
@@ -197,6 +224,12 @@ sap.ui.define([
       var oArgs = oEvent.getParameter("arguments") || {};
       this._sMode = oArgs.mode || "A";
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
+
+      // Reset MultiComboBox selections when navigating to this screen
+      var oDescCatCombo = this.byId("inputDescCatFilter2");
+      if (oDescCatCombo) { oDescCatCombo.setSelectedKeys([]); }
+      var oSeasonCombo = this.byId("inputSeasonFilter2");
+      if (oSeasonCombo) { oSeasonCombo.setSelectedKeys([]); }
 
       var self = this;
       this._ensureUserInfosLoaded().then(function () {
@@ -241,6 +274,7 @@ sap.ui.define([
           var aMaterials = aAll.map(buildRow);
           oViewModel.setProperty("/showMatStatusCol", aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; }));
           oViewModel.setProperty("/Materials", aMaterials);
+          _extractDistinctFilterValues(aMaterials, oViewModel);
           this._applyFilters();
         }.bind(this)).catch(function (err) {
           console.error("[Screen2][MOCK FILE] ERROR", err);
@@ -275,6 +309,7 @@ sap.ui.define([
           oViewModel.setProperty("/showMatStatusCol",
             aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; })
           );
+          _extractDistinctFilterValues(aMaterials, oViewModel);
           that._applyFilters();
         },
         error: function (oError) {
@@ -295,10 +330,10 @@ sap.ui.define([
       if (!oBinding) return;
 
       var bOnlyIncomplete = this.byId("switchOnlyIncomplete2").getState();
-      var sSeasonText = (this.byId("inputSeasonFilter2").getValue() || "").trim().toLowerCase();
+      var aSelectedSeasons = this.byId("inputSeasonFilter2").getSelectedKeys();
       var sMaterialOnly = (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase();
       var sGeneral = (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase();
-      var sDescCat = (this.byId("inputDescCatFilter2").getValue() || "").trim().toLowerCase();
+      var aSelectedDescCat = this.byId("inputDescCatFilter2").getSelectedKeys();
 
       var aFilters = [];
 
@@ -313,12 +348,22 @@ sap.ui.define([
         }));
       }
 
-      if (sDescCat) {
-        aFilters.push(new Filter("DescCatMaterialeLC", FilterOperator.Contains, sDescCat));
+      if (aSelectedDescCat.length > 0) {
+        aFilters.push(new Filter({
+          filters: aSelectedDescCat.map(function (v) {
+            return new Filter("DescCatMateriale", FilterOperator.EQ, v);
+          }),
+          and: false
+        }));
       }
 
-      if (sSeasonText) {
-        aFilters.push(new Filter("StagioneLC", FilterOperator.Contains, sSeasonText));
+      if (aSelectedSeasons.length > 0) {
+        aFilters.push(new Filter({
+          filters: aSelectedSeasons.map(function (v) {
+            return new Filter("Stagione", FilterOperator.EQ, v);
+          }),
+          and: false
+        }));
       }
 
       if (sMaterialOnly) {

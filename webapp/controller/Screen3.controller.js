@@ -141,11 +141,45 @@ sap.ui.define([
           var mTplGuid = {};
           (aRows || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
 
-          // Always rebuild parent records from raw rows so status/note changes from Screen4 propagate
           var oDetail = this._getODetail();
-          aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
 
-          aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+          if (bSkip && aSavedSnapshot && aSavedSnapshot.length) {
+            // Returning from Screen4: use saved snapshot to preserve parent-level edits (e.g. vendor batch fields)
+            // But merge status/note changes from Screen4 via raw rows
+            var mRawByGuid = {};
+            (aRows || []).forEach(function (r) {
+              var g = RecordsUtil.rowGuidKey(r);
+              if (!g) return;
+              if (!mRawByGuid[g]) mRawByGuid[g] = [];
+              mRawByGuid[g].push(r);
+            });
+
+            aSavedSnapshot.forEach(function (rec) {
+              if (!rec) return;
+              var g = N.toStableString(rec.guidKey || rec.GUID || rec.Guid || "");
+              var aRaw = mRawByGuid[g] || [];
+              if (!aRaw.length) return;
+              // Propagate status from raw rows (Screen4 may have changed detail rows)
+              var aRawSt = aRaw.map(function (r) { return String(r.Stato || "ST").trim().toUpperCase(); });
+              var st;
+              if (aRawSt.every(function (s) { return s === "AP"; })) st = "AP";
+              else if (aRawSt.some(function (s) { return s === "RJ"; })) st = "RJ";
+              else if (aRawSt.some(function (s) { return s === "CH"; })) st = "CH";
+              else st = "ST";
+              rec.__status = st;
+              rec.Stato = st;
+              // Propagate Note from first raw row with a note
+              var rNote = aRaw.find(function (r) { return r.Note && String(r.Note).trim(); });
+              if (rNote) rec.Note = rNote.Note;
+            });
+
+            aRecs = aSavedSnapshot.filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+          } else {
+            // Normal load or first load: rebuild parent records from raw rows
+            aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
+            aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+          }
+
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
           if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
@@ -317,6 +351,11 @@ sap.ui.define([
       oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
       oDetail.setProperty("/__role", sRole);
 
+      // Approve/Reject buttons visible if user is internal (I) and there are records with ST or CH
+      var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
+      oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
+
       RecordsUtil.refreshHeader3Fields(oDetail);
       this._log("_refreshHeader3Fields done");
       this._snapshotRecords = deepClone(a);
@@ -335,6 +374,9 @@ sap.ui.define([
       await this._applyInlineHeaderFilterSort(oTbl);
       this._applyClientFilters();
       if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();
+
+      // Always clear selection after rebind to prevent stale indices
+      this._clearSelectionMdc();
 
       await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
       await this._applyInlineHeaderFilterSort(oTbl);
@@ -621,7 +663,7 @@ sap.ui.define([
           var oVm = self._getOVm(), sKey = self._getExportCacheKey();
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
-          Promise.resolve(self._bindRecords(aRecordsBuilt)).then(function () { self._snapshotRecords = deepClone(aRecordsBuilt); console.log("[S3] REFRESH DONE (rows from backend):", aResults.length); resolve(aResults); });
+          Promise.resolve(self._bindRecords(aRecordsBuilt)).then(function () { self._snapshotRecords = deepClone(aRecordsBuilt); self._clearSelectionMdc(); console.log("[S3] REFRESH DONE (rows from backend):", aResults.length); resolve(aResults); });
         });
       });
     },
@@ -650,6 +692,7 @@ sap.ui.define([
       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
       oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
 
+      this._clearSelectionMdc();
       this._applyClientFilters();
     },
 

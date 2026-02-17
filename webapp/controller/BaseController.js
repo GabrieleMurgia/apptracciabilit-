@@ -411,31 +411,44 @@ sap.ui.define([
       var oDetail = this._getODetail();
       if (!oDetail) return;
 
-      // Build composite keys (Guid + Fibra) for precise matching in Screen4,
-      // and simple Guid keys for Screen3 (where one record = all fibras)
-      var aCompositeKeys = []; // [{guid, fibra}]
+      // Determine if we're operating on parent records (Screen3) or detail rows (Screen4)
+      // Screen3 parents represent ALL fibras for a Guid -> always match by Guid only
+      var sTableId = this._getApproveTableId ? this._getApproveTableId() : "";
+      var bIsParentTable = (sTableId === "mdcTable3" || sTableId === this.PARENT_TABLE_ID);
+
+      // Build keys for matching
+      var aMatchGuids = []; // Guid-only matching (Screen3)
+      var aCompositeKeys = []; // Guid+Fibra matching (Screen4)
       aSelected.forEach(function (r) {
         if (!r) return;
         var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
-        var sFibra = String(r.Fibra || r.FIBRA || "").trim();
-        if (sGuid) {
+        if (!sGuid) return;
+
+        if (bIsParentTable) {
+          // Screen3: parent represents all fibras -> match by Guid only
+          aMatchGuids.push(sGuid);
+        } else {
+          var sFibra = String(r.Fibra || r.FIBRA || "").trim();
           aCompositeKeys.push({ guid: sGuid, fibra: sFibra });
         }
       });
 
       console.log("[BaseController] _applyStatusChange", {
-        newStatus: sNewStatus,
-        compositeKeys: JSON.parse(JSON.stringify(aCompositeKeys)),
+        newStatus: sNewStatus, isParentTable: bIsParentTable,
+        guidKeys: aMatchGuids, compositeKeys: JSON.parse(JSON.stringify(aCompositeKeys)),
         selectedCount: aSelected.length
       });
 
       function matchesRow(r) {
         var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
+        if (bIsParentTable) {
+          // Screen3: match by Guid only (all fibras in this record)
+          return aMatchGuids.indexOf(sGuid) >= 0;
+        }
+        // Screen4: match by Guid+Fibra
         var sFibra = String(r.Fibra || r.FIBRA || "").trim();
         return aCompositeKeys.some(function (ck) {
-          // If selected row has a Fibra, match both Guid and Fibra (Screen4 precision)
           if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
-          // Otherwise match by Guid only (Screen3: one record = all fibras)
           return ck.guid === sGuid;
         });
       }
@@ -466,7 +479,7 @@ sap.ui.define([
 
       console.log("[BaseController] _applyStatusChange updated", iUpdated, "rows in model");
 
-      // Also update raw cache rows — match with Guid+Fibra precision
+      // Also update raw cache rows
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey);
@@ -474,14 +487,18 @@ sap.ui.define([
       if (Array.isArray(aRawAll)) {
         aRawAll.forEach(function (r) {
           if (!r) return;
-          // Raw rows don't have guidKey, use Guid directly
           var sGuid = String(r.Guid || r.GUID || "").trim();
-          var sFibra = String(r.Fibra || r.FIBRA || "").trim();
 
-          var bMatch = aCompositeKeys.some(function (ck) {
-            if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
-            return ck.guid === sGuid;
-          });
+          var bMatch;
+          if (bIsParentTable) {
+            bMatch = aMatchGuids.indexOf(sGuid) >= 0;
+          } else {
+            var sFibra = String(r.Fibra || r.FIBRA || "").trim();
+            bMatch = aCompositeKeys.some(function (ck) {
+              if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
+              return ck.guid === sGuid;
+            });
+          }
           if (!bMatch) return;
           iRawUpdated++;
 

@@ -71,8 +71,6 @@
           <Button id="btnCopyRow02" text="Copia riga" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
           <Button id="btnDeleteRows02" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep4"/>
-          <Button id="btnApprove4" text="Approva" type="Accept" icon="sap-icon://accept" visible="{detail>/__canApprove}" press=".onApprove" class="actionBtn"/>
-          <Button id="btnReject4" text="Rifiuta" type="Reject" icon="sap-icon://decline" visible="{detail>/__canReject}" press=".onReject" class="actionBtn"/>
           <ToolbarSeparator id="tbSep4b"/>
           <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint" type="Transparent"/>
           <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>

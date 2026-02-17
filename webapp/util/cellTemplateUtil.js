@@ -198,29 +198,7 @@ sap.ui.define([
       var rel = getBindingRelPath(src);
       var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
 
-      
-      if(_hasSuggestionsForField(rel) && evtId === "change"){
-        let otherV = isInput.getModel().getData().Records.map(i => i[rel])
-        let cValue = src.getValue()
-        if(otherV.filter(i => i === cValue).length > 1){
-            MessageBox.confirm(
-            "Il valore \"" + cValue + "\" è già presente nei valori \"" + rel + "\".\n",
-            {
-              actions: [MessageBox.Action.OK],
-              emphasizedAction: MessageBox.Action.OK,
-              onClose: function (action) {
-                if (action === MessageBox.Action.OK) {
-                  try { src.data("__oldVal", newVal); } catch (e) {}
-                  src.setValue('')
-                }
-              }
-            }
-          );
-          return; 
-        }
-      }
-
-      if (rel && isInput && (evtId === "change" /* || evtId === "submit" <- CREA DOPPIO CONFIRM */) && _hasSuggestionsForField(rel)) {
+      if (rel && isInput && (evtId === "change" /* || evtId === "submit" */) && _hasSuggestionsForField(rel)) {
         var newVal = _normStr(src.getValue());
         if (newVal && !_isValueInSuggestions(rel, newVal)) {
           var oldVal = _normStr(src.data("__oldVal"));
@@ -316,7 +294,11 @@ sap.ui.define([
           visible: "{= !" + sReadOnlyExpr + " }",
           enabled: !bLocked,
 
-          selectedKeys: sValueBind,
+          // OneWay binding prevents JSONModel checkUpdate from contaminating other rows
+          selectedKeys: {
+            path: "detail>" + sKey,
+            mode: "OneWay"
+          },
 
           valueState: sValueState,
           valueStateText: sValueStateText,
@@ -334,6 +316,22 @@ sap.ui.define([
             length: 1000
           }
         });
+
+        // Manual model update via row context (not two-way binding)
+        // This ensures only the specific row is updated
+        (function (fieldKey) {
+          oEditCtrl.attachSelectionFinish(function (oEvt) {
+            var oSrc = oEvt.getSource();
+            var aKeys = (oSrc.getSelectedKeys && oSrc.getSelectedKeys()) || [];
+            var oCtx = oSrc.getBindingContext("detail");
+            if (oCtx && oCtx.getPath) {
+              var oModel = oCtx.getModel();
+              if (oModel && oModel.setProperty) {
+                oModel.setProperty(oCtx.getPath() + "/" + fieldKey, aKeys.slice());
+              }
+            }
+          });
+        })(sKey);
       } else {
         oEditCtrl = new ComboBox({
           visible: "{= !" + sReadOnlyExpr + " }",

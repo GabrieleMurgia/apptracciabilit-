@@ -215,7 +215,7 @@ sap.ui.define([
       var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = "I"; // es: "I"
+      var sOverrideUserTypeWhenReal = ""; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;

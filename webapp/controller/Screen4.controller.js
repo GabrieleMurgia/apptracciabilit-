@@ -255,10 +255,9 @@ sap.ui.define([
         aSelected.forEach(function (r) { r.Stato = StatusUtil.normStatoRow(r, oVm); r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato); });
         oD.setProperty("/__role", sRole); oD.setProperty("/__status", gSt); oD.setProperty("/__canEdit", bEdit);
         oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-        // Show approve/reject buttons if any row is still approvable (ST or CH)
-        var bHasApprovable = aRowSt.some(function (s) { return s === "ST" || s === "CH"; });
-        oD.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-        oD.setProperty("/__canReject", sRole === "I" && bHasApprovable);
+        // Approve/Reject is handled only in Screen3, not Screen4
+        oD.setProperty("/__canApprove", false);
+        oD.setProperty("/__canReject", false);
 
         var r0 = aSelected[0] || {};
         var sCat = S4Loader.pickCat(r0) || S4Loader.pickCat(oRec) || (oSel ? S4Loader.pickCat(oSel) : "") || "";
@@ -587,26 +586,7 @@ sap.ui.define([
     onPrint: function () { S4Export.onPrint(this.getView().getModel("detail")); },
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
 
-    // ==================== APPROVE / REJECT (Screen4-specific) ====================
-    _getApproveTableId: function () { return "mdcTable4"; },
-
-    _onStatusChangeApplied: function (sNewStatus, aSelected) {
-      var oD = this.getView().getModel("detail");
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
-      var aAll = oD.getProperty("/RowsAll") || [];
-
-      // Check if there are still rows that can be approved/rejected (status ST or CH)
-      var bHasApprovable = aAll.some(function (r) {
-        var st = String((r && (r.Stato || r.__status)) || "ST").trim().toUpperCase();
-        return st === "ST" || st === "CH";
-      });
-
-      oD.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-      oD.setProperty("/__canReject", sRole === "I" && bHasApprovable);
-
-      this._applyFiltersAndSort();
-    },
+    // Approve/Reject is handled only in Screen3 (not in Screen4)
 
     // ==================== NAVIGATION ====================
     _markSkipS3BackendOnce: function () { this._getOVm().setProperty("/__skipS3BackendOnce", true); },

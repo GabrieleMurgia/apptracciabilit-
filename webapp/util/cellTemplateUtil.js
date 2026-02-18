@@ -198,8 +198,49 @@ sap.ui.define([
       var rel = getBindingRelPath(src);
       var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
 
-      if (rel && isInput && (evtId === "change" /* || evtId === "submit" */) && _hasSuggestionsForField(rel)) {
+      if (rel && isInput && (evtId === "change" || evtId === "submit") && _hasSuggestionsForField(rel)) {
         var newVal = _normStr(src.getValue());
+
+        // --- Uniqueness check: block duplicate vendor batch values across rows ---
+        if (newVal) {
+          var bDuplicate = false;
+          try {
+            var ctx = getCtx(src);
+            var sMyPath = ctx && ctx.getPath && ctx.getPath();
+            var oModel = ctx && getModel(ctx);
+            if (oModel) {
+              var aAllRecs = oModel.getProperty("/RecordsAll") || [];
+              var sUpper = newVal.toUpperCase();
+              bDuplicate = aAllRecs.some(function (r) {
+                if (!r) return false;
+                var rv = _normStr(r[rel]).toUpperCase();
+                if (rv !== sUpper) return false;
+                // Exclude the current row itself
+                var rIdx = String(r.idx != null ? r.idx : "");
+                var myIdx = sMyPath ? (sMyPath.match(/\/(\d+)\s*$/) || [])[1] : null;
+                // If we can identify by path index, use it; otherwise compare by guidKey
+                if (myIdx != null && rIdx === myIdx) return false;
+                var row = ctx.getObject && ctx.getObject();
+                if (row && r.guidKey && row.guidKey && r.guidKey === row.guidKey) return false;
+                return true;
+              });
+            }
+          } catch (eUniq) {}
+
+          if (bDuplicate) {
+            var oldValDup = _normStr(src.data("__oldVal"));
+            MessageBox.error(
+              "Il Vendor Batch \"" + newVal + "\" è già presente in un altro record.\nInserisci un valore univoco."
+            );
+            try {
+              if (src.data) src.data("__skipConfirmOnce", true);
+              src.setValue(oldValDup);
+            } catch (e2) {}
+            forceUpdateModelIfNeeded(src);
+            return;
+          }
+        }
+
         if (newVal && !_isValueInSuggestions(rel, newVal)) {
           var oldVal = _normStr(src.data("__oldVal"));
 

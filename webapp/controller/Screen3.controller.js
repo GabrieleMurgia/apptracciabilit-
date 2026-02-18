@@ -65,7 +65,8 @@ sap.ui.define([
         __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
       }), "detail");
 
-      this._snapshotRecords = null;
+      this._snapshotRecords = null;      // current state (may include user edits) – used to restore after Screen4 nav
+      this._originalSnapshot = null;      // pristine state from backend/bind – used ONLY for _hasUnsavedChanges
       this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
 
       setTimeout(function () { this._logTable("TABLE STATE @ after onInit"); }.bind(this), 0);
@@ -93,6 +94,9 @@ sap.ui.define([
         var aSavedSnapshot = (bReturningFromS4 && self._snapshotRecords) ? self._snapshotRecords : null;
 
         self._snapshotRecords = null;
+        if (!bReturningFromS4) {
+          self._originalSnapshot = null;
+        }
 
         var oUi = self.getView().getModel("ui");
         if (oUi) { oUi.setProperty("/showHeaderFilters", false); oUi.setProperty("/showHeaderSort", true); }
@@ -183,7 +187,10 @@ sap.ui.define([
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
           if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
+          // When returning from Screen4 with user edits, don't overwrite _originalSnapshot
+          if (bSkip && aSavedSnapshot) { this._bKeepOriginalSnapshot = true; }
           this._bindRecords(aRecs);
+          this._bKeepOriginalSnapshot = false;
           // Restore previous snapshot when returning from Screen4
           if (aSavedSnapshot) {
             this._snapshotRecords = aSavedSnapshot;
@@ -359,6 +366,10 @@ sap.ui.define([
       RecordsUtil.refreshHeader3Fields(oDetail);
       this._log("_refreshHeader3Fields done");
       this._snapshotRecords = deepClone(a);
+      // _originalSnapshot = pristine data for _hasUnsavedChanges; only set on fresh/backend loads, NOT on Screen4 return
+      if (!this._bKeepOriginalSnapshot) {
+        this._originalSnapshot = deepClone(a);
+      }
 
       var oTbl = this.byId("mdcTable3");
       var aCfg01Table = oDetail.getProperty("/_mmct/s01Table") || [];
@@ -706,7 +717,7 @@ sap.ui.define([
 
     // ==================== NAV BACK ====================
     _hasUnsavedChanges: function () {
-      return RecordsUtil.hasUnsavedChanges(this._getODetail(), this._snapshotRecords);
+      return RecordsUtil.hasUnsavedChanges(this._getODetail(), this._originalSnapshot);
     },
     _getNavBackFallback: function () {
       return { route: "Screen2", params: { vendorId: encodeURIComponent(this._sVendorId), mode: this._sMode || "A" } };

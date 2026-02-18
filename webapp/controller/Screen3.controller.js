@@ -463,6 +463,14 @@ sap.ui.define([
         if (isNaN(iIdx) && oCtx.getPath) { var mm = String(oCtx.getPath() || "").match(/\/(\d+)\s*$/); if (mm) iIdx = parseInt(mm[1], 10); }
         if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
+        // FIX: Save current RecordsAll (with live user edits) as snapshot BEFORE navigating.
+        // _bindRecords snapshots at bind time, but user edits happen AFTER bind → old snapshot misses them.
+        var oDetail = this._getODetail();
+        var aCurrent = oDetail.getProperty("/RecordsAll") || [];
+        if (aCurrent.length) {
+          this._snapshotRecords = deepClone(aCurrent);
+        }
+
         Screen4CacheUtil.setSelectedParentForScreen4(oRow, this._getOVm(), this.getOwnerComponent());
         Screen4CacheUtil.ensureScreen4CacheForParentIdx(iIdx, N.toStableString(oRow.guidKey || oRow.GUID || oRow.Guid), this._getOVm(), this._getCacheKeySafe());
 

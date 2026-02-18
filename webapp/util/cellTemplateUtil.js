@@ -9,7 +9,9 @@ sap.ui.define([
   "sap/m/SuggestionItem",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "sap/m/MessageBox"
+  "sap/m/MessageBox",
+  "sap/m/Button",
+  "apptracciabilita/apptracciabilita/util/attachmentUtil"
 ], function (
   HBox,
   Text,
@@ -21,7 +23,9 @@ sap.ui.define([
   SuggestionItem,
   Filter,
   FilterOperator,
-  MessageBox
+  MessageBox,
+  Button,
+  AttachmentUtil
 ) {
   "use strict";
 
@@ -189,7 +193,7 @@ sap.ui.define([
 
       forceUpdateModelIfNeeded(src);
 
-      // appena l’utente tocca una cella, tolgo subito “KO” dalla riga
+      // appena l'utente tocca una cella, tolgo subito "KO" dalla riga
       if (typeof clearPostErrorByContextFn === "function") {
         clearPostErrorByContextFn(getCtx(src));
       }
@@ -280,11 +284,81 @@ sap.ui.define([
   }
 
   // =========================
+  // ATTACHMENT CELL TEMPLATE
+  // =========================
+  /**
+   * Creates a cell with a Button that opens the attachment dialog.
+   * The button shows an attachment icon and the count of files (from the model field value).
+   *
+   * @param {string} sKey - Field name (e.g. "CertMatAb", "Attachment")
+   * @param {object} oMeta - MMCT field config with { label, attachment, ... }
+   * @param {object} opts - { view, ... }
+   */
+  function _createAttachmentCellTemplate(sKey, oMeta, opts) {
+    var sLabel = (oMeta && oMeta.label) || sKey;
+
+    var oBtn = new Button({
+      icon: "sap-icon://attachment",
+      text: {
+        path: "detail>" + sKey,
+        formatter: function (v) {
+          var n = parseInt(v, 10);
+          return (n > 0) ? String(n) : "";
+        }
+      },
+      tooltip: "Allegati — " + sLabel,
+      type: "Transparent",
+      press: function (oEvt) {
+        var oSrc = oEvt.getSource();
+        var oCtx = oSrc.getBindingContext("detail");
+        if (!oCtx) return;
+        var oRow = oCtx.getObject();
+        var sGuid = String((oRow && (oRow.guidKey || oRow.Guid || oRow.GUID)) || "").trim();
+        if (!sGuid) {
+          sap.m.MessageToast.show("GUID mancante");
+          return;
+        }
+
+        var oView = opts.view || null;
+        var oComponent = oView && oView.getController && oView.getController().getOwnerComponent && oView.getController().getOwnerComponent();
+        var oODataModel = oComponent && oComponent.getModel();
+        var oVm = oComponent && oComponent.getModel("vm");
+        var bMock = !!(oVm && oVm.getProperty("/mock/mockS3"));
+        var bReadOnly = !!(oRow && oRow.__readOnly);
+
+        AttachmentUtil.openAttachmentDialog({
+          oModel: oODataModel,
+          guid: sGuid,
+          fieldName: sKey,
+          fieldLabel: sLabel,
+          oView: oView,
+          mock: bMock,
+          readOnly: bReadOnly
+        });
+      }
+    });
+
+    return new HBox({
+      width: "100%",
+      justifyContent: "Center",
+      alignItems: "Center",
+      items: [oBtn]
+    });
+  }
+
+  // =========================
   // CREATE CELL TEMPLATE
   // =========================
   function createCellTemplate(sKey, oMeta, opts) {
     opts = opts || {};
     var domainHasValuesFn = opts.domainHasValuesFn;
+
+    // ===== ATTACHMENT COLUMN =====
+    // If MMCT flag is "A", render an attachment button instead of an input
+    var bAttachment = !!(oMeta && oMeta.attachment);
+    if (bAttachment) {
+      return _createAttachmentCellTemplate(sKey, oMeta, opts);
+    }
 
     var bRequired = !!(oMeta && oMeta.required);
     var bLocked = !!(oMeta && oMeta.locked);

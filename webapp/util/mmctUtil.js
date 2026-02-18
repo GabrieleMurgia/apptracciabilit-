@@ -4,7 +4,7 @@ sap.ui.define([], function () {
   function getSettingFlags(c) {
     var s = String((c && (c.Impostazione !== undefined ? c.Impostazione : c.IMPOSTAZIONE)) || "")
       .trim().toUpperCase();
-    return { required: s === "O", locked: s === "B", hidden: s === "N" };
+    return { required: s === "O", locked: s === "B", hidden: s === "N", attachment: s === "A" };
   }
 
   function isMultipleField(c) {
@@ -68,6 +68,7 @@ sap.ui.define([], function () {
           domain: domain,
           required: !!flags.required,
           locked: !!flags.locked,
+          attachment: !!flags.attachment,
           multiple: isMultipleField(c),
           order: parseOrder(c),
           testata1: isX(c.Testata1 ?? c.TESTATA1),
@@ -208,7 +209,7 @@ sap.ui.define([], function () {
     var s = String(v || "").trim();
     if (!s) return "";
 
-    // se non contiene separatori "noti", lascio com’è
+    // se non contiene separatori "noti", lascio com'è
     if (s.indexOf(";") < 0 && s.indexOf("|") < 0) return s;
 
     return s

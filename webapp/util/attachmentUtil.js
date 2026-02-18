@@ -104,18 +104,15 @@ sap.ui.define([
       ]);
     }
 
-    var sGuidOData = guidForODataFilter(sGuid);
-    if (!sGuidOData) return Promise.reject("GUID non valido");
+    var sGuidDashed = base64ToGuidDashed(sGuid);
+    if (!sGuidDashed) return Promise.reject("GUID non valido");
 
-    var aFilters = [
-      new sap.ui.model.Filter("Guid", "EQ", sGuidOData),
-      new sap.ui.model.Filter("FieldName", "EQ", sFieldName)
-    ];
+    // Build $filter manually to avoid sap.ui.model.Filter double-wrapping guid values
+    var sFilter = "Guid eq guid'" + sGuidDashed + "' and FieldName eq '" + sFieldName + "'";
 
     return new Promise(function (resolve, reject) {
       oModel.read("/zget_attachment_list", {
-        filters: aFilters,
-        urlParameters: { "$format": "json" },
+        urlParameters: { "$format": "json", "$filter": sFilter },
         success: function (oData) {
           var aResults = (oData && oData.results) || [];
           resolve(aResults);
@@ -130,8 +127,8 @@ sap.ui.define([
 
   /**
    * Download an attachment.
-   * Opens the $value media link in a new browser tab.
-   * Endpoint: /AttachmentSet(Guid=guid'...',FieldName='...',FileName='...')/$value
+   * Reads the AttachmentSet entity to get FileContent (base64), then triggers browser download.
+   * Endpoint: /AttachmentSet(Guid=guid'...',FieldName='...',FileName='...')
    */
   function downloadAttachment(opts) {
     var oModel = opts.oModel;
@@ -140,13 +137,68 @@ sap.ui.define([
     var sFileName = opts.fileName || "";
 
     var sGuidDashed = base64ToGuidDashed(sGuid);
-    var sServiceUrl = (oModel && oModel.sServiceUrl) || "/sap/opu/odata/sap/ZVEND_TRACE_SRV";
-    var sUrl = sServiceUrl +
-      "/AttachmentSet(Guid=guid'" + sGuidDashed +
+    var sPath = "/AttachmentSet(Guid=guid'" + sGuidDashed +
       "',FieldName='" + encodeURIComponent(sFieldName) +
-      "',FileName='" + encodeURIComponent(sFileName) + "')/$value";
+      "',FileName='" + encodeURIComponent(sFileName) + "')";
 
-    sap.m.URLHelper.redirect(sUrl, true);
+    if (!oModel || typeof oModel.read !== "function") {
+      // Fallback: open URL directly (for cases where OData model is unavailable)
+      var sServiceUrl = (oModel && oModel.sServiceUrl) || "/sap/opu/odata/sap/ZVEND_TRACE_SRV";
+      sap.m.URLHelper.redirect(sServiceUrl + sPath + "?$format=json", true);
+      return;
+    }
+
+    sap.ui.core.BusyIndicator.show(0);
+    
+    oModel.read(sPath, {
+      urlParameters: { "$format": "json" },
+      success: function (oData) {
+        sap.ui.core.BusyIndicator.hide();
+        if (!oData) {
+          MessageToast.show("Nessun dato ricevuto per l'allegato");
+          return;
+        }
+
+        
+        var sContent = oData.FileContent || "";
+        var sMimeType = oData.MimeType || "application/octet-stream";
+        var sName = oData.FileName || sFileName || "download";
+
+        if (!sContent) {
+          MessageToast.show("Il file non contiene dati");
+          return;
+        }
+
+        // Decode base64 and trigger download
+        try {
+          var byteChars = atob(sContent);
+          var byteNumbers = new Array(byteChars.length);
+          for (var i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+          }
+          var byteArray = new Uint8Array(byteNumbers);
+          var oBlob = new Blob([byteArray], { type: sMimeType });
+
+          // Create download link
+          var sUrl = URL.createObjectURL(oBlob);
+          var oLink = document.createElement("a");
+          oLink.href = sUrl;
+          oLink.download = sName;
+          document.body.appendChild(oLink);
+          oLink.click();
+          document.body.removeChild(oLink);
+          setTimeout(function () { URL.revokeObjectURL(sUrl); }, 5000);
+        } catch (e) {
+          console.error("[AttachmentUtil] download decode error", e);
+          MessageToast.show("Errore durante il download del file");
+        }
+      },
+      error: function (oError) {
+        sap.ui.core.BusyIndicator.hide();
+        console.error("[AttachmentUtil] downloadAttachment error", oError);
+        MessageToast.show("Errore durante il download dell'allegato");
+      }
+    });
   }
 
   /**

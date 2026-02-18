@@ -198,7 +198,7 @@ sap.ui.define([
       var rel = getBindingRelPath(src);
       var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
 
-      if (rel && isInput && (evtId === "change" || evtId === "submit") && _hasSuggestionsForField(rel)) {
+      if (rel && isInput && (evtId === "change" /* || evtId === "submit" */) && _hasSuggestionsForField(rel)) {
         var newVal = _normStr(src.getValue());
 
         // --- Uniqueness check: block duplicate vendor batch values across rows ---

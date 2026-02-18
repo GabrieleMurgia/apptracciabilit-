@@ -343,6 +343,8 @@ sap.ui.define([
       }
 
       var self = this;
+      // Store current selection so the press handler always uses the latest
+      this._pendingRejectSelection = aSelected;
 
       // Create reject dialog with notes field
       if (!this._oRejectDialog) {
@@ -360,7 +362,7 @@ sap.ui.define([
           content: [
             new sap.m.VBox({
               items: [
-                new sap.m.Text({ text: "Stai rifiutando " + aSelected.length + " record. Inserisci il motivo del rifiuto:" }),
+                new sap.m.Text({ text: "" }),
                 this._oRejectNoteTA
               ]
             })
@@ -375,13 +377,17 @@ sap.ui.define([
                 return;
               }
               self._oRejectDialog.close();
-              self._applyStatusChange(aSelected, "RJ", sNote);
+              // Use stored selection (not stale closure)
+              var aSel = self._pendingRejectSelection || [];
+              self._pendingRejectSelection = null;
+              self._applyStatusChange(aSel, "RJ", sNote);
             }
           }),
           endButton: new sap.m.Button({
             text: "Annulla",
             press: function () {
               self._oRejectDialog.close();
+              self._pendingRejectSelection = null;
             }
           }),
           afterClose: function () {

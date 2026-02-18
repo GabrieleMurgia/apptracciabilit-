@@ -163,10 +163,10 @@
 }
 
 /* Horizontal scroll */
-.fullSizeTable .sapUiTableCtrlScr,
+/* .fullSizeTable .sapUiTableCtrlScr,
 .fullSizeTable .sapUiTableHSb {
   overflow-x: auto !important;
-}
+} */
 
 /* Vertical scroll */
 .fullSizeTable .sapUiTableVSb {

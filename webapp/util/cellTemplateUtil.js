@@ -303,11 +303,25 @@ sap.ui.define([
         path: "detail>" + sKey,
         formatter: function (v) {
           var n = parseInt(v, 10);
-          return (n > 0) ? String(n) : "";
+          if (isNaN(n) || n <= 0) return "0";
+          return String(n);
         }
       },
-      tooltip: "Allegati — " + sLabel,
-      type: "Transparent",
+      tooltip: {
+        path: "detail>" + sKey,
+        formatter: function (v) {
+          var n = parseInt(v, 10);
+          if (isNaN(n) || n <= 0) return sLabel + " — Nessun allegato";
+          return sLabel + " — " + n + " allegat" + (n === 1 ? "o" : "i");
+        }
+      },
+      type: {
+        path: "detail>" + sKey,
+        formatter: function (v) {
+          var n = parseInt(v, 10);
+          return (n > 0) ? "Emphasized" : "Transparent";
+        }
+      },
       press: function (oEvt) {
         var oSrc = oEvt.getSource();
         var oCtx = oSrc.getBindingContext("detail");

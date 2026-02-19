@@ -65,16 +65,12 @@ sap.ui.define([
         __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
       }), "detail");
 
-      this._snapshotRecords = null;      // current state (may include user edits) – used to restore after Screen4 nav
-      this._originalSnapshot = null;      // pristine state from backend/bind – used ONLY for _hasUnsavedChanges
+      this._snapshotRecords = null;
+      this._originalSnapshot = null;
       this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
 
       setTimeout(function () { this._logTable("TABLE STATE @ after onInit"); }.bind(this), 0);
     },
-
-    // _log inherited from BaseController
-
-    // _getOVm, _getODetail, _getCacheKeySafe, _getExportCacheKey inherited from BaseController
 
     // ==================== ROUTE ====================
     _onRouteMatched: function (oEvent) {
@@ -88,7 +84,6 @@ sap.ui.define([
       this._ensureUserInfosLoaded().then(function () {
         self._log("_onRouteMatched args", oArgs);
 
-        // Preserve snapshot when returning from Screen4
         var oVm = self.getOwnerComponent().getModel("vm");
         var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
         var aSavedSnapshot = (bReturningFromS4 && self._snapshotRecords) ? self._snapshotRecords : null;
@@ -148,8 +143,6 @@ sap.ui.define([
           var oDetail = this._getODetail();
 
           if (bSkip && aSavedSnapshot && aSavedSnapshot.length) {
-            // Returning from Screen4: use saved snapshot to preserve parent-level edits (e.g. vendor batch fields)
-            // But merge status/note changes from Screen4 via raw rows
             var mRawByGuid = {};
             (aRows || []).forEach(function (r) {
               var g = RecordsUtil.rowGuidKey(r);
@@ -163,7 +156,6 @@ sap.ui.define([
               var g = N.toStableString(rec.guidKey || rec.GUID || rec.Guid || "");
               var aRaw = mRawByGuid[g] || [];
               if (!aRaw.length) return;
-              // Propagate status from raw rows (Screen4 may have changed detail rows)
               var aRawSt = aRaw.map(function (r) { return String(r.Stato || "ST").trim().toUpperCase(); });
               var st;
               if (aRawSt.every(function (s) { return s === "AP"; })) st = "AP";
@@ -172,14 +164,12 @@ sap.ui.define([
               else st = "ST";
               rec.__status = st;
               rec.Stato = st;
-              // Propagate Note from first raw row with a note
               var rNote = aRaw.find(function (r) { return r.Note && String(r.Note).trim(); });
               if (rNote) rec.Note = rNote.Note;
             });
 
             aRecs = aSavedSnapshot.filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
           } else {
-            // Normal load or first load: rebuild parent records from raw rows
             aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
             aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
           }
@@ -187,11 +177,9 @@ sap.ui.define([
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
           var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
           if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
-          // When returning from Screen4 with user edits, don't overwrite _originalSnapshot
           if (bSkip && aSavedSnapshot) { this._bKeepOriginalSnapshot = true; }
           this._bindRecords(aRecs);
           this._bKeepOriginalSnapshot = false;
-          // Restore previous snapshot when returning from Screen4
           if (aSavedSnapshot) {
             this._snapshotRecords = aSavedSnapshot;
           }
@@ -282,9 +270,14 @@ sap.ui.define([
         return true;
       });
 
-      oTbl.addColumn(new MdcColumn({ header: "Dettaglio", visible: true, width: "100px",
-        template: new Button({ icon: "sap-icon://enter-more", type: "Transparent", press: this.onGoToScreen4FromRow.bind(this) })
-      }));
+      // Only show Dettaglio column if the category has detail level (S02 fields)
+      var oDetail = this.getView().getModel("detail");
+      var bHasDetail = !!(oDetail && oDetail.getProperty("/_mmct/hasDetail"));
+      if (bHasDetail) {
+        oTbl.addColumn(new MdcColumn({ header: "Dettaglio", visible: true, width: "100px",
+          template: new Button({ icon: "sap-icon://enter-more", type: "Transparent", press: this.onGoToScreen4FromRow.bind(this) })
+        }));
+      }
 
       var mP = MdcColumn.getMetadata().getAllProperties();
       var oStatoProps = { width: "70px", header: "Stato", visible: true, dataProperty: "Stato",
@@ -358,7 +351,6 @@ sap.ui.define([
       oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
       oDetail.setProperty("/__role", sRole);
 
-      // Approve/Reject buttons visible if user is internal (I) and there are records with ST or CH
       var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
       oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
@@ -366,7 +358,6 @@ sap.ui.define([
       RecordsUtil.refreshHeader3Fields(oDetail);
       this._log("_refreshHeader3Fields done");
       this._snapshotRecords = deepClone(a);
-      // _originalSnapshot = pristine data for _hasUnsavedChanges; only set on fresh/backend loads, NOT on Screen4 return
       if (!this._bKeepOriginalSnapshot) {
         this._originalSnapshot = deepClone(a);
       }
@@ -377,7 +368,6 @@ sap.ui.define([
       this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
       MdcTableUtil.resetInlineHeaderControls(this._inlineFS);
       await this._rebuildColumnsHard(oTbl, aCfg01Table);
-      /* COLONNE DINAMICHE */
       TableColumnAutoSize.autoSize(this.byId("mdcTable3"), 60);
       if (oTbl && oTbl.initialized) await oTbl.initialized();
       if (oTbl) oTbl.setModel(oDetail, "detail");
@@ -386,7 +376,6 @@ sap.ui.define([
       this._applyClientFilters();
       if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();
 
-      // Always clear selection after rebind to prevent stale indices
       this._clearSelectionMdc();
 
       await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
@@ -413,10 +402,9 @@ sap.ui.define([
       });
     },
 
-    // ==================== FILTERS (delegati a FilterSortUtil) ====================
+    // ==================== FILTERS ====================
     _applyClientFilters: function () {
       FilterSortUtil.applyClientFilters(this._getODetail(), this._inlineFS, this.byId("mdcTable3"));
-      // Apply percentage validation visual states
       RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll", showToast: false });
     },
     onStatusFilterPress: function (oEvt) { FilterSortUtil.onStatusFilterPress(oEvt, this._getODetail(), this._applyClientFilters.bind(this)); },
@@ -456,10 +444,9 @@ sap.ui.define([
       RowErrorUtil.markRowsWithPostErrors(aRespLines, { oDetail: this._getODetail(), toStableString: N.toStableString, applyClientFilters: this._applyClientFilters.bind(this), ensurePostErrorRowHooks: function () { var oTbl = self.byId("mdcTable3"); self._ensurePostErrorRowHooks(oTbl); self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl)); } });
     },
 
-    // ==================== TOUCH CODAGG (delegato) ====================
+    // ==================== TOUCH CODAGG ====================
     _touchCodAggParent: function (p, sPath) {
       TouchCodAggUtil.touchCodAggParent(p, sPath, { oDetail: this._getODetail(), oVm: this._getOVm(), cacheKey: this._getExportCacheKey() });
-      // Live percentage check on edit
       RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" });
     },
 
@@ -474,8 +461,6 @@ sap.ui.define([
         if (isNaN(iIdx) && oCtx.getPath) { var mm = String(oCtx.getPath() || "").match(/\/(\d+)\s*$/); if (mm) iIdx = parseInt(mm[1], 10); }
         if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
-        // FIX: Save current RecordsAll (with live user edits) as snapshot BEFORE navigating.
-        // _bindRecords snapshots at bind time, but user edits happen AFTER bind → old snapshot misses them.
         var oDetail = this._getODetail();
         var aCurrent = oDetail.getProperty("/RecordsAll") || [];
         if (aCurrent.length) {
@@ -520,7 +505,6 @@ sap.ui.define([
       Screen4CacheUtil.ensureScreen4CacheForParentIdx(result.idx, result.guid, oVm, this._getCacheKeySafe());
       this._applyClientFilters();
 
-      // Scroll to the newly added row
       var oTbl = this.byId("mdcTable3");
       var aFiltered = oDetail.getProperty("/Records") || [];
       var iNewRowIndex = aFiltered.length - 1;
@@ -547,17 +531,14 @@ sap.ui.define([
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
 
-      // Find all raw rows for this record
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
       var aSourceRaws = aRawAll.filter(function (r) {
         return N.toStableString(RecordsUtil.rowGuidKey(r)) === sSourceGuid;
       });
       if (!aSourceRaws.length) return MessageToast.show("Nessuna riga dettaglio trovata per questo record");
 
-      // Generate new Guid for the copy
       var sNewGuid = N.genGuidNew();
 
-      // Build new parent record (clone of selected, with new Guid/idx)
       var aAll = oDetail.getProperty("/RecordsAll") || [];
       var iMax = -1;
       aAll.forEach(function (r) { var n = parseInt(r && r.idx, 10); if (!isNaN(n) && n > iMax) iMax = n; });
@@ -580,7 +561,6 @@ sap.ui.define([
       oNewParent.__readOnly = false;
       oNewParent.Note = "";
 
-      // Clone all raw rows with new Guid
       var aNewRaws = aSourceRaws.map(function (r) {
         var x = N.deepClone(r);
         x.Guid = sNewGuid;
@@ -594,7 +574,6 @@ sap.ui.define([
         return x;
       });
 
-      // Add to model and cache
       aAll = aAll.slice(); aAll.push(oNewParent); oDetail.setProperty("/RecordsAll", aAll);
       var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(oNewParent); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
       var aRW = (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).slice(); oVm.setProperty("/cache/dataRowsByKey/" + sCacheKey, aRW.concat(aNewRaws));
@@ -646,7 +625,6 @@ sap.ui.define([
 
     // ==================== SAVE ====================
     onSave: function () {
-      // Validate percentage fields (e.g. QtaFibra sum <= 100%)
       if (!RecordsUtil.validatePercBeforeSave(this._getODetail(), "/RecordsAll")) return;
 
       var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
@@ -693,7 +671,7 @@ sap.ui.define([
     },
     onPrint: function () { MessageToast.show("Stampa: TODO"); },
 
-    // ==================== APPROVE / REJECT (Screen3-specific) ====================
+    // ==================== APPROVE / REJECT ====================
     _getApproveTableId: function () { return "mdcTable3"; },
 
     _onStatusChangeApplied: function (sNewStatus, aSelected) {
@@ -702,7 +680,6 @@ sap.ui.define([
       var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
       var aAll = oDetail.getProperty("/RecordsAll") || [];
 
-      // Check if there are still records that can be approved/rejected
       var bHasApprovable = aAll.some(function (r) {
         var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
         return st === "ST" || st === "CH";

@@ -1,8 +1,8 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/util/common",
   "apptracciabilita/apptracciabilita/util/statusUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil"  // <-- AGGIUNTO
-], function (Common, StatusUtil, PostUtil) {  // <-- AGGIUNTO PostUtil
+  "apptracciabilita/apptracciabilita/util/postUtil"  
+], function (Common, StatusUtil, PostUtil) {  
   "use strict";
 
   var toStableString = Common.toStableString;

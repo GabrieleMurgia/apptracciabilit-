@@ -94,11 +94,12 @@ sap.ui.define([
 
       // REAL
       BusyIndicator.show(0);
+
       var pDataSet = new Promise(function (resolve, reject) {
         oODataModel.read("/DataSet", {
           filters: aFilters,
           urlParameters: { "sap-language": "IT" },
-          success: function (oData) {  
+          success: function (oData) {
             resolve((oData && oData.results) || []);
           },
           error: reject
@@ -187,6 +188,77 @@ sap.ui.define([
         });
     },
 
+      _loadDataOnce: function () {
+      var oVm = this._getOVm();
+      var sBaseKey = this._getCacheKeySafe();
+
+      var bMockS3 = this._isMockS3Enabled();
+      var sKey = (bMockS3 ? "MOCK|" : "REAL|") + sBaseKey;
+
+      var aRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
+      var aRecs = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
+
+      var bSkipBackendOnce = !!oVm.getProperty("/__skipS3BackendOnce");
+      if (bSkipBackendOnce) {
+        oVm.setProperty("/__skipS3BackendOnce", false);
+      }
+
+      var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
+
+      if (bHasCache) {
+        try {
+          this._hydrateMmctFromRows(aRows);
+          this._formatIncomingRowsMultiSeparators(aRows);
+          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
+
+          var mTplGuid = {};
+          (aRows || []).forEach(function (r) {
+            if (this._getCodAgg(r) === "N") mTplGuid[this._rowGuidKey(r)] = true;
+          }.bind(this));
+
+          aRecs = (aRecs || []).filter(function (rec) {
+            var g = this._toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid));
+            return !mTplGuid[g];
+          }.bind(this));
+          oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
+
+          var oDetailC = this._getODetail();
+          var resC = this._computeOpenOdaFromRows(aRows);
+          if (resC.hasSignalProp) oDetailC.setProperty("/OpenOda", resC.flag);
+
+          this._bindRecords(aRecs);
+        } catch (e) {
+          console.warn("[S3] cache bind failed", e);
+        }
+      }
+
+      if (bSkipBackendOnce && bHasCache) {
+        this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey });
+        return;
+      }
+
+      this._loadToken = (this._loadToken || 0) + 1;
+      var iToken = this._loadToken;
+
+      this._reloadDataFromBackend(function (aResults) {
+        if (iToken !== this._loadToken) return;
+
+        this._hydrateMmctFromRows(aResults);
+        this._formatIncomingRowsMultiSeparators(aResults);
+
+        var oDetail = this._getODetail();
+        var res = this._computeOpenOdaFromRows(aResults);
+        if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
+
+        var aRecordsBuilt = this._buildRecords01(aResults);
+
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+
+        this._bindRecords(aRecordsBuilt);
+      }.bind(this));
+    },
+
     /**
      * Idrata la configurazione MMCT dalle righe
      */
@@ -207,9 +279,29 @@ sap.ui.define([
 
       var a02All = sCat ? MmctUtil.cfgForScreen(oVm, sCat, "02") : [];
 
+      // Determine if this category has detail level (Screen4).
+      // Priority: backend "Dettaglio" field on the MMCT category record,
+      // fallback: true if there are any S02 fields configured.
+      var bHasDetail = false;
+      try {
+        var aMMCT = (oVm && oVm.getProperty("/userMMCT")) || [];
+        var oCatRec = aMMCT.find(function (c) {
+          return String(c.CatMateriale || "").trim().toUpperCase() === sCat.toUpperCase();
+        });
+        if (oCatRec && oCatRec.Dettaglio !== undefined) {
+          bHasDetail = String(oCatRec.Dettaglio || "").trim().toUpperCase() === "X";
+        } else {
+          // Fallback: if there are S02 fields, there is a detail level
+          bHasDetail = a02All.length > 0;
+        }
+      } catch (e) {
+        bHasDetail = a02All.length > 0;
+      }
+
       oDetail.setProperty("/_mmct", {
         cat: sCat,
         raw0: r0,
+        hasDetail: bHasDetail,
 
         s00: a00All,
         hdr3: aHdr3,
@@ -228,11 +320,67 @@ sap.ui.define([
         s01Table: a01Table.length,
         s02All: a02All.length
       };
-    }
+    },
 
-    // NOTE: _loadDataOnce, _reloadDataFromBackend, _refreshAfterPost were removed.
-    // They used `this` (controller context) and belong in the controller, not in a util module.
-    // They are already correctly implemented in Screen3_controller.js.
+    _reloadDataFromBackend: function (fnDone) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
+      var bMockS3 = !!mock.mockS3;
+
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+
+      var sVendor10 = String(this._sVendorId || "").trim();
+      if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) {
+        sVendor10 = ("0000000000" + sVendor10).slice(-10);
+      }
+
+      var aFilters = DataLoaderUtil.buildCommonFilters({
+        userId: sUserId,
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        season: this._sSeason
+      });
+
+      DataLoaderUtil.reloadDataFromBackend({
+        oModel: this.getOwnerComponent().getModel(),
+        filters: aFilters,
+        vendor10: sVendor10,
+        oVmCache: this._getOVm(),
+        mockS3: bMockS3,
+        forceStato: sForceStato,
+        onDone: fnDone
+      });
+    },
+
+    _refreshAfterPost: function (oPostData) {
+      console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
+
+      return new Promise(function (resolve) {
+        this._reloadDataFromBackend(function (aResults) {
+          this._hydrateMmctFromRows(aResults);
+          this._formatIncomingRowsMultiSeparators(aResults);
+
+          var oDetail = this._getODetail();
+          var res = this._computeOpenOdaFromRows(aResults);
+          if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
+
+          var aRecordsBuilt = this._buildRecords01(aResults);
+
+          var oVm = this._getOVm();
+          var sKey = this._getExportCacheKey();
+          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+          oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+
+          Promise.resolve(this._bindRecords(aRecordsBuilt)).then(function () {
+            this._snapshotRecords = deepClone(aRecordsBuilt);
+
+            console.log("[S3] REFRESH DONE (rows from backend):", aResults.length);
+            resolve(aResults);
+          }.bind(this));
+        }.bind(this));
+      }.bind(this));
+    },
 
   };
 });

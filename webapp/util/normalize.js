@@ -242,7 +242,7 @@ sap.ui.define([], function () {
       return [];
     }
     var seen2 = {};
-    return str.split(/[;|,]+/)
+    return str.split(/[;|]+/)
       .map(function (x) { return String(x || "").trim(); })
       .filter(function (x) { return !!x; })
       .filter(function (x) {

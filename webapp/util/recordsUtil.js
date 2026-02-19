@@ -59,7 +59,7 @@ sap.ui.define([
         if (Array.isArray(v)) return v;
         var s = String(v || "").trim();
         if (!s) return [];
-        return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+        return s.split(/[;|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
       }
 
       var sRole = (oVm && oVm.getProperty("/userType")) || "";
@@ -255,7 +255,7 @@ sap.ui.define([
       if (Array.isArray(v)) return v.slice();
       var s = String(v || "").trim();
       if (!s) return [];
-      return s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+      return s.split(/[;|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
     },
 
       _bindRecords: async function (aRecords) {

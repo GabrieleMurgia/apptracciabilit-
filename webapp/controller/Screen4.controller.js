@@ -116,7 +116,7 @@ sap.ui.define([
     _toArrayMulti: function (v) {
       if (Array.isArray(v)) { var s1 = {}; return v.map(function (x) { return String(x || "").trim(); }).filter(function (x) { return !!x; }).filter(function (x) { if (s1[x]) return false; s1[x] = true; return true; }); }
       var str = String(v || "").trim(); if (!str) return [];
-      var s2 = {}; return str.split(/[;|,]+/).map(function (x) { return String(x || "").trim(); }).filter(function (x) { return !!x; }).filter(function (x) { if (s2[x]) return false; s2[x] = true; return true; });
+      var s2 = {}; return str.split(/[;|]+/).map(function (x) { return String(x || "").trim(); }).filter(function (x) { return !!x; }).filter(function (x) { if (s2[x]) return false; s2[x] = true; return true; });
     },
 
     // ==================== DIRTY / CODAGG ====================

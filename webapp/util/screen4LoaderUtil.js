@@ -89,7 +89,7 @@ sap.ui.define([
       var mIsMulti = {};
       (aCfg01 || []).forEach(function (f) { if (f && f.ui && f.multiple) mIsMulti[f.ui] = true; });
 
-      function toArray(v) { if (Array.isArray(v)) return v; var s = String(v || "").trim(); return s ? s.split(/[;,|]+/).map(function (x) { return x.trim(); }).filter(Boolean) : []; }
+      function toArray(v) { if (Array.isArray(v)) return v; var s = String(v || "").trim(); return s ? s.split(/[;|]+/).map(function (x) { return x.trim(); }).filter(Boolean) : []; }
 
       var m = {}, a = [];
       (aAllRows || []).forEach(function (r) {

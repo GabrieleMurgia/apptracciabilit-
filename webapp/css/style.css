@@ -167,7 +167,9 @@
 .fullSizeTable .sapUiTableHSb {
   overflow-x: auto !important;
 } */
-
+.attachmentDialogItem{
+  padding: 10px 0px 0px 20px;
+}
 /* Vertical scroll */
 .fullSizeTable .sapUiTableVSb {
   overflow-y: auto !important;

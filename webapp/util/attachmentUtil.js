@@ -149,6 +149,7 @@ sap.ui.define([
     }
 
     sap.ui.core.BusyIndicator.show(0);
+    
     oModel.read(sPath, {
       urlParameters: { "$format": "json" },
       success: function (oData) {
@@ -158,6 +159,7 @@ sap.ui.define([
           return;
         }
 
+        
         var sContent = oData.FileContent || "";
         var sMimeType = oData.MimeType || "application/octet-stream";
         var sName = oData.FileName || sFileName || "download";
@@ -350,59 +352,48 @@ sap.ui.define([
       items: {
         path: "dlg>/attachments",
         template: new CustomListItem({
-          type: "Inactive",
           content: [
             new HBox({
               alignItems: "Center",
-              justifyContent: "SpaceBetween",
               width: "100%",
               items: [
-                new HBox({
-                  alignItems: "Center",
-                  layoutData: new sap.m.FlexItemData({ growFactor: 1, shrinkFactor: 1, minWidth: "0px" }),
+                new sap.ui.core.Icon({
+                  src: {
+                    path: "dlg>FileName",
+                    formatter: function (fn) { return getFileIcon(fn); }
+                  },
+                  size: "1.5rem",
+                  color: "#0854a0"
+                }).addStyleClass("sapUiSmallMarginEnd"),
+                new VBox({
+                  layoutData: new sap.m.FlexItemData({ growFactor: 1 }),
                   items: [
-                    new sap.ui.core.Icon({
-                      src: {
-                        path: "dlg>FileName",
-                        formatter: function (fn) { return getFileIcon(fn); }
-                      },
-                      size: "1.25rem",
-                      color: "#0854a0"
-                    }).addStyleClass("sapUiSmallMarginEnd"),
-                    new VBox({
-                      layoutData: new sap.m.FlexItemData({ growFactor: 1, shrinkFactor: 1, minWidth: "0px" }),
-                      items: [
-                        new Link({
-                          text: "{dlg>FileName}",
-                          wrapping: true,
-                          press: function (oEvt) {
-                            var oCtx = oEvt.getSource().getBindingContext("dlg");
-                            if (!oCtx) return;
-                            var oAtt = oCtx.getObject();
-                            downloadAttachment({
-                              oModel: oModel,
-                              guid: sGuid,
-                              fieldName: oAtt.FieldName || sFieldName,
-                              fileName: oAtt.FileName
-                            });
-                          }
-                        }),
-                        new Text({
-                          text: "{dlg>Note}",
-                          visible: "{= !!${dlg>Note} }",
-                          wrapping: true
-                        }).addStyleClass("sapUiTinyMarginTop sapThemeMetaText")
-                      ]
-                    })
+                    new Link({
+                      text: "{dlg>FileName}",
+                      press: function (oEvt) {
+                        var oCtx = oEvt.getSource().getBindingContext("dlg");
+                        if (!oCtx) return;
+                        var oAtt = oCtx.getObject();
+                        downloadAttachment({
+                          oModel: oModel,
+                          guid: sGuid,
+                          fieldName: oAtt.FieldName || sFieldName,
+                          fileName: oAtt.FileName
+                        });
+                      }
+                    }),
+                    new Text({
+                      text: "{dlg>Note}",
+                      visible: "{= !!${dlg>Note} }"
+                    }).addStyleClass("sapUiTinyMarginTop sapThemeMetaText")
                   ]
-                }),
-                // Delete button (disabled until backend implements ATTACHMENTSET_DELETE_ENTITY)
+                }).addStyleClass("sapUiSmallMarginBegin"),
+                // Delete button (only if not readOnly)
                 new Button({
                   icon: "sap-icon://delete",
                   type: "Transparent",
                   visible: !bReadOnly,
-                  enabled: false,
-                  tooltip: "Eliminazione non ancora disponibile lato backend",
+                  tooltip: "Elimina allegato",
                   press: function (oEvt) {
                     var oCtx = oEvt.getSource().getBindingContext("dlg");
                     if (!oCtx) return;
@@ -422,13 +413,13 @@ sap.ui.define([
                       }
                     );
                   }
-                }).addStyleClass("sapUiSmallMarginBegin")
+                })
               ]
-            })
+            }).addStyleClass("sapUiSmallMarginTopBottom attachmentDialogItem")
           ]
         })
       }
-    }).addStyleClass("sapUiSmallMarginTop");
+    });
 
     // Hidden file input for upload
     var oFileInput = document.createElement("input");
@@ -470,30 +461,12 @@ sap.ui.define([
       }));
     }
 
-    // Counter text
-    var oCountText = new Text({
-      text: {
-        path: "dlg>/count",
-        formatter: function (n) {
-          n = parseInt(n, 10) || 0;
-          if (n === 0) return "Nessun allegato presente";
-          return n + " allegat" + (n === 1 ? "o" : "i");
-        }
-      }
-    }).addStyleClass("sapUiSmallMarginBottom sapThemeMetaText");
-
-    // Wrap in VBox with padding
-    var oContentBox = new VBox({
-      items: [oCountText, oList]
-    }).addStyleClass("sapUiSmallMargin");
-
     var oDialog = new Dialog({
       title: "Allegati — " + sLabel,
-      contentWidth: "520px",
+      contentWidth: "550px",
       resizable: true,
       draggable: true,
-      verticalScrolling: true,
-      content: [oContentBox],
+      content: [oList],
       buttons: aCustomButtons.concat([
         new Button({
           text: "Chiudi",

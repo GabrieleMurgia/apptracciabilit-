@@ -22,6 +22,7 @@ sap.ui.define([
   "sap/m/Text",
   "sap/m/Link",
   "sap/m/Label",
+  "sap/m/TextArea",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "sap/m/BusyIndicator",
@@ -29,7 +30,7 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel"
 ], function (
   Dialog, Button, List, CustomListItem,
-  HBox, VBox, Text, Link, Label,
+  HBox, VBox, Text, Link, Label, TextArea,
   MessageToast, MessageBox, MBusyIndicator, BusyIndicator, JSONModel
 ) {
   "use strict";
@@ -294,6 +295,58 @@ sap.ui.define([
     return map[ext] || "sap-icon://document";
   }
 
+  // ==================== DESCRIPTION PROMPT ====================
+
+  /**
+   * Opens a small dialog to ask for the file description (Note) before uploading.
+   * Returns a Promise<string> with the note text, or rejects if cancelled.
+   */
+  function _promptForDescription(sFileName) {
+    return new Promise(function (resolve, reject) {
+      var oTextArea = new TextArea({
+        width: "100%",
+        rows: 3,
+        placeholder: "Inserisci una descrizione per l'allegato (opzionale)...",
+        growing: true
+      });
+
+      var oPromptDialog = new Dialog({
+        title: "Descrizione allegato",
+        contentWidth: "420px",
+        type: "Message",
+        content: [
+          new VBox({
+            items: [
+              new Text({ text: sFileName }).addStyleClass("sapUiSmallMarginBottom sapMTextBreakWord"),
+              oTextArea
+            ]
+          }).addStyleClass("sapUiSmallMargin")
+        ],
+        beginButton: new Button({
+          text: "Carica",
+          type: "Emphasized",
+          press: function () {
+            var sNote = (oTextArea.getValue() || "").trim();
+            oPromptDialog.close();
+            resolve(sNote);
+          }
+        }),
+        endButton: new Button({
+          text: "Annulla",
+          press: function () {
+            oPromptDialog.close();
+            reject("cancelled");
+          }
+        }),
+        afterClose: function () {
+          oPromptDialog.destroy();
+        }
+      });
+
+      oPromptDialog.open();
+    });
+  }
+
   // ==================== DIALOG ====================
 
   /**
@@ -307,6 +360,7 @@ sap.ui.define([
    * @param {sap.ui.core.mvc.View} [opts.oView] - View (for addDependent)
    * @param {boolean} [opts.mock] - Mock mode
    * @param {boolean} [opts.readOnly] - If true, hide upload/delete
+   * @param {function(number)} [opts.onCountChange] - Called with new attachment count after upload/delete
    */
   function openAttachmentDialog(opts) {
     var oModel = opts.oModel;
@@ -315,6 +369,7 @@ sap.ui.define([
     var sLabel = opts.fieldLabel || sFieldName || "Allegati";
     var bReadOnly = !!opts.readOnly;
     var bMock = !!opts.mock;
+    var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null;
 
     if (!sGuid) {
       MessageToast.show("GUID mancante, impossibile caricare gli allegati");
@@ -334,14 +389,22 @@ sap.ui.define([
 
     // Helper: reload attachment list into dialog model
     function _reloadList() {
+      console.log("[AttachmentUtil] _reloadList called, fnCountChange=", !!fnCountChange);
       oDialogModel.setProperty("/loading", true);
       listAttachments({ oModel: oModel, guid: sGuid, fieldName: sFieldName, mock: bMock })
         .then(function (aList) {
+          var iCount = (aList || []).length;
           oDialogModel.setProperty("/attachments", aList || []);
-          oDialogModel.setProperty("/count", (aList || []).length);
+          oDialogModel.setProperty("/count", iCount);
           oDialogModel.setProperty("/loading", false);
+          // Notify caller to update the cell counter
+          if (fnCountChange) {
+            console.log("[AttachmentUtil] calling onCountChange with count=", iCount);
+            try { fnCountChange(iCount); } catch (e) {}
+          }
         })
-        .catch(function () {
+        .catch(function (err) {
+          console.error("[AttachmentUtil] _reloadList listAttachments failed:", err);
           oDialogModel.setProperty("/loading", false);
         });
     }
@@ -430,20 +493,42 @@ sap.ui.define([
     oFileInput.addEventListener("change", function () {
       var oFile = oFileInput.files && oFileInput.files[0];
       if (!oFile) return;
+      var sName = oFile.name;
+      var sMime = oFile.type || "application/octet-stream";
+      console.log("[AttachmentUtil] file selected:", sName, sMime);
+
+      // Read the file FIRST (while the reference is still valid), then prompt for description
       var reader = new FileReader();
       reader.onload = function () {
         var sBase64 = reader.result.split(",")[1] || "";
-        uploadAttachment({
-          oModel: oModel,
-          guid: sGuid,
-          fieldName: sFieldName,
-          fileName: oFile.name,
-          mimeType: oFile.type || "application/octet-stream",
-          fileContent: sBase64,
-          note: ""
-        }).then(function () { _reloadList(); });
+        console.log("[AttachmentUtil] file read OK, base64 length:", sBase64.length);
+
+        // Now prompt for description (file is already read)
+        _promptForDescription(sName).then(function (sNote) {
+          console.log("[AttachmentUtil] description entered:", sNote);
+          uploadAttachment({
+            oModel: oModel,
+            guid: sGuid,
+            fieldName: sFieldName,
+            fileName: sName,
+            mimeType: sMime,
+            fileContent: sBase64,
+            note: sNote
+          }).then(function () {
+            console.log("[AttachmentUtil] upload success, reloading list");
+            _reloadList();
+          }).catch(function (err) {
+            console.error("[AttachmentUtil] upload failed:", err);
+          });
+        }).catch(function () {
+          console.log("[AttachmentUtil] description prompt cancelled");
+        });
+      };
+      reader.onerror = function () {
+        console.error("[AttachmentUtil] FileReader error");
       };
       reader.readAsDataURL(oFile);
+
       // Reset so same file can be re-selected
       oFileInput.value = "";
     });

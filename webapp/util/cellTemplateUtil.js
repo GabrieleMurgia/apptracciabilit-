@@ -340,6 +340,10 @@ sap.ui.define([
         var bMock = !!(oVm && oVm.getProperty("/mock/mockS3"));
         var bReadOnly = !!(oRow && oRow.__readOnly);
 
+        // Capture row GUID and model to update counter after upload/delete
+        var sRowGuid = sGuid;
+        var oDetailModel = oCtx.getModel();
+
         AttachmentUtil.openAttachmentDialog({
           oModel: oODataModel,
           guid: sGuid,
@@ -347,7 +351,49 @@ sap.ui.define([
           fieldLabel: sLabel,
           oView: oView,
           mock: bMock,
-          readOnly: bReadOnly
+          readOnly: bReadOnly,
+          onCountChange: function (iNewCount) {
+            var sVal = String(iNewCount);
+            console.log("[cellTemplateUtil] onCountChange fired", sKey, "=", sVal, "guid=", sRowGuid);
+            try {
+              if (!oDetailModel) return;
+              // Update the record directly in RecordsAll and Records by GUID
+              ["/RecordsAll", "/Records"].forEach(function (sArrPath) {
+                var aArr = oDetailModel.getProperty(sArrPath) || [];
+                for (var i = 0; i < aArr.length; i++) {
+                  var r = aArr[i];
+                  if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                    r[sKey] = sVal;
+                    // Also update via setProperty to trigger binding update
+                    oDetailModel.setProperty(sArrPath + "/" + i + "/" + sKey, sVal);
+                    break;
+                  }
+                }
+              });
+              oDetailModel.refresh(true);
+            } catch (e) {
+              console.warn("[cellTemplateUtil] onCountChange model update error", e);
+            }
+            // Sync snapshots so counter changes are NOT detected as unsaved changes
+            // (attachments are saved directly via OData, not via onSave)
+            try {
+              var oController = oView && oView.getController && oView.getController();
+              if (oController && sRowGuid) {
+                [oController._originalSnapshot, oController._snapshotRecords].forEach(function (aSnap) {
+                  if (!Array.isArray(aSnap)) return;
+                  for (var i = 0; i < aSnap.length; i++) {
+                    var r = aSnap[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r[sKey] = sVal;
+                      break;
+                    }
+                  }
+                });
+              }
+            } catch (e2) {
+              console.warn("[cellTemplateUtil] onCountChange snapshot sync error", e2);
+            }
+          }
         });
       }
     });

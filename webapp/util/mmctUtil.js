@@ -1,10 +1,16 @@
 sap.ui.define([], function () {
   "use strict";
 
-  function getSettingFlags(c) {
-    var s = String((c && (c.Impostazione !== undefined ? c.Impostazione : c.IMPOSTAZIONE)) || "")
-      .trim().toUpperCase();
-    return { required: s === "O", locked: s === "B", hidden: s === "N", attachment: s === "A" };
+function getSettingFlags(c) {
+  var s = String((c && (c.Impostazione !== undefined ? c.Impostazione : c.IMPOSTAZIONE)) || "")
+    .trim().toUpperCase();
+
+  return {
+    required: s === "O",
+    locked: s === "B" || s === "D",
+    hidden: s === "N",
+    attachment: s === "A"
+  };
   }
 
   function isMultipleField(c) {

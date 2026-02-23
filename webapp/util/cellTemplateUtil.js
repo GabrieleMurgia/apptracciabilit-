@@ -86,17 +86,18 @@ sap.ui.define([
     }
 
     function readCtrlValue(ctrl) {
-      // Input
-      if (ctrl && typeof ctrl.getValue === "function" && ctrl.getBinding("value")) {
-        return ctrl.getValue();
-      }
-      // ComboBox
+      // ComboBox — selectedKey FIRST (preserves exact domain values including multi-spaces)
       if (ctrl && typeof ctrl.getSelectedKey === "function" && ctrl.getBinding("selectedKey")) {
-        return ctrl.getSelectedKey();
+        var sk = ctrl.getSelectedKey();
+        if (sk !== undefined && sk !== null && sk !== "") return sk;
       }
       // MultiComboBox
       if (ctrl && typeof ctrl.getSelectedKeys === "function" && ctrl.getBinding("selectedKeys")) {
         return ctrl.getSelectedKeys();
+      }
+      // Input (fallback)
+      if (ctrl && typeof ctrl.getValue === "function" && ctrl.getBinding("value")) {
+        return ctrl.getValue();
       }
       return undefined;
     }

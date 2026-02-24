@@ -215,9 +215,9 @@ sap.ui.define([
       var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = ""; // es: "I"
+      var sOverrideUserTypeWhenReal = "E"; // es: "I"
 
-      // se backend giù, fai fallback automatico su mock 
+      // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
 
       oVm.setProperty("/mock", {
@@ -306,13 +306,11 @@ sap.ui.define([
 
           oModel.read(sPath, {
             urlParameters: {
-              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields,UserInfosVend",
+              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields",
               "sap-language": "IT"
             },
             success: function (oData) {
-
               debugger
-              
               BusyIndicator.hide();
 
               if (!oData) {
@@ -327,7 +325,7 @@ sap.ui.define([
 
               var aDomains = (oData.UserInfosDomains && oData.UserInfosDomains.results) || [];
               var aMMCT = (oData.UserInfosMMCT && oData.UserInfosMMCT.results) || [];
-              var aVend = (oData.UserInfosVend && oData.UserInfosVend.results) || [];
+              var aVend = []; // Vendors loaded lazily via _ensureVendorsLoaded()
 
               // domainsByName: Domain -> [{key,text}]
               /* QUA INSERIRE LOGICA PER INSERIMENTO LIBERO <- CON POPUP "AcceptNewVal" : "X" */
@@ -424,7 +422,7 @@ sap.ui.define([
                 mmctFieldsByCat: mmctFieldsByCat,
 
                 UserInfosMMCT: oData.UserInfosMMCT?.results || [],
-                UserInfosVend: oData.UserInfosVend?.results || [],
+                UserInfosVend: [], // loaded lazily via _ensureVendorsLoaded()
                 UserInfosDomains: oData.UserInfosDomains?.results || [],
 
                 domainsByName: domainsByName,
@@ -474,6 +472,60 @@ sap.ui.define([
       }
     },
 
+    // =========================================================
+    // LAZY VENDOR LOADING  (chiamata separata a /VendorDataSet)
+    // =========================================================
+    _vendorPromise: null,
+
+    _ensureVendorsLoaded: function () {
+      if (this._vendorPromise) return this._vendorPromise;
+
+      var oVm = this.getOwnerComponent().getModel("vm");
+
+      // Already populated (e.g. from mock)?
+      var aExisting = oVm.getProperty("/userVendors") || [];
+      if (aExisting.length) {
+        this._vendorPromise = Promise.resolve(aExisting);
+        return this._vendorPromise;
+      }
+
+      // Mock path
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      if (mock.mockS0 || mock.mockVendors) {
+        // Mock vendors are already set by MockData.applyVm
+        this._vendorPromise = Promise.resolve(oVm.getProperty("/userVendors") || []);
+        return this._vendorPromise;
+      }
+
+      // Real OData call to /VendorDataSet
+      var oModel = this.getOwnerComponent().getModel();
+      var self = this;
+
+      this._vendorPromise = new Promise(function (resolve, reject) {
+        BusyIndicator.show(0);
+        oModel.read("/VendorDataSet", {
+          urlParameters: { "sap-language": "IT" },
+          success: function (oData) {
+            debugger
+            BusyIndicator.hide();
+            var aVend = (oData && oData.results) || [];
+            console.log("[Screen0] VendorDataSet loaded:", aVend.length, "vendors");
+            oVm.setProperty("/userVendors", aVend);
+            oVm.setProperty("/UserInfosVend", aVend);
+            resolve(aVend);
+          },
+          error: function (oError) {
+            BusyIndicator.hide();
+            console.error("[Screen0] VendorDataSet ERROR", oError);
+            self._vendorPromise = null; // allow retry
+            reject(oError);
+          }
+        });
+      });
+
+      return this._vendorPromise;
+    },
+
     onPressFlowA: function () {
       var oRouter = this.getOwnerComponent().getRouter();
       var oVm = this.getOwnerComponent().getModel("vm");
@@ -481,41 +533,63 @@ sap.ui.define([
       var sUserType = (oVm && oVm.getProperty("/userType")) || "";
       sUserType = String(sUserType || "").trim().toUpperCase();
 
-      // Se FORNITORE: salto Screen1 e vado diretto a Screen2 col vendor [vendorIdx]
-      if (sUserType === "E") {
-        var aVend = (oVm && oVm.getProperty("/userVendors")) || (oVm && oVm.getProperty("/UserInfosVend")) || [];
-        var mock = (oVm && oVm.getProperty("/mock")) || {};
-        var iIdx = parseInt(mock.vendorIdx || 0, 10);
-        if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
+      var self = this;
 
-        var oV = aVend[0] || aVend[0] || null;
-        var sVendorId = oV && (oV.Fornitore || oV.VENDOR || oV.Lifnr);
+      // Load vendors lazily, then navigate
+      this._ensureVendorsLoaded().then(function () {
 
-        if (!sVendorId) {
-          MessageToast.show("Nessun fornitore trovato per navigare a Screen2");
-          console.error("[Screen0] Fornitore senza userVendors/UserInfosVend");
-          oRouter.navTo("Screen1", { mode: "A" });
+        // Se FORNITORE: salto Screen1 e vado diretto a Screen2 col vendor [vendorIdx]
+        if (sUserType === "E") {
+          var aVend = (oVm && oVm.getProperty("/userVendors")) || (oVm && oVm.getProperty("/UserInfosVend")) || [];
+          var mock = (oVm && oVm.getProperty("/mock")) || {};
+          var iIdx = parseInt(mock.vendorIdx || 0, 10);
+          if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
+
+          var oV = aVend[3] || aVend[0] || null;
+          var sVendorId = oV && (oV.Fornitore || oV.VENDOR || oV.Lifnr);
+
+          if (!sVendorId) {
+            MessageToast.show("Nessun fornitore trovato per navigare a Screen2");
+            console.error("[Screen0] Fornitore senza userVendors/UserInfosVend");
+            oRouter.navTo("Screen1", { mode: "A" });
+            return;
+          }
+
+          console.log("[Screen0] FORNITORE -> skip Screen1, vendor:", sVendorId);
+
+          oRouter.navTo("Screen2", {
+            vendorId: encodeURIComponent(String(sVendorId)),
+            mode: "A"
+          });
           return;
         }
 
-        console.log("[Screen0] FORNITORE -> skip Screen1, vendor:", sVendorId);
+        oRouter.navTo("Screen1", { mode: "A" });
 
-        oRouter.navTo("Screen2", {
-          vendorId: encodeURIComponent(String(sVendorId)),
-          mode: "A"
-        });
-        return;
-      }
-
-      oRouter.navTo("Screen1", { mode: "A" });
+      }).catch(function (err) {
+        console.error("[Screen0] onPressFlowA vendor load failed", err);
+        MessageBox.error("Errore nel caricamento fornitori");
+      });
     },
 
     onPressFlowB: function () {
-      this.getOwnerComponent().getRouter().navTo("Screen1", { mode: "M" });
+      var oRouter = this.getOwnerComponent().getRouter();
+      this._ensureVendorsLoaded().then(function () {
+        oRouter.navTo("Screen1", { mode: "M" });
+      }).catch(function (err) {
+        console.error("[Screen0] onPressFlowB vendor load failed", err);
+        MessageBox.error("Errore nel caricamento fornitori");
+      });
     },
 
     onPressFlowC: function () {
-      this.getOwnerComponent().getRouter().navTo("Screen5");
+      var oRouter = this.getOwnerComponent().getRouter();
+      this._ensureVendorsLoaded().then(function () {
+        oRouter.navTo("Screen1", { mode: "T" });
+      }).catch(function (err) {
+        console.error("[Screen0] onPressFlowC vendor load failed", err);
+        MessageBox.error("Errore nel caricamento fornitori");
+      });
     }
   });
 });

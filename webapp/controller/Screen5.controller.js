@@ -193,8 +193,6 @@ sap.ui.define([
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
 
-      debugger
-
       // Build map: fieldName -> domainName for fields that have a domain
       var mFieldDomain = {};
       [aCfg01, aCfg02].forEach(function (arr) {
@@ -275,6 +273,18 @@ sap.ui.define([
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
 
+      // ── SummarySort: read raw MMCT fields to get SummarySort per field ──
+      // mmctFieldsByCat stores the raw OData objects which have SummarySort property
+      var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+      var mSummarySort = {};   // UiFieldname (UPPER) -> SummarySort (int)
+      (aRawFields || []).forEach(function (f) {
+        var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim().toUpperCase();
+        var iSort = parseInt(String(f.SummarySort ?? f.SUMMARYSORT ?? "0").trim(), 10);
+        if (ui) mSummarySort[ui] = isNaN(iSort) ? 0 : iSort;
+      });
+      this._log("SummarySort map", mSummarySort);
+
       // Merge s01 + s02 with dedup
       var seen = Object.create(null);
       var aCfgAll = [];
@@ -287,6 +297,19 @@ sap.ui.define([
           seen[k] = true;
           aCfgAll.push(f);
         });
+      });
+
+      // ── SummarySort: order columns by SummarySort (>0 first ascending, 0 at the end) ──
+      aCfgAll.sort(function (a, b) {
+        var uiA = String(a && a.ui || "").trim().toUpperCase();
+        var uiB = String(b && b.ui || "").trim().toUpperCase();
+        var sA = mSummarySort[uiA] || 0;
+        var sB = mSummarySort[uiB] || 0;
+        // Fields with SummarySort > 0 come first, sorted ascending
+        if (sA > 0 && sB > 0) return sA - sB;
+        if (sA > 0) return -1;
+        if (sB > 0) return 1;
+        return 0;  // preserve relative order for fields without SummarySort
       });
 
       // Ensure Stato column exists
@@ -363,7 +386,7 @@ sap.ui.define([
       if (mP.propertyKey) oStatoProps.propertyKey = "Stato";
       oTbl.addColumn(new MdcColumn(oStatoProps));
 
-      // Data columns (read-only)
+      // Data columns (read-only) — order is already set by SummarySort in _bindTable
       aCfgUnique.forEach(function (f) {
         var sKey = String(f.ui || "").trim();
         if (!sKey) return;

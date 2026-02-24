@@ -19,12 +19,26 @@ sap.ui.define([
       var sVendorId = opts.vendorId;
       var sMaterial = opts.material;
       var sSeason = opts.season;
+      var sCatMateriale = opts.catMateriale || "";  // ← NoMatList: filtro per categoria
 
       var sVendor10 = String(sVendorId || "").trim();
       if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) {
         sVendor10 = ("0000000000" + sVendor10).slice(-10);
       }
 
+      var aFilters = [
+        new Filter("UserID", FilterOperator.EQ, sUserId),
+        new Filter("Fornitore", FilterOperator.EQ, sVendor10)
+      ];
+
+      // ── NoMatList: filtro per categoria materiale, senza materiale/stagione ──
+      if (sCatMateriale) {
+        aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sCatMateriale));
+        // Non aggiungere filtri Materiale né Stagione
+        return aFilters;
+      }
+
+      // ── Flusso normale: filtro per materiale + stagione ──
       function norm(v) { return String(v || "").trim().toUpperCase(); }
       var sRouteMat = norm(sMaterial);
 
@@ -34,11 +48,6 @@ sap.ui.define([
       if (sRouteMat && sRouteMat.slice(-1) !== "S") add(sRouteMat + "S");
       if (sRouteMat && sRouteMat.slice(-1) === "S") add(sRouteMat.slice(0, -1));
       var aMatVariants = Object.keys(set);
-
-      var aFilters = [
-        new Filter("UserID", FilterOperator.EQ, sUserId),
-        new Filter("Fornitore", FilterOperator.EQ, sVendor10)
-      ];
 
       if (sSeason) {
         aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
@@ -56,10 +65,15 @@ sap.ui.define([
 
     /**
      * Carica i dati dal backend (DataSet + VendorBatchSet)
+     *
+     * opts.filtersVendorBatch (opzionale, NoMatList fix):
+     *   Filtri separati per VendorBatchSet. Se non passato, usa opts.filters.
+     *   Necessario perché VendorBatchSet non ha la proprietà CatMateriale.
      */
     reloadDataFromBackend: function (opts) {
       var oODataModel = opts.oModel;
       var aFilters = opts.filters;
+      var aFiltersVB = opts.filtersVendorBatch || aFilters;  // ← NoMatList fix: filtri separati per VendorBatchSet
       var sVendor10 = opts.vendor10;
       var oVmCache = opts.oVmCache;
       var bMockS3 = opts.mockS3;
@@ -100,6 +114,7 @@ sap.ui.define([
           filters: aFilters,
           urlParameters: { "sap-language": "IT" },
           success: function (oData) {
+            debugger
             resolve((oData && oData.results) || []);
           },
           error: reject
@@ -108,7 +123,7 @@ sap.ui.define([
 
       var pVendorBatch = new Promise(function (resolve, reject) {
         oODataModel.read("/VendorBatchSet", {
-          filters: aFilters,
+          filters: aFiltersVB,                               // ← NoMatList fix: usa filtri senza CatMateriale
           urlParameters: { "$format": "json", "sap-language": "IT" },
 
           success: function (oData) {

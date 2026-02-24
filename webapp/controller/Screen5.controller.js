@@ -193,6 +193,8 @@ sap.ui.define([
       var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
       var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
 
+      debugger
+
       // Build map: fieldName -> domainName for fields that have a domain
       var mFieldDomain = {};
       [aCfg01, aCfg02].forEach(function (arr) {

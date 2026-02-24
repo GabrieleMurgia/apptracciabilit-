@@ -32,6 +32,7 @@ sap.ui.define([
       safeStr(row.MaterialOriginal),
       safeStr(row.MaterialDescription),
       safeStr(row.DescCatMateriale),
+      safeStr(row.CatMateriale),
       safeStr(row.Stagione),
       safeStr(row.MatStatus),
       safeStr(row.Open),
@@ -51,6 +52,7 @@ sap.ui.define([
     var materialOrig = safeStr(m.Materiale).trim();
     var desc = safeStr(m.DescMateriale).trim();
     var descCat = safeStr(m.DescCatMateriale).trim();
+    var catMat = safeStr(m.CatMateriale).trim();           // ← NoMatList: campo categoria
     var season = safeStr(m.Stagione).trim();
     var status = safeStr(m.MatStatus).trim();
 
@@ -60,7 +62,7 @@ sap.ui.define([
     var approved = Number(m.Approved) || 0;
 
     var searchAll = [
-      materialOrig, desc, descCat, season, status,
+      materialOrig, desc, descCat, catMat, season, status,
       open, rejected, pending, approved
     ].join(" ");
 
@@ -69,6 +71,7 @@ sap.ui.define([
       MaterialOriginal: materialOrig,
       MaterialDescription: desc,
       DescCatMateriale: descCat,
+      CatMateriale: catMat,                                 // ← NoMatList: esposto nel record
 
       Stagione: season,
       MatStatus: status,
@@ -383,6 +386,7 @@ sap.ui.define([
       oBinding.filter(aFilters, "Application");
     },
 
+    // ==================== MATERIAL PRESS ====================
     onMaterialPress: function (oEvent) {
       var oSrc = oEvent.getParameter("srcControl");
       if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
@@ -395,9 +399,31 @@ sap.ui.define([
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
       var sMaterialOrig = oCtx.getProperty("MaterialOriginal");
+      var sCatMateriale = oCtx.getProperty("CatMateriale") || "";   // ← NoMatList
 
+      var oVm = this.getOwnerComponent().getModel("vm");
+
+      // ── NoMatList: controlla se la categoria del materiale ha NoMatList='X' ──
+      var bNoMatList = false;
+      if (sCatMateriale && oVm) {
+        var aMMCT = oVm.getProperty("/UserInfosMMCT") || oVm.getProperty("/userMMCT") || [];
+        var oCatRec = aMMCT.find(function (c) {
+          return String(c.CatMateriale || "").trim().toUpperCase() === sCatMateriale.toUpperCase();
+        });
+        if (oCatRec && String(oCatRec.NoMatList || "").trim().toUpperCase() === "X") {
+          bNoMatList = true;
+        }
+      }
+      if (oVm) {
+        oVm.setProperty("/__noMatListMode", bNoMatList);
+        oVm.setProperty("/__noMatListCat", bNoMatList ? sCatMateriale : "");
+      }
+      if (bNoMatList) {
+        this._log("NoMatList attivo per categoria", sCatMateriale, "-> Screen3 con filtro categoria");
+      }
+
+      // Cache MATINFO per OpenOda
       try {
-        var oVm = this.getOwnerComponent().getModel("vm");
         if (oVm) {
           var cache = oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} };
           cache.recordsByKey = cache.recordsByKey || {};

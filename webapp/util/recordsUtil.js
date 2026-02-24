@@ -69,7 +69,9 @@ sap.ui.define([
       var a = [];
 
       (aAllRows || []).forEach(function (r) {
-        if (Common.isTemplateRow(r)) return;
+       /*  if (Common.isTemplateRow(r)) return; */
+       if (!opts.includeTemplates && Common.isTemplateRow(r)) return;
+
 
         var sGuidKey = rowGuidKeyFn(r);
         var sFibra = rowFibraFn(r);

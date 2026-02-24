@@ -488,7 +488,7 @@ sap.ui.define([
         var iIdx = parseInt(mock.vendorIdx || 0, 10);
         if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
-        var oV = aVend[iIdx] || aVend[0] || null;
+        var oV = aVend[0] || aVend[0] || null;
         var sVendorId = oV && (oV.Fornitore || oV.VENDOR || oV.Lifnr);
 
         if (!sVendorId) {

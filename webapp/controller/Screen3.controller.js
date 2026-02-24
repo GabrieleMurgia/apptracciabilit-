@@ -62,7 +62,8 @@ sap.ui.define([
         RecordsAll: [], Records: [], RecordsCount: 0,
         _mmct: { cat: "", s01: [], s02: [] }, OpenOda: "",
         __q: "", __statusFilter: "",
-        __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
+        __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false,
+        __noMatListMode: false  // ← NoMatList
       }), "detail");
 
       this._snapshotRecords = null;
@@ -79,6 +80,14 @@ sap.ui.define([
       this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
+
+      // ── NoMatList: rileva flag impostato da Screen2 ──
+      var oVmNM = this.getOwnerComponent().getModel("vm");
+      this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty("/__noMatListMode"));
+      this._sNoMatListCat = (oVmNM && oVmNM.getProperty("/__noMatListCat")) || "";
+      if (this._bNoMatListMode) {
+        this._log("NoMatList MODE attivo -> mostro anche template, add/copy/delete disabilitati, filtro per categoria:", this._sNoMatListCat);
+      }
 
       var self = this;
       this._ensureUserInfosLoaded().then(function () {
@@ -97,7 +106,12 @@ sap.ui.define([
         if (oUi) { oUi.setProperty("/showHeaderFilters", false); oUi.setProperty("/showHeaderSort", true); }
 
         var oDetail = self._getODetail();
-        oDetail.setData({ Header3Fields: [], VendorId: self._sVendorId, Material: self._sMaterial, RecordsAll: [], Records: [], RecordsCount: 0, _mmct: { cat: "", s01: [], s02: [] }, __q: "", __statusFilter: "" }, true);
+        oDetail.setData({
+          Header3Fields: [], VendorId: self._sVendorId, Material: self._sMaterial,
+          RecordsAll: [], Records: [], RecordsCount: 0,
+          _mmct: { cat: "", s01: [], s02: [] }, __q: "", __statusFilter: "",
+          __noMatListMode: !!self._bNoMatListMode  // ← NoMatList: propaga al model
+        }, true);
 
         var sOpenCache = self._readOpenOdaFromMatInfoCache();
         if (sOpenCache) oDetail.setProperty("/OpenOda", sOpenCache);
@@ -168,10 +182,20 @@ sap.ui.define([
               if (rNote) rec.Note = rNote.Note;
             });
 
-            aRecs = aSavedSnapshot.filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+            // ── NoMatList: non filtrare template; normale: escludi template ──
+            if (this._bNoMatListMode) {
+              aRecs = aSavedSnapshot;
+            } else {
+              aRecs = aSavedSnapshot.filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+            }
           } else {
-            aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
-            aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+            aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm"), includeTemplates: !!this._bNoMatListMode });
+
+            // ── NoMatList: mostra TUTTI i record (inclusi template codAgg=N) ──
+            // ── Normale: escludi template ──
+            if (!this._bNoMatListMode) {
+              aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
+            }
           }
 
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
@@ -196,7 +220,17 @@ sap.ui.define([
         var oDetail = this._getODetail();
         var res = RecordsUtil.computeOpenOdaFromRows(aResults);
         if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
-        var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm") });
+        var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm"), includeTemplates: !!this._bNoMatListMode });
+
+        // ── NoMatList: mostra TUTTI i record (inclusi template); normale: escludi template ──
+        if (!this._bNoMatListMode) {
+          var mTplGuidBE = {};
+          (aResults || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuidBE[RecordsUtil.rowGuidKey(r)] = true; });
+          aRecordsBuilt = (aRecordsBuilt || []).filter(function (rec) {
+            return !mTplGuidBE[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))];
+          });
+        }
+
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
         oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
         this._bindRecords(aRecordsBuilt);
@@ -210,9 +244,29 @@ sap.ui.define([
       var sVendor10 = String(this._sVendorId || "").trim();
       if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) sVendor10 = ("0000000000" + sVendor10).slice(-10);
 
+      // ── NoMatList: usa filtro per CatMateriale invece di Materiale/Stagione ──
+      var oFilterOpts = {
+        userId: sUserId,
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        season: this._sSeason
+      };
+      // Filtri base (senza CatMateriale) per VendorBatchSet
+      var oFilterOptsVB = {
+        userId: sUserId,
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        season: this._sSeason
+      };
+      if (this._bNoMatListMode && this._sNoMatListCat) {
+        oFilterOpts.catMateriale = this._sNoMatListCat;
+        // VendorBatchSet non ha CatMateriale → usa filtri normali senza categoria
+      }
+
       DataLoaderUtil.reloadDataFromBackend({
         oModel: this.getOwnerComponent().getModel(),
-        filters: DataLoaderUtil.buildCommonFilters({ userId: sUserId, vendorId: this._sVendorId, material: this._sMaterial, season: this._sSeason }),
+        filters: DataLoaderUtil.buildCommonFilters(oFilterOpts),
+        filtersVendorBatch: DataLoaderUtil.buildCommonFilters(oFilterOptsVB),
         vendor10: sVendor10, oVmCache: this._getOVm(),
         mockS3: !!mock.mockS3, forceStato: String(mock.forceStato || "").trim().toUpperCase(),
         onDone: fnDone
@@ -350,6 +404,12 @@ sap.ui.define([
       oDetail.setProperty("/__status", sAgg);
       oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
       oDetail.setProperty("/__role", sRole);
+
+      // ── NoMatList: disabilita add/copy/delete ──
+      if (this._bNoMatListMode) {
+        oDetail.setProperty("/__canAddRow", false);
+        oDetail.setProperty("/__noMatListMode", true);
+      }
 
       var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
@@ -656,7 +716,7 @@ sap.ui.define([
           var oDetail = self._getODetail();
           var res = RecordsUtil.computeOpenOdaFromRows(aResults);
           if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
-          var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: self.getOwnerComponent().getModel("vm") });
+          var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: self.getOwnerComponent().getModel("vm"), includeTemplates: !!self._bNoMatListMode });
           var oVm = self._getOVm(), sKey = self._getExportCacheKey();
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);

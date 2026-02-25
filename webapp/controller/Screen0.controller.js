@@ -196,7 +196,7 @@ sap.ui.define([
       // =========================================================
       // MOCK SWITCHES 
       // =========================================================
-      var sUserId = "E_ZEMAF";
+      var sUserId = "";
 
       var sMockUserInfosFile = "mock/UserInfosSet.json";
       var sMockMaterialsFile = "mock/MaterialDataSet.json";
@@ -215,7 +215,7 @@ sap.ui.define([
       var sMockUserType = ""; // "E" / "I" / "S"
 
       // override userType
-      var sOverrideUserTypeWhenReal = "E"; // es: "I"
+      var sOverrideUserTypeWhenReal = ""; // es: "I"
 
       // se backend giù, fai fallback automatico su mock (consigliato)
       var bAutoFallbackToMockWhenBackendDown = true;
@@ -407,7 +407,7 @@ sap.ui.define([
                 userId: sUserId,
                 userType: sUserType,
                 userDescription: oData.UserDescription || "",
-                showAggregatedTile: sUserType !== "E",
+                showAggregatedTile: sUserType !== "",
 
                 auth: buildAuth(sUserType),
 
@@ -582,7 +582,7 @@ sap.ui.define([
       });
     },
 
-    onPressFlowC: function () {
+/*     onPressFlowC: function () {
       var oRouter = this.getOwnerComponent().getRouter();
       this._ensureVendorsLoaded().then(function () {
         oRouter.navTo("Screen1", { mode: "T" });
@@ -590,6 +590,9 @@ sap.ui.define([
         console.error("[Screen0] onPressFlowC vendor load failed", err);
         MessageBox.error("Errore nel caricamento fornitori");
       });
-    }
+    } */
+   onPressFlowC: function () {
+  this.getOwnerComponent().getRouter().navTo("Screen5");
+}
   });
 });

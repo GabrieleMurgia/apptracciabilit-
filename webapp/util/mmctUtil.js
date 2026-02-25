@@ -7,9 +7,10 @@ function getSettingFlags(c) {
 
   return {
     required: s === "O",
-    locked: s === "B" || s === "D",
+    locked: s === "B",
     hidden: s === "N",
-    attachment: s === "A"
+    attachment: s === "A",
+    download: s === "D"           // ← NEW: questionario/download
   };
   }
 
@@ -75,6 +76,7 @@ function getSettingFlags(c) {
           required: !!flags.required,
           locked: !!flags.locked,
           attachment: !!flags.attachment,
+          download: !!flags.download,     // ← NEW: questionario/download
           multiple: isMultipleField(c),
           order: parseOrder(c),
           testata1: isX(c.Testata1 ?? c.TESTATA1),

@@ -158,10 +158,11 @@ sap.ui.define([
     },
 
     _createCellTemplate: function (sKey, oMeta) {
-      return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+    return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
+        view: this.getView(),                                    
         domainHasValuesFn: this._domainHasValues.bind(this),
         hookDirtyOnEditFn: this._hookDirtyOnEdit.bind(this)
-      });
+    });
     },
 
     // ==================== STATUS ====================

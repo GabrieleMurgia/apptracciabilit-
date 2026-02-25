@@ -408,6 +408,128 @@ sap.ui.define([
   }
 
   // =========================
+  // DOWNLOAD / QUESTIONNAIRE CELL (Impostazione = "D")
+  // =========================
+  function _createDownloadCellTemplate(sKey, oMeta, opts) {
+
+    var oBtn = new Button({
+      icon: "sap-icon://download",
+      text: "{detail>" + sKey + "}",
+      type: "Transparent",
+      enabled: {
+        path: "detail>" + sKey,
+        formatter: function (v) { return !!(v && String(v).trim()); }
+      },
+      tooltip: {
+        path: "detail>" + sKey,
+        formatter: function (v) {
+          var s = (v && String(v).trim()) || "";
+          return s ? "Scarica questionario: " + s : "Nessun questionario";
+        }
+      },
+      press: function (oEvt) {
+        var oSrc = oEvt.getSource();
+        var oCtx = oSrc.getBindingContext("detail");
+        var sFieldValue = "";
+        if (oCtx) {
+          sFieldValue = String(oCtx.getProperty(sKey) || "").trim();
+        }
+        if (!sFieldValue) {
+          MessageBox.warning("Nessun valore per il campo " + sKey);
+          return;
+        }
+
+        // Retrieve OData model from view → component
+        var oODataModel = null;
+        try {
+          var oView = opts.view;
+          if (oView && oView.getModel) {
+            oODataModel = oView.getModel();
+          }
+          if (!oODataModel && oView && oView.getController) {
+            oODataModel = oView.getController().getOwnerComponent().getModel();
+          }
+        } catch (e) {
+          console.error("[cellTemplateUtil] Cannot get OData model", e);
+        }
+
+        if (!oODataModel) {
+          MessageBox.error("Modello OData non disponibile");
+          return;
+        }
+
+        // Build the path for GetFieldFileSet function import
+        var sFieldNameSafe = sKey.replace(/'/g, "''");
+        var sFieldValueSafe = sFieldValue.replace(/'/g, "''");
+        /* var sPath = "/GetFieldFileSet(FieldName='" + sFieldNameSafe + "',FieldValue='" + sFieldValueSafe + "')"; */
+        var sPath = "/" + oODataModel.createKey("GetFieldFileSet", {
+  FieldName: sKey,
+  FieldValue: sFieldValue
+});
+
+        sap.ui.core.BusyIndicator.show(0);
+        
+        debugger
+        oODataModel.read(sPath, {
+          groupId: "$direct",
+          success: function (oData) {
+            sap.ui.core.BusyIndicator.hide();
+
+            var sContent = oData && oData.FileContent;
+            var sFileName = (oData && oData.FileName) || (sKey + "_" + sFieldValue);
+            var sMimeType = (oData && oData.MimeType) || "application/octet-stream";
+
+            if (!sContent) {
+              MessageBox.warning("Nessun file disponibile per \"" + sFieldValue + "\"");
+              return;
+            }
+
+            // Decode base64 → Blob → download
+            try {
+              var byteChars = atob(sContent);
+              var byteNumbers = new Array(byteChars.length);
+              for (var i = 0; i < byteChars.length; i++) {
+                byteNumbers[i] = byteChars.charCodeAt(i);
+              }
+              var byteArray = new Uint8Array(byteNumbers);
+              var oBlob = new Blob([byteArray], { type: sMimeType });
+
+              var sUrl = URL.createObjectURL(oBlob);
+              var oLink = document.createElement("a");
+              oLink.href = sUrl;
+              oLink.download = sFileName;
+              document.body.appendChild(oLink);
+              oLink.click();
+              document.body.removeChild(oLink);
+              URL.revokeObjectURL(sUrl);
+            } catch (e) {
+              console.error("[cellTemplateUtil] Download error", e);
+              MessageBox.error("Errore nel download del file");
+            }
+          },
+          error: function (oError) {
+            sap.ui.core.BusyIndicator.hide();
+            console.error("[cellTemplateUtil] GetFieldFileSet error", oError);
+            var sMsg = "Errore nel recupero del file";
+            try {
+              var oBody = JSON.parse(oError.responseText);
+              sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
+            } catch (e) { /* ignore */ }
+            MessageBox.error(sMsg);
+          }
+        });
+      }
+    });
+
+    return new HBox({
+      width: "100%",
+      justifyContent: "Center",
+      alignItems: "Center",
+      items: [oBtn]
+    });
+  }
+
+  // =========================
   // CREATE CELL TEMPLATE
   // =========================
   function createCellTemplate(sKey, oMeta, opts) {
@@ -419,6 +541,13 @@ sap.ui.define([
     var bAttachment = !!(oMeta && oMeta.attachment);
     if (bAttachment) {
       return _createAttachmentCellTemplate(sKey, oMeta, opts);
+    }
+
+    // ===== DOWNLOAD / QUESTIONNAIRE COLUMN =====
+    // If MMCT flag is "D", render text + download icon button
+    var bDownload = !!(oMeta && oMeta.download);
+    if (bDownload) {
+      return _createDownloadCellTemplate(sKey, oMeta, opts);
     }
 
     var bRequired = !!(oMeta && oMeta.required);

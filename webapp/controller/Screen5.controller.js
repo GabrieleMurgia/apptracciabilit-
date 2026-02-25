@@ -129,7 +129,7 @@ sap.ui.define([
       var self = this;
       var oVm = this.getOwnerComponent().getModel("vm");
       var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
 
       // Build filters: OnlySaved eq 'X' + CatMateriale eq sCat
       var aFilters = [

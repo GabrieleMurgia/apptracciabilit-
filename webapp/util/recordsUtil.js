@@ -86,6 +86,7 @@ sap.ui.define([
             idx: a.length,
             guidKey: sGuidKey,
             Fibra: sFibra,
+            CodAgg: (r && (r.CodAgg || r.CODAGG)) || "",   // ← propaga CodAgg per validazione saveUtil
 
             Stato: stRow,
             StatoText: statusTextFn(stRow),

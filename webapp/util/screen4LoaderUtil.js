@@ -34,7 +34,7 @@ sap.ui.define([
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       var bMockS4 = !!mock.mockS4;
       var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
       var logFn = opts.logFn || function () {};
 
       function done(a) { if (typeof fnDone === "function") fnDone(a || []); }

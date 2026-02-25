@@ -49,16 +49,12 @@ sap.ui.define([
       var ca = N.getCodAgg(p);
       var isNew = N.isNewRow(p);
 
-      if (ca === "N") {
-        return;
-      }
-
-      var newCa = ca;
-      if (isNew) {
-        newCa = "I";
-      } else if (ca === "" || ca === "I") {
-        newCa = "U";
-      }
+var newCa = ca;
+if (isNew) {
+  newCa = "I";
+} else if (ca === "" || ca === "N" || ca === "I") {  // ← N → U
+  newCa = "U";
+}
 
       var parentChanged = (newCa !== ca);
       if (parentChanged) {
@@ -115,7 +111,8 @@ sap.ui.define([
         var rc = N.getCodAgg(r);
         var rIsNew = N.isNewRow(r);
 
-        if (rc === "N" || rc === "D") {
+        /* if (rc === "N" || rc === "D") { */
+        if (rc === "D") {  
           return;
         }
 
@@ -125,7 +122,7 @@ sap.ui.define([
             changed = true;
           }
         } else {
-          if (rc === "" || rc === "I") {
+          /* if (rc === "" || rc === "I") */ if (rc === "" || rc === "N" || rc === "I"){
             if (r.CodAgg !== "U") {
               r.CodAgg = "U";
               changed = true;

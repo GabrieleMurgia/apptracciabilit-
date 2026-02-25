@@ -240,7 +240,7 @@ sap.ui.define([
     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
       var sVendor10 = String(this._sVendorId || "").trim();
       if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) sVendor10 = ("0000000000" + sVendor10).slice(-10);
 

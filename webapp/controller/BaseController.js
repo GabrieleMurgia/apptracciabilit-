@@ -148,7 +148,7 @@ sap.ui.define([
       return new Promise(function (resolve, reject) {
         oModel.metadataLoaded().then(function () {
           // Use the same userId as Screen0 — read from vm or default
-          var sUserId = oVm.getProperty("/userId") || "E_ZEMAF";
+          var sUserId = oVm.getProperty("/userId") || "";
           var sPath = "/UserInfosSet('" + sUserId + "')";
 
           oModel.read(sPath, {

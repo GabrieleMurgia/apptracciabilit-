@@ -407,7 +407,8 @@ sap.ui.define([
                 userId: sUserId,
                 userType: sUserType,
                 userDescription: oData.UserDescription || "",
-                showAggregatedTile: sUserType !== "",
+                /* showAggregatedTile: sUserType !== "", */
+                showAggregatedTile: (sUserType === "I" || sUserType === "S"),
 
                 auth: buildAuth(sUserType),
 

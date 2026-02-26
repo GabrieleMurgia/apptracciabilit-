@@ -695,7 +695,7 @@ sap.ui.define([
 
       var oVm = this.getOwnerComponent().getModel("vm"), mock = (oVm && oVm.getProperty("/mock")) || {};
       var oDetail = this._getODetail();
-      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "E_ZEMAF", vendor10: N.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, getCodAgg: N.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: N.normalizeMultiString, uuidv4: N.uuidv4 });
+      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "", vendor10: N.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, getCodAgg: N.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: N.normalizeMultiString, uuidv4: N.uuidv4 });
 
       var self = this;
       SaveUtil.executePost({ oModel: this.getOwnerComponent().getModel(), payload: oPayload, mock: !!mock.mockS3,

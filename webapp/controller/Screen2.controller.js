@@ -258,6 +258,274 @@ sap.ui.define([
       });
     },
 
+onTableSelectionChange: function (oEvent) {
+  var oItem = oEvent.getParameter("listItem");
+  var bSelected = oEvent.getParameter("selected");
+  if (!oItem || !bSelected) return;
+
+  var oCtx = oItem.getBindingContext();
+  var oRow = oCtx && oCtx.getObject();
+  var sStatus = safeStr(oRow && oRow.MatStatus).trim().toUpperCase();
+
+  // ✅ Regola corretta: NON selezionabile se DMMY
+  if (sStatus === "DMMY") {
+    oItem.setSelected(false);
+    MessageToast.show("Non puoi selezionare materiali con stato DMMY.");
+  }
+},
+
+onMassApprovePress: function () {
+  // Approvo = rilascio (coerente col tuo toggle LOCK/RELE)
+  this._massUpdateMaterialStatus("RELE");
+},
+
+onMassRejectPress: function () {
+  // Rifiuto = mantengo/forzo LOCK (se il backend usa altro codice, cambia qui)
+  this._massUpdateMaterialStatus("LOCK");
+},
+
+_massUpdateMaterialStatus: function (sTargetStatus) {
+  var oTable = this.byId("tableMaterials2");
+  if (!oTable) return;
+
+  var aSelectedItems = oTable.getSelectedItems() || [];
+  if (aSelectedItems.length === 0) {
+    MessageToast.show("Seleziona almeno un materiale.");
+    return;
+  }
+
+  var sTarget = safeStr(sTargetStatus).trim().toUpperCase();
+
+  // ====== 1) RIGHE PROCESSABILI (DMMY escluso + logica toggle) ======
+  var aRows = aSelectedItems
+    .map(function (it) { return it.getBindingContext() && it.getBindingContext().getObject(); })
+    .filter(Boolean)
+    .filter(function (r) {
+      var st = safeStr(r.MatStatus).trim().toUpperCase();
+      if (st === "DMMY") return false;
+
+      if (sTarget === "RELE") return st === "LOCK"; // Approvo => sblocca i LOCK
+      if (sTarget === "LOCK") return st !== "LOCK"; // Rifiuto => blocca i non-LOCK (RELE)
+      return false;
+    });
+
+  if (aRows.length === 0) {
+    MessageToast.show(
+      sTarget === "RELE"
+        ? "Nessun record BLOCCATO (LOCK) selezionato."
+        : "Nessun record SBLOCCATO (RELE) selezionato."
+    );
+    return;
+  }
+
+  // ====== 2) VENDOR (padded) ======
+  var sVendor = safeStr(this._sVendorId).trim();
+  if (MockData && typeof MockData.padVendor === "function") {
+    sVendor = MockData.padVendor(sVendor);
+  }
+
+  // ====== 3) METADATA HELPERS (self-contained) ======
+  var oODataModel = this.getOwnerComponent().getModel();
+  var md = oODataModel && oODataModel.getServiceMetadata && oODataModel.getServiceMetadata();
+  var aSchemas = (md && md.dataServices && md.dataServices.schema) || [];
+
+  function findEntitySet(sSetName) {
+    var out = null;
+    aSchemas.some(function (s) {
+      return (s.entityContainer || []).some(function (c) {
+        return (c.entitySet || []).some(function (es) {
+          if (es.name === sSetName) { out = es; return true; }
+          return false;
+        });
+      });
+    });
+    return out;
+  }
+
+  function findEntityType(etFullName) {
+    var etName = (etFullName || "").split(".").pop();
+    var out = null;
+    aSchemas.some(function (s) {
+      out = (s.entityType || []).find(function (t) { return t.name === etName; });
+      return !!out;
+    });
+    return out;
+  }
+
+  function findAssociation(relFullName) {
+    var assocName = (relFullName || "").split(".").pop();
+    var out = null;
+    aSchemas.some(function (s) {
+      out = (s.association || []).find(function (a) { return a.name === assocName; });
+      return !!out;
+    });
+    return out;
+  }
+
+  function pickProp(aProps, aCandidates) {
+    for (var i = 0; i < aCandidates.length; i++) {
+      if (aProps.indexOf(aCandidates[i]) !== -1) return aCandidates[i];
+    }
+    return null;
+  }
+
+  // ====== 4) CAPISCO HEADER + NAV + ITEM TYPE ======
+  var esMass = findEntitySet("MassMaterialStatusSet");
+  if (!esMass) {
+    MessageToast.show("MassMaterialStatusSet non trovato nel metadata runtime.");
+    return;
+  }
+
+  var etMass = findEntityType(esMass.entityType);
+  if (!etMass) {
+    MessageToast.show("EntityType di MassMaterialStatusSet non trovato nel metadata runtime.");
+    return;
+  }
+
+  var aHeaderProps = (etMass.property || []).map(function (p) { return p.name; });
+  var aNavs = (etMass.navigationProperty || []).map(function (n) { return n.name; });
+
+  // Header vendor prop (nel tuo caso quasi sicuramente "Fornitore")
+  var pHeaderVendor = pickProp(aHeaderProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]);
+  if (!pHeaderVendor) {
+    console.warn("[Screen2] Mass header props:", aHeaderProps);
+    MessageToast.show("Metadata MassMaterialStatusSet: non trovo la property Vendor/Fornitore. Controlla console.");
+    return;
+  }
+
+  // Scegli navigation property: prima prova nomi comuni, poi fallback sulla prima nav trovata
+  var sNavName =
+    pickProp(aNavs, ["ToItems", "Items", "MassItems", "MaterialItems", "ToMaterialItems"]) ||
+    (aNavs[0] || null);
+
+  if (!sNavName) {
+    console.warn("[Screen2] Mass header props:", aHeaderProps, "navs:", aNavs);
+    MessageToast.show("MassMaterialStatusSet non ha navigation property per passare l'array (deep insert). Controlla console.");
+    return;
+  }
+
+  // Trovo item entity type dalla relationship della nav
+  var oNav = (etMass.navigationProperty || []).find(function (n) { return n.name === sNavName; });
+  var assoc = oNav && findAssociation(oNav.relationship);
+  if (!assoc) {
+    console.warn("[Screen2] Nav:", oNav);
+    MessageToast.show("Non riesco a risalire all'associazione della navigation property (vedi console).");
+    return;
+  }
+
+  var endTo = (assoc.end || []).find(function (e) { return e.role === oNav.toRole; });
+  if (!endTo || !endTo.type) {
+    console.warn("[Screen2] Assoc:", assoc, "nav:", oNav);
+    MessageToast.show("Non riesco a risalire al tipo degli item della lista (vedi console).");
+    return;
+  }
+
+  var etItem = findEntityType(endTo.type);
+  if (!etItem) {
+    console.warn("[Screen2] Item type:", endTo.type);
+    MessageToast.show("EntityType item della lista non trovato (vedi console).");
+    return;
+  }
+
+  var aItemProps = (etItem.property || []).map(function (p) { return p.name; });
+
+  // Mappo i nomi dei campi item (qui è dove prima ti esplodeva 'Materiale' invalid)
+  var pItemMat = pickProp(aItemProps, ["Materiale", "Material", "Matnr", "MATNR"]);
+  var pItemSeason = pickProp(aItemProps, ["Stagione", "Season", "Saison"]);
+  var pItemStatus = pickProp(aItemProps, ["MatStatus", "Status", "MaterialStatus", "Zstatus"]);
+  var pItemVendor = pickProp(aItemProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]); // se richiesto anche sugli item
+
+  if (!pItemMat || !pItemStatus) {
+    console.warn("[Screen2] Mass item props:", aItemProps, "itemType:", etItem.name);
+    MessageToast.show("Metadata item non compatibile: non trovo Material(e) e/o Status (vedi console).");
+    return;
+  }
+
+  // ====== 5) BUILD ITEMS PAYLOAD (solo proprietà esistenti) ======
+  var aItemsPayload = aRows.map(function (r) {
+    var o = {};
+    if (pItemVendor) o[pItemVendor] = sVendor;
+    o[pItemMat] = safeStr(r.MaterialOriginal || r.Material).trim();
+    if (pItemSeason) o[pItemSeason] = safeStr(r.Stagione).trim();
+    o[pItemStatus] = safeStr(sTargetStatus).trim();
+    return o;
+  });
+
+  // ====== 6) MOCK ======
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  var bMockS2 = !!mock.mockS2;
+
+  if (bMockS2) {
+    var oJson = this.getView().getModel();
+    aSelectedItems.forEach(function (it) {
+      var ctx = it.getBindingContext();
+      var path = ctx && ctx.getPath();
+      if (!path) return;
+
+      var row = oJson.getProperty(path);
+      if (!row) return;
+
+      var st = safeStr(row.MatStatus).trim().toUpperCase();
+      if (st === "DMMY") return;
+
+      if (sTarget === "RELE" && st === "LOCK") {
+        oJson.setProperty(path + "/MatStatus", sTargetStatus);
+        recomputeSupportFields(row);
+      } else if (sTarget === "LOCK" && st !== "LOCK") {
+        oJson.setProperty(path + "/MatStatus", sTargetStatus);
+        recomputeSupportFields(row);
+      }
+    });
+
+    oJson.refresh(true);
+    oTable.removeSelections(true);
+    MessageToast.show("MOCK: operazione massiva completata (" + aItemsPayload.length + ")");
+    return;
+  }
+
+  // ====== 7) BACKEND: DEEP INSERT (1 POST) ======
+  // Header: ha solo Fornitore; Items: navigation property (nome reale dal metadata)
+  var oPayload = {};
+  oPayload[pHeaderVendor] = sVendor;
+  // per SAP Gateway in JSON spesso è meglio { results: [...] }
+  oPayload[sNavName] = { results: aItemsPayload };
+
+  BusyIndicator.show(0);
+  this.byId("btnMassApprove") && this.byId("btnMassApprove").setEnabled(false);
+  this.byId("btnMassReject") && this.byId("btnMassReject").setEnabled(false);
+
+  oODataModel.create("/MassMaterialStatusSet", oPayload, {
+    success: function () {
+      BusyIndicator.hide();
+      this.byId("btnMassApprove") && this.byId("btnMassApprove").setEnabled(true);
+      this.byId("btnMassReject") && this.byId("btnMassReject").setEnabled(true);
+
+      oTable.removeSelections(true);
+
+      // riallineo sempre al backend (status + contatori)
+      this._loadMaterials();
+
+      MessageToast.show("Operazione massiva completata (" + aItemsPayload.length + ")");
+    }.bind(this),
+
+    error: function (oError) {
+      BusyIndicator.hide();
+      this.byId("btnMassApprove") && this.byId("btnMassApprove").setEnabled(true);
+      this.byId("btnMassReject") && this.byId("btnMassReject").setEnabled(true);
+
+      console.error("[Screen2] MassMaterialStatusSet deep insert error", oError, {
+        headerProps: aHeaderProps,
+        navs: aNavs,
+        itemProps: aItemProps,
+        navUsed: sNavName
+      });
+
+      MessageToast.show("Errore operazione massiva: " + getODataErrorMessage(oError));
+    }.bind(this)
+  });
+},
+
     _loadMaterials: function () {
       var oViewModel = this.getView().getModel();
       var oVm = this.getOwnerComponent().getModel("vm");
@@ -268,7 +536,7 @@ sap.ui.define([
 
       if (bMockS2) {
         var sVendorWanted = MockData.padVendor(this._sVendorId);
-        var sUserId = String((oVm && oVm.getProperty("/userId")) || "E_ZEMAF").trim();
+        var sUserId = String((oVm && oVm.getProperty("/userId")) || "").trim();
 
         BusyIndicator.show(0);
         this._log("[MOCK FILE] loading MaterialDataSet.json", { userId: sUserId, vendorId: sVendorWanted });
@@ -292,7 +560,7 @@ sap.ui.define([
       var oODataModel = this.getOwnerComponent().getModel();
       var that = this;
       var sVendorId = this._sVendorId;
-      var sUserId2 = (oVm && oVm.getProperty("/userId")) || "E_ZEMAF";
+      var sUserId2 = (oVm && oVm.getProperty("/userId")) || "";
 
       BusyIndicator.show(0);
 

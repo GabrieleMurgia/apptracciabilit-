@@ -88,14 +88,24 @@
         </subHeader>
 
         <content>
-            <Table
+<!--             <Table
                 id="tableMaterials2"
                 mode="SingleSelectMaster"
                 items="{ path: '/Materials' }"
                 growing="true"
     growingThreshold="100"
     growingScrollToLoad="true"
-                itemPress=".onMaterialPress">
+                itemPress=".onMaterialPress"> -->
+                <Table
+  id="tableMaterials2"
+  mode="MultiSelect"
+  includeItemInSelection="false"
+  selectionChange=".onTableSelectionChange"
+  items="{ path: '/Materials' }"
+  growing="true"
+  growingThreshold="100"
+  growingScrollToLoad="true"
+  itemPress=".onMaterialPress">
 
                 <headerToolbar>
                     <Toolbar id="toolbarTableHeader2">
@@ -103,6 +113,19 @@
                             id="titleTable2"
                             text="Materiali"
                             level="H2" />
+                                <Button
+      id="btnMassApprove"
+      text="Approvazione Massiva"
+      icon="sap-icon://accept"
+      type="Accept"
+      press=".onMassApprovePress" />
+
+    <Button
+      id="btnMassReject"
+      text="Rifiuto Massivo"
+      icon="sap-icon://decline"
+      type="Reject"
+      press=".onMassRejectPress" />
                     </Toolbar>
                 </headerToolbar>
 

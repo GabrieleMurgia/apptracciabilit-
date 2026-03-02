@@ -60,6 +60,9 @@ sap.ui.define([
     var rejected = Number(m.Rejected) || 0;
     var pending = Number(m.ToApprove) || 0;
     var approved = Number(m.Approved) || 0;
+    var modified = Number(m.Modified) || 0;
+
+    
 
     var searchAll = [
       materialOrig, desc, descCat, catMat, season, status,
@@ -82,12 +85,7 @@ sap.ui.define([
       Pending: pending,
       ToApprove: pending,
       Approved: approved,
-
-      StagioneLC: lc(season),
-      MaterialLC: lc(materialOrig),
-      DescCatMaterialeLC: lc(descCat),
-      MaterialOriginalLC: lc(materialOrig),
-      SearchAllLC: lc(searchAll)
+      Modified: modified,
     };
   }
 
@@ -267,20 +265,19 @@ onTableSelectionChange: function (oEvent) {
   var oRow = oCtx && oCtx.getObject();
   var sStatus = safeStr(oRow && oRow.MatStatus).trim().toUpperCase();
 
-  // ✅ Regola corretta: NON selezionabile se DMMY
-  if (sStatus === "DMMY") {
+    if (sStatus === "DMMY") {
+    if(this.getView().getModel().getData().showMatStatusCol){
     oItem.setSelected(false);
     MessageToast.show("Non puoi selezionare materiali con stato DMMY.");
-  }
+    }
+    }
 },
 
 onMassApprovePress: function () {
-  // Approvo = rilascio (coerente col tuo toggle LOCK/RELE)
   this._massUpdateMaterialStatus("RELE");
 },
 
 onMassRejectPress: function () {
-  // Rifiuto = mantengo/forzo LOCK (se il backend usa altro codice, cambia qui)
   this._massUpdateMaterialStatus("LOCK");
 },
 
@@ -572,6 +569,8 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
+
+          
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
           var aMaterials = aResults.map(buildRow);
@@ -660,7 +659,9 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
         return;
       }
-      var oItem = oEvent.getSource().getSelectedItem();
+      /* var oItem = oEvent.getSource().getSelectedItem(); */
+      var oItem = oEvent.getParameter("listItem") || oEvent.getSource().getSelectedItem();
+if (!oItem) return;
       var oCtx = oItem.getBindingContext();
 
       var sSeason = oCtx.getProperty("Stagione");

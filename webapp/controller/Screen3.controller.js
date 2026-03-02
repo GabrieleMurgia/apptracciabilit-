@@ -378,7 +378,9 @@ sap.ui.define([
 
       return new HBox({ width: "100%", justifyContent: "Center", alignItems: "Center",
         items: [
-          new ObjectStatus({ text: "", icon: "sap-icon://circle-task", state: sStateExpr,
+                    new ObjectStatus({ text: "",
+            icon: "{= ${detail>" + sBindKey + "} === 'RJ' ? 'sap-icon://alert' : 'sap-icon://circle-task' }",
+            state: sStateExpr,
             tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
           })
         ]

@@ -283,6 +283,20 @@ sap.ui.define([
     if (typeof oCtrl.attachSubmit === "function") oCtrl.attachSubmit(handler);
     if (typeof oCtrl.attachTokenUpdate === "function") oCtrl.attachTokenUpdate(handler);
   }
+  
+  // =========================
+  // DATE FORMATTER (DD/MM/YYYY)
+  // =========================
+  function _formatCellValue(v) {
+    if (v instanceof Date && !isNaN(v.getTime())) {
+      var dd = String(v.getDate()).padStart(2, "0");
+      var mm = String(v.getMonth() + 1).padStart(2, "0");
+      var yyyy = v.getFullYear();
+      return dd + "/" + mm + "/" + yyyy;
+    }
+    if (v == null) return "";
+    return String(v);
+  }
 
   // =========================
   // ATTACHMENT CELL TEMPLATE
@@ -586,8 +600,8 @@ sap.ui.define([
 
     var oText = new Text({
       width: "100%",
-      text: sValueBind,
-      visible: "{= " + sReadOnlyExpr + " }"
+      text: { path: "detail>" + sKey, formatter: _formatCellValue },
+      visible: "{= " + sReadOnlyExpr + " }" 
     });
 
     var oEditCtrl;

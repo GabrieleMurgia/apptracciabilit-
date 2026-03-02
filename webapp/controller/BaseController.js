@@ -153,7 +153,8 @@ sap.ui.define([
 
           oModel.read(sPath, {
             urlParameters: {
-              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields,UserInfosVend",
+              /* "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields,UserInfosVend", */
+              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields",
               "sap-language": "IT"
             },
             success: function (oData) {
@@ -168,7 +169,7 @@ sap.ui.define([
               var sUserType = oData.UserType || "";
               var aDomains = (oData.UserInfosDomains && oData.UserInfosDomains.results) || [];
               var aMMCT = (oData.UserInfosMMCT && oData.UserInfosMMCT.results) || [];
-              var aVend = (oData.UserInfosVend && oData.UserInfosVend.results) || [];
+              /* var aVend = (oData.UserInfosVend && oData.UserInfosVend.results) || []; */
 
               var domainsByName = aDomains.reduce(function (acc, d) {
                 acc[d.Domain] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
@@ -211,11 +212,11 @@ sap.ui.define([
                 mock: oVm.getProperty("/mock") || {},
                 userDomains: aDomains,
                 userCategories: aMMCT,
-                userVendors: aVend,
+                /* userVendors: aVend, */
                 userMMCT: aMMCT,
                 mmctFieldsByCat: mmctFieldsByCat,
                 UserInfosMMCT: aMMCT,
-                UserInfosVend: aVend,
+                /* UserInfosVend: aVend, */
                 UserInfosDomains: aDomains,
                 domainsByName: domainsByName,
                 domainsByKey: domainsByKey,
@@ -225,7 +226,7 @@ sap.ui.define([
 
               self._log("_ensureUserInfosLoaded: OK", {
                 userId: sUserId, userType: sUserType,
-                vendors: aVend.length, mmctCats: Object.keys(mmctFieldsByCat).length
+                /* vendors: aVend.length, mmctCats: Object.keys(mmctFieldsByCat).length */
               });
               resolve();
             },

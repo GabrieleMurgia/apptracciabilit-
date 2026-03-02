@@ -87,7 +87,7 @@
             <ObjectStatus id="stAP3" text="Approvato" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStAP3" key="status" value="AP"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stRJ3" text="Respinto" icon="sap-icon://circle-task" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stRJ3" text="Respinto" icon="sap-icon://alert" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStRJ3" key="status" value="RJ"/></customData>
             </ObjectStatus>
             <ObjectStatus id="stCH3" text="Modificato" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">

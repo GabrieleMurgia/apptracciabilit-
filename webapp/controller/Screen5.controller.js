@@ -90,9 +90,28 @@ sap.ui.define([
           });
         }
 
-        var aCatList = aCatKeys.map(function (k) {
+/*        var aCatList = aCatKeys.map(function (k) {
+        
           return { key: k, text: k };
+        }).sort(function (a, b) { return a.text.localeCompare(b.text); });  */
+
+                var aCatList = aCatKeys.map(function (k) {
+          // Try to find description from MMCT data
+          var sDesc = "";
+          try {
+            var aMMCTSrc = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
+            (aMMCTSrc || []).some(function (cat) {
+              var c = String(cat && (cat.CatMateriale || cat.CATMATERIALE || cat.MaterialCategory || cat.Categoria || "") || "").trim();
+              if (c === k) {
+                sDesc = String(cat.CatMaterialeDesc || cat.MatCatDesc || cat.DescCatMateriale || cat.Description || "").trim();
+                return !!sDesc;
+              }
+              return false;
+            });
+          } catch (e) { /* ignore */ }
+          return { key: k, text: sDesc ? (k + " – " + sDesc) : k };
         }).sort(function (a, b) { return a.text.localeCompare(b.text); });
+
         oVm.setProperty("/userCategoriesList", aCatList);
         self._log("Categories built", { count: aCatList.length, keys: aCatKeys });
 
@@ -418,7 +437,9 @@ sap.ui.define([
 
       return new HBox({ width: "100%", justifyContent: "Center", alignItems: "Center",
         items: [
-          new ObjectStatus({ text: "", icon: "sap-icon://circle-task", state: sStateExpr,
+          new ObjectStatus({ text: "",
+            icon: "{= ${detail>" + sBindKey + "} === 'RJ' ? 'sap-icon://alert' : 'sap-icon://circle-task' }",
+            state: sStateExpr,
             tooltip: "{= 'Stato: ' + (${detail>" + sBindKey + "} || '') }"
           })
         ]

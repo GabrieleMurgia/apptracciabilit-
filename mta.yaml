@@ -16,7 +16,7 @@ modules:
   - name: apptracciabilitaapptracciabilita-uaa
     parameters:
       service-key:
-        name: apptracciabilitaapptracciabilita-uaa-key
+        name: apptracciabilitaapptracciabilita-uaa-key 
   parameters:
     content:
       instance:

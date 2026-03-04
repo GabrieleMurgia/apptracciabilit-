@@ -443,7 +443,7 @@ sap.ui.define([
       } catch (e) { console.error("[S4] onDeleteRows ERROR", e); MessageToast.show("Errore eliminazione righe"); }
     },
 
-    onAddRow: function () {
+/*     onAddRow: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
@@ -506,8 +506,82 @@ sap.ui.define([
 
         MessageToast.show("Riga aggiunta");
       } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
-    },
+    }, */
 
+    onAddRow: function () {
+  try {
+    var oD = this.getView().getModel("detail"); if (!oD) return;
+    if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
+    var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
+
+    var oBase = aAll[0] || {};
+    var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
+
+    // Start from a full row clone to get ALL entity properties
+    var oFullRow = aAll.reduce(function (best, r) {
+      return (Object.keys(r).length > Object.keys(best).length) ? r : best;
+    }, oBase);
+    var oNew = N.deepClone(oFullRow) || {};
+
+    // Reset ALL value fields to empty (keep only structural)
+    Object.keys(oNew).forEach(function (k) {
+      if (k.indexOf("__") === 0 || k === "__metadata") { delete oNew[k]; return; }
+      // Keep structural fields
+      if (["Guid", "GUID", "guidKey", "Fornitore", "Materiale", "CatMateriale", "Stagione", "Plant"].indexOf(k) >= 0) return;
+      // Reset everything else
+      oNew[k] = Array.isArray(oNew[k]) ? [] : "";
+    });
+
+    // Set structural fields explicitly
+    oNew.Guid = sGuid;
+    oNew.GUID = sGuid;
+    oNew.guidKey = sGuid;
+    oNew.Fornitore = oBase.Fornitore || "";
+    oNew.Materiale = oBase.Materiale || "";
+    oNew.CatMateriale = oBase.CatMateriale || oD.getProperty("/_mmct/cat") || "";
+    oNew.Stagione = oBase.Stagione || "";
+    oNew.Plant = oBase.Plant || "";
+    oNew.Fibra = "";
+    oNew.Stato = "ST";
+    oNew.Note = "";
+
+    // Normalize multi-value fields
+    var self = this;
+    (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
+      if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
+    });
+
+    var shouldUpd = false;
+    try {
+      shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
+        .filter(function (i) { return i.Guid === oNew.Guid; })
+        .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
+    } catch (e) { }
+
+    oNew.CodAgg = shouldUpd ? "U" : "I";
+    oNew.__isNew = true;
+    oNew.__readOnly = false;
+    oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+
+    aAll = aAll.slice(); aAll.push(oNew);
+    oD.setProperty("/RowsAll", aAll);
+    oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
+    oD.setProperty("/__dirty", true);
+
+    var oVm = this.getOwnerComponent().getModel("vm"), sCK = this._getDataCacheKey();
+    var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
+    aC.push(oNew);
+    oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+
+    this._applyUiPermissions(); this._applyFiltersAndSort();
+    var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
+
+    var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
+    MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
+
+    MessageToast.show("Riga aggiunta");
+  } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
+},
     // ==================== COPY ROW ====================
     onCopyRow: function () {
       try {

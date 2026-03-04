@@ -220,6 +220,12 @@ sap.ui.define([
       });
       this.getView().setModel(oModel);
     },
+    onDeselectAll: function () {
+    var oTable = this.byId("tableMaterials2");
+    if (oTable) {
+        oTable.removeSelections(true);
+    }
+    },
 
     _onRouteMatched: function (oEvent) {
       var oArgs = oEvent.getParameter("arguments") || {};

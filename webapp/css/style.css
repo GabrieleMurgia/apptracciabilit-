@@ -37,6 +37,7 @@
   padding: 4px 12px !important;
   min-height: auto !important;
   height: auto !important;
+  overflow-x: scroll;
 }
 
 /* Allow wrapping inside the OverflowToolbar */
@@ -60,7 +61,17 @@
   font-weight: normal;
 }
 
-.hdrDynLbl {
+.hdrDynPair > div {
+  display: flex;
+  align-items: baseline;
+}
+.hdrDynPair .hdrDynLbl,
+.hdrDynPair .hdrDynVal {
+  line-height: 1.4;
+  vertical-align: baseline;
+}
+
+/* .hdrDynLbl {
   font-size: 0.8125rem;
   color: #64748b;
   white-space: nowrap;
@@ -73,8 +84,21 @@
   word-break: break-word;
   overflow-wrap: break-word;
   font-family: Arial, Helvetica, sans-serif !important;
+} */
+.hdrDynLbl {
+  font-size: 0.8125rem;
+  color: #1e293b;
+  white-space: nowrap;
+  font-weight: bold;
 }
 
+.hdrDynVal {
+  font-weight: normal !important;
+  font-size: 0.8125rem;
+  color: #1e293b;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
 /* ---------- ODA STATUS CHIP ---------- */
 .odaStatusChip {
   gap: 6px;

@@ -373,7 +373,8 @@ sap.ui.define([
             try {
               if (!oDetailModel) return;
               // Update the record directly in RecordsAll and Records by GUID
-              ["/RecordsAll", "/Records"].forEach(function (sArrPath) {
+              /* ["/RecordsAll", "/Records"].forEach(function (sArrPath) { */
+              ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
                 var aArr = oDetailModel.getProperty(sArrPath) || [];
                 for (var i = 0; i < aArr.length; i++) {
                   var r = aArr[i];
@@ -394,7 +395,8 @@ sap.ui.define([
             try {
               var oController = oView && oView.getController && oView.getController();
               if (oController && sRowGuid) {
-                [oController._originalSnapshot, oController._snapshotRecords].forEach(function (aSnap) {
+                /* [oController._originalSnapshot, oController._snapshotRecords].forEach(function (aSnap) { */
+                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
                   if (!Array.isArray(aSnap)) return;
                   for (var i = 0; i < aSnap.length; i++) {
                     var r = aSnap[i];

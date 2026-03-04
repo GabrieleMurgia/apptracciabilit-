@@ -115,7 +115,7 @@
                             level="H2" />
                                 <Button
       id="btnMassApprove"
-      text="Approvazione Massiva"
+      text="Rilascio Massivo"
       icon="sap-icon://accept"
       type="Accept"
       press=".onMassApprovePress" 
@@ -124,12 +124,14 @@
 
     <Button
       id="btnMassReject"
-      text="Rifiuto Massivo"
+      text="Blocco Massivo"
       icon="sap-icon://decline"
       type="Reject"
       press=".onMassRejectPress"
       visible="{/showMatStatusCol}"
       />
+      <Button id="btnDeselectAll" text="Deseleziona Tutto" icon="sap-icon://reset" type="Transparent" press=".onDeselectAll" visible="{/showMatStatusCol}" />
+
                     </Toolbar>
                 </headerToolbar>
 

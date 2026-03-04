@@ -50,7 +50,7 @@
         <ToolbarSpacer id="hdr3Spacer"/>
 
         <!-- ODA Status -->
-        <HBox id="hboxOda" alignItems="Center" class="odaStatusChip">
+<!--         <HBox id="hboxOda" alignItems="Center" class="odaStatusChip">
           <Label id="labelOpenODA" text="ODA aperti:" class="odaLabel"/>
           <ObjectStatus
             id="iconOpenOda3"
@@ -58,7 +58,7 @@
             icon="{= ${detail>/OpenOda} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
             state="{= ${detail>/OpenOda} === 'X' ? 'Success' : 'Error' }"
             tooltip="{= ${detail>/OpenOda} === 'X' ? 'Esistono ODA aperti' : 'Nessun ODA aperto' }"/>
-        </HBox>
+        </HBox> -->
 
       </OverflowToolbar>
     </subHeader>

@@ -296,16 +296,16 @@ sap.ui.define([
     if (v == null) return "";
     return String(v);
   }
-  function _formatDecimalValue(v) {
+function _formatDecimalValue(v) {
     if (v == null || v === "") return "";
     var n = parseFloat(String(v).replace(",", "."));
     if (isNaN(n)) return String(v);
-    // Use browser locale for separator (virgola IT, punto EN)
-    return n.toLocaleString(navigator.language || "it-IT", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+    var oFormat = sap.ui.core.format.NumberFormat.getFloatInstance({
+        minFractionDigits: 2,
+        maxFractionDigits: 2
     });
-  }
+    return oFormat.format(n);
+}
 
   // =========================
   // ATTACHMENT CELL TEMPLATE
@@ -607,11 +607,9 @@ sap.ui.define([
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
     var bNumeric = !!(oMeta && oMeta.numeric);
-    if (sKey === "QtaFibra"){
-      console.log("[cellTemplate] QtaFibra numeric=", bNumeric, "oMeta=", oMeta);
-    }
+    console.log("[cellTemplate]", sKey, "numeric=", bNumeric);
 
-/*     var oText = new Text({
+    /*var oText = new Text({
       width: "100%",
       text: { path: "detail>" + sKey, formatter: _formatCellValue },
       visible: "{= " + sReadOnlyExpr + " }" 

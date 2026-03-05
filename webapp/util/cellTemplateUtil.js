@@ -600,11 +600,50 @@ sap.ui.define([
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
 
-    var oText = new Text({
+/*     var oText = new Text({
       width: "100%",
       text: { path: "detail>" + sKey, formatter: _formatCellValue },
       visible: "{= " + sReadOnlyExpr + " }" 
-    });
+    }); */
+    var oText;
+    if (bUseCombo && sDomain) {
+      var _sDomCapture = sDomain;
+      var _bMultiCapture = bMultiple;
+      var _oViewCapture = opts.view || null;
+      oText = new Text({
+        width: "100%",
+        text: {
+          path: "detail>" + sKey,
+          formatter: function (v) {
+            if (v == null || v === "") return "";
+            try {
+              var oVmL = _oViewCapture && _oViewCapture.getModel && _oViewCapture.getModel("vm");
+              var aDom = (oVmL && oVmL.getProperty("/domainsByName/" + _sDomCapture)) || [];
+              if (_bMultiCapture) {
+                var arr = Array.isArray(v) ? v : String(v).split(/[;|]+/);
+                var mL = {};
+                aDom.forEach(function (d) { mL[String(d.key)] = d.text || d.key; });
+                return arr.map(function (k) { var s = String(k).trim(); return mL[s] || s; }).filter(Boolean).join(", ");
+              } else {
+                for (var i = 0; i < aDom.length; i++) {
+                  if (String(aDom[i].key) === String(v)) {
+                    return aDom[i].text || v;
+                  }
+                }
+              }
+            } catch (e) {}
+            return _formatCellValue(v);
+          }
+        },
+        visible: "{= " + sReadOnlyExpr + " }"
+      });
+    } else {
+      oText = new Text({
+        width: "100%",
+        text: { path: "detail>" + sKey, formatter: _formatCellValue },
+        visible: "{= " + sReadOnlyExpr + " }"
+      });
+    }
 
     var oEditCtrl;
 

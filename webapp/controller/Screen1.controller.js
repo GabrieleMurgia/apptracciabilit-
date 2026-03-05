@@ -1,8 +1,9 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/Filter",
-  "sap/ui/model/FilterOperator"
-], function (BaseController, Filter, FilterOperator) {
+  "sap/ui/model/FilterOperator",
+  "sap/ui/core/BusyIndicator"
+], function (BaseController, Filter, FilterOperator, BusyIndicator) {
   "use strict";
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen1", {
@@ -23,9 +24,41 @@ sap.ui.define([
         var oVm = self.getOwnerComponent().getModel("vm");
         self.getView().setModel(oVm, "vm");
         self._sUserType = oVm.getProperty("/userType");
-        self._applyFilters();
+        /* self._applyFilters(); */
+        self._reloadVendors();
       });
     },
+    _reloadVendors: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  var oModel = this.getOwnerComponent().getModel();
+  if (!oModel || typeof oModel.read !== "function") { this._applyFilters(); return; }
+
+  var mock = (oVm && oVm.getProperty("/mock")) || {};
+  if (mock.mockS0 || mock.mockVendors) { this._applyFilters(); return; }
+
+  var sUserId = oVm.getProperty("/userId") || "";
+  var self = this;
+  BusyIndicator.show(0);
+
+  oModel.read("/VendorDataSet", {
+    filters: sUserId ? [new Filter("UserID", FilterOperator.EQ, sUserId)] : [],
+    urlParameters: { "sap-language": "IT" },
+    success: function (oData) {
+      BusyIndicator.hide();
+      var aVend = (oData && oData.results) || [];
+      console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
+      oVm.setProperty("/userVendors", aVend);
+      oVm.setProperty("/UserInfosVend", aVend);
+      oVm.setProperty("/__vendorCacheStale", true);
+      self._applyFilters();
+    },
+    error: function (oError) {
+      BusyIndicator.hide();
+      console.error("[Screen1] VendorDataSet reload ERROR", oError);
+      self._applyFilters();
+    }
+  });
+},
 
     onVendorPress: function (oEvent) {
       var oItem = oEvent.getParameter("listItem");

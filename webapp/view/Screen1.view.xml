@@ -10,46 +10,35 @@
         title="Fornitori">
 
         <customHeader>
-
-        
             <Toolbar id="toolbar1">
-
-                    <Bar id="bar1">
-            <contentLeft>
-            
-            <Image id="imageLogo1" src="IMG/Valentino.png" decorative="false" width="200px"/>
-            <Button
-                    id="buttonBack1"
-                    icon="sap-icon://nav-back"
-                    press=".onNavBack" />
-            </contentLeft>
-
-        <contentMiddle>
-            <Title
-                    id="title1"
-                    text="Dati aggregati per fornitore" />
-        </contentMiddle>
-
-        <contentRight>
-            <HBox id ="hbox2" width="200px"/>
-        </contentRight>
-        </Bar>
-
-
+                <Bar id="bar1">
+                    <contentLeft>
+                        <Image id="imageLogo1" src="IMG/Valentino.png" decorative="false" width="200px"/>
+                        <Button
+                            id="buttonBack1"
+                            icon="sap-icon://nav-back"
+                            press=".onNavBack" />
+                    </contentLeft>
+                    <contentMiddle>
+                        <Title
+                            id="title1"
+                            text="Dati aggregati per fornitore" />
+                    </contentMiddle>
+                    <contentRight>
+                        <HBox id="hbox2" width="200px"/>
+                    </contentRight>
+                </Bar>
             </Toolbar>
         </customHeader>
 
         <subHeader>
             <Toolbar id="toolbarFilters1">
-
                 <Label id="labelOnlyIncomplete1" text="Solo dati incompleti" />
                 <Switch
                     id="switchOnlyIncomplete1"
                     state="true"
                     change=".onFilterChanged" />
-
                 <ToolbarSpacer id="toolbarSpacerFilters1" />
-
                 <Label id="labelVendorFilter1" text="Fornitore" />
                 <SearchField
                     id="inputVendorFilter1"
@@ -57,7 +46,6 @@
                     liveChange=".onFilterChanged"
                     search=".onFilterChanged"
                     placeholder="Cerca per nome o codice..." />
-
             </Toolbar>
         </subHeader>
 
@@ -80,19 +68,22 @@
                     <Column id="columnVendor1">
                         <Text id="textColumnVendor1" text="Fornitore" />
                     </Column>
-                    <Column id="columnOpenPo1">
+                    <Column id="columnOpenPo1" hAlign="Center">
                         <Text id="textColumnOpenPo1" text="Aperti" />
                     </Column>
                     <Column id="columnToUnlock1" hAlign="Center">
-                    <Text id="textColumnToUnlock1" text="Da sbloccare" />
+                        <Text id="textColumnToUnlock1" text="Da sbloccare" />
                     </Column>
-                    <Column id="columnRejected1">
+                    <Column id="columnRejected1" hAlign="Center">
                         <Text id="textColumnRejected1" text="Rifiutati" />
                     </Column>
-                    <Column id="columnPending1">
+                    <Column id="columnModified1" hAlign="Center">
+                        <Text id="textColumnModified1" text="Modificati" />
+                    </Column>
+                    <Column id="columnPending1" hAlign="Center">
                         <Text id="textColumnPending1" text="In attesa approvazione" />
                     </Column>
-                    <Column id="columnApproved1">
+                    <Column id="columnApproved1" hAlign="Center">
                         <Text id="textColumnApproved1" text="Approvati" />
                     </Column>
                 </columns>
@@ -105,23 +96,26 @@
                                 title="{vm>ReagSoc}"
                                 text="{vm>Fornitore}" />
 
-<core:Icon
-  id="iconOpen1"
-  src="{= ${vm>Open} === 'X' ? 'sap-icon://open-folder' : 'sap-icon://folder' }"
-  tooltip="{= ${vm>Open} === 'X' ? 'Aperti' : 'Nessun aperto' }" />
+                            <core:Icon
+                                id="iconOpen1"
+                                src="{= ${vm>Open} === 'X' ? 'sap-icon://open-folder' : 'sap-icon://folder' }"
+                                tooltip="{= ${vm>Open} === 'X' ? 'Aperti' : 'Nessun aperto' }" />
 
-<ObjectStatus
-  id="statusToUnlock1"
-  icon="sap-icon://locked"
-  text="{vm>ToUnlock}"
-  state="Warning"
-  />
+                            <ObjectStatus
+                                id="statusToUnlock1"
+                                icon="sap-icon://locked"
+                                text="{vm>ToUnlock}"
+                                state="Warning" />
 
-  
                             <ObjectNumber
                                 id="objectNumberRejected1"
                                 number="{vm>Rejected}"
                                 state="Error" />
+
+                            <ObjectNumber
+                                id="objectNumberModified1"
+                                number="{vm>Modified}"
+                                state="Information" />
 
                             <ObjectNumber
                                 id="objectNumberPending1"

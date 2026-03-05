@@ -478,10 +478,14 @@ sap.ui.define([
     // =========================================================
     _vendorPromise: null,
 
-    _ensureVendorsLoaded: function () {
-      if (this._vendorPromise) return this._vendorPromise;
+_ensureVendorsLoaded: function () {
+  var oVm = this.getOwnerComponent().getModel("vm");
+  if (oVm && oVm.getProperty("/__vendorCacheStale")) {
+    this._vendorPromise = null;
+    oVm.setProperty("/__vendorCacheStale", false);
+  }
 
-      var oVm = this.getOwnerComponent().getModel("vm");
+  if (this._vendorPromise) return this._vendorPromise;
 
       // Already populated (e.g. from mock)?
       var aExisting = oVm.getProperty("/userVendors") || [];

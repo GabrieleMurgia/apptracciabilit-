@@ -3,11 +3,12 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
+  "sap/ui/model/Sorter",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/mockData"
-], function (BaseController, JSONModel, Filter, FilterOperator, BusyIndicator, MessageToast, N, MockData) {
+], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, MockData) {
   "use strict";
 
   // Local helpers (use N.safeStr / N.lc from normalize.js)
@@ -52,7 +53,7 @@ sap.ui.define([
     var materialOrig = safeStr(m.Materiale).trim();
     var desc = safeStr(m.DescMateriale).trim();
     var descCat = safeStr(m.DescCatMateriale).trim();
-    var catMat = safeStr(m.CatMateriale).trim();           // ← NoMatList: campo categoria
+    var catMat = safeStr(m.CatMateriale).trim();
     var season = safeStr(m.Stagione).trim();
     var status = safeStr(m.MatStatus).trim();
 
@@ -61,8 +62,6 @@ sap.ui.define([
     var pending = Number(m.ToApprove) || 0;
     var approved = Number(m.Approved) || 0;
     var modified = Number(m.Modified) || 0;
-
-    
 
     var searchAll = [
       materialOrig, desc, descCat, catMat, season, status,
@@ -74,7 +73,7 @@ sap.ui.define([
       MaterialOriginal: materialOrig,
       MaterialDescription: desc,
       DescCatMateriale: descCat,
-      CatMateriale: catMat,                                 // ← NoMatList: esposto nel record
+      CatMateriale: catMat,
 
       Stagione: season,
       MatStatus: status,
@@ -89,10 +88,6 @@ sap.ui.define([
     };
   }
 
-  /**
-   * Extracts distinct values for MultiComboBox filters from the materials array
-   * and sets them on the view model.
-   */
   function _extractDistinctFilterValues(aMaterials, oViewModel) {
     var oSeenCat = {}, oSeenSeason = {};
     var aDescCatValues = [], aStagioneValues = [];
@@ -388,7 +383,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   var aHeaderProps = (etMass.property || []).map(function (p) { return p.name; });
   var aNavs = (etMass.navigationProperty || []).map(function (n) { return n.name; });
 
-  // Header vendor prop (nel tuo caso quasi sicuramente "Fornitore")
   var pHeaderVendor = pickProp(aHeaderProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]);
   if (!pHeaderVendor) {
     console.warn("[Screen2] Mass header props:", aHeaderProps);
@@ -396,7 +390,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
     return;
   }
 
-  // Scegli navigation property: prima prova nomi comuni, poi fallback sulla prima nav trovata
   var sNavName =
     pickProp(aNavs, ["ToItems", "Items", "MassItems", "MaterialItems", "ToMaterialItems"]) ||
     (aNavs[0] || null);
@@ -407,7 +400,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
     return;
   }
 
-  // Trovo item entity type dalla relationship della nav
   var oNav = (etMass.navigationProperty || []).find(function (n) { return n.name === sNavName; });
   var assoc = oNav && findAssociation(oNav.relationship);
   if (!assoc) {
@@ -432,11 +424,10 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
   var aItemProps = (etItem.property || []).map(function (p) { return p.name; });
 
-  // Mappo i nomi dei campi item (qui è dove prima ti esplodeva 'Materiale' invalid)
   var pItemMat = pickProp(aItemProps, ["Materiale", "Material", "Matnr", "MATNR"]);
   var pItemSeason = pickProp(aItemProps, ["Stagione", "Season", "Saison"]);
   var pItemStatus = pickProp(aItemProps, ["MatStatus", "Status", "MaterialStatus", "Zstatus"]);
-  var pItemVendor = pickProp(aItemProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]); // se richiesto anche sugli item
+  var pItemVendor = pickProp(aItemProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]);
 
   if (!pItemMat || !pItemStatus) {
     console.warn("[Screen2] Mass item props:", aItemProps, "itemType:", etItem.name);
@@ -488,10 +479,8 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   }
 
   // ====== 7) BACKEND: DEEP INSERT (1 POST) ======
-  // Header: ha solo Fornitore; Items: navigation property (nome reale dal metadata)
   var oPayload = {};
   oPayload[pHeaderVendor] = sVendor;
-  // per SAP Gateway in JSON spesso è meglio { results: [...] }
   oPayload[sNavName] = { results: aItemsPayload };
 
   BusyIndicator.show(0);
@@ -506,7 +495,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
       oTable.removeSelections(true);
 
-      // riallineo sempre al backend (status + contatori)
       this._loadMaterials();
 
       MessageToast.show("Operazione massiva completata (" + aItemsPayload.length + ")");
@@ -575,8 +563,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {
-
-          
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
           var aMaterials = aResults.map(buildRow);
@@ -659,13 +645,41 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       oBinding.filter(aFilters, "Application");
     },
 
+    // ==================== SORT DIALOG ====================
+    onOpenSortDialog: function () {
+      if (!this._oSortDialog) {
+        this._oSortDialog = new sap.m.ViewSettingsDialog({
+          title: "Ordina materiali",
+          sortItems: [
+            new sap.m.ViewSettingsItem({ key: "Material", text: "Materiale" }),
+            new sap.m.ViewSettingsItem({ key: "MaterialDescription", text: "Descrizione" }),
+            new sap.m.ViewSettingsItem({ key: "DescCatMateriale", text: "Cat. Materiale" }),
+            new sap.m.ViewSettingsItem({ key: "Stagione", text: "Stagione" }),
+            new sap.m.ViewSettingsItem({ key: "Rejected", text: "Rifiutati" }),
+            new sap.m.ViewSettingsItem({ key: "Modified", text: "Modificati" }),
+            new sap.m.ViewSettingsItem({ key: "Pending", text: "In attesa approvazione" }),
+            new sap.m.ViewSettingsItem({ key: "Approved", text: "Approvati" })
+          ],
+          confirm: function (oEvt) {
+            var oSortItem = oEvt.getParameter("sortItem");
+            var bDesc = oEvt.getParameter("sortDescending");
+            var oTable = this.byId("tableMaterials2");
+            var oBinding = oTable && oTable.getBinding("items");
+            if (!oBinding || !oSortItem) return;
+            oBinding.sort(new Sorter(oSortItem.getKey(), bDesc));
+          }.bind(this)
+        });
+        this.getView().addDependent(this._oSortDialog);
+      }
+      this._oSortDialog.open();
+    },
+
     // ==================== MATERIAL PRESS ====================
     onMaterialPress: function (oEvent) {
       var oSrc = oEvent.getParameter("srcControl");
       if (oSrc && oSrc.isA && oSrc.isA("sap.m.Button")) {
         return;
       }
-      /* var oItem = oEvent.getSource().getSelectedItem(); */
       var oItem = oEvent.getParameter("listItem") || oEvent.getSource().getSelectedItem();
 if (!oItem) return;
       var oCtx = oItem.getBindingContext();
@@ -674,7 +688,7 @@ if (!oItem) return;
       var sMaterial = oCtx.getProperty("Material");
       var sMaterialDesc = oCtx.getProperty("MaterialDescription");
       var sMaterialOrig = oCtx.getProperty("MaterialOriginal");
-      var sCatMateriale = oCtx.getProperty("CatMateriale") || "";   // ← NoMatList
+      var sCatMateriale = oCtx.getProperty("CatMateriale") || "";
 
       var oVm = this.getOwnerComponent().getModel("vm");
 

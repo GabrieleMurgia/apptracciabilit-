@@ -114,7 +114,6 @@ sap.ui.define([
           filters: aFilters,
           urlParameters: { "sap-language": "IT" },
           success: function (oData) {
-            debugger
             resolve((oData && oData.results) || []);
           },
           error: reject

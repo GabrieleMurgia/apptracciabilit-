@@ -88,14 +88,6 @@
         </subHeader>
 
         <content>
-<!--             <Table
-                id="tableMaterials2"
-                mode="SingleSelectMaster"
-                items="{ path: '/Materials' }"
-                growing="true"
-    growingThreshold="100"
-    growingScrollToLoad="true"
-                itemPress=".onMaterialPress"> -->
                 <Table
   id="tableMaterials2"
   mode="{= ${/showMatStatusCol} ? 'MultiSelect' : 'SingleSelectMaster' }"
@@ -114,6 +106,13 @@
                             text="Materiali"
                             level="H2" />
                                 <Button
+      id="btnSortMaterials2"
+      icon="sap-icon://sort"
+      tooltip="Ordina"
+      type="Transparent"
+      press=".onOpenSortDialog" />
+      
+   <Button
       id="btnMassApprove"
       text="Rilascio Massivo"
       icon="sap-icon://accept"

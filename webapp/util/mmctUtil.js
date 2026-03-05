@@ -10,7 +10,13 @@ function getSettingFlags(c) {
     locked: s === "B",
     hidden: s === "N",
     attachment: s === "A",
-    download: s === "D"           // ← NEW: questionario/download
+    download: s === "D",
+    numeric: (function () {
+        var sUi = String((c && (c.UiFieldname || c.UIFIELDNAME || c.ui)) || "").trim();
+        var aNum = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
+                    "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
+        return aNum.indexOf(sUi) >= 0;
+    })()
   };
   }
 
@@ -80,7 +86,8 @@ function getSettingFlags(c) {
           multiple: isMultipleField(c),
           order: parseOrder(c),
           testata1: isX(c.Testata1 ?? c.TESTATA1),
-          testata2: isX(c.Testata2 ?? c.TESTATA2)
+          testata2: isX(c.Testata2 ?? c.TESTATA2),
+          numeric: !!flags.numeric,
         };
       })
       .filter(Boolean);

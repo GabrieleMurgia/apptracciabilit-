@@ -33,7 +33,6 @@ sap.ui.define([
   // HOOK DIRTY ON EDIT (spostato dal controller)
   // =========================
   function hookDirtyOnEdit(oCtrl, hookOpts) {
-    // debugger; // <-- lasciarlo attivo blocca l'app; riattivalo solo se ti serve
     hookOpts = hookOpts || {};
     var sModelName = hookOpts.modelName || "detail";
     var oView = hookOpts.view || null;
@@ -297,6 +296,16 @@ sap.ui.define([
     if (v == null) return "";
     return String(v);
   }
+  function _formatDecimalValue(v) {
+    if (v == null || v === "") return "";
+    var n = parseFloat(String(v).replace(",", "."));
+    if (isNaN(n)) return String(v);
+    // Use browser locale for separator (virgola IT, punto EN)
+    return n.toLocaleString(navigator.language || "it-IT", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+  }
 
   // =========================
   // ATTACHMENT CELL TEMPLATE
@@ -484,8 +493,6 @@ sap.ui.define([
 });
 
         sap.ui.core.BusyIndicator.show(0);
-        
-        debugger
         oODataModel.read(sPath, {
           groupId: "$direct",
           success: function (oData) {
@@ -599,6 +606,10 @@ sap.ui.define([
         Array.isArray(opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain)) &&
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
+    var bNumeric = !!(oMeta && oMeta.numeric);
+    if (sKey === "QtaFibra"){
+      console.log("[cellTemplate] QtaFibra numeric=", bNumeric, "oMeta=", oMeta);
+    }
 
 /*     var oText = new Text({
       width: "100%",
@@ -640,7 +651,7 @@ sap.ui.define([
     } else {
       oText = new Text({
         width: "100%",
-        text: { path: "detail>" + sKey, formatter: _formatCellValue },
+        text: { path: "detail>" + sKey, formatter: bNumeric ? _formatDecimalValue : _formatCellValue },
         visible: "{= " + sReadOnlyExpr + " }"
       });
     }
@@ -744,10 +755,17 @@ sap.ui.define([
           }
         });
       } else {
-        oEditCtrl = new Input({
+/*         oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
           editable: !bLocked,
           value: sValueBind,
+          valueState: sValueState,
+          valueStateText: sValueStateText
+        }); */
+                oEditCtrl = new Input({
+          visible: "{= !" + sReadOnlyExpr + " }",
+          editable: !bLocked,
+          value: bNumeric ? { path: "detail>" + sKey, formatter: _formatDecimalValue } : sValueBind,
           valueState: sValueState,
           valueStateText: sValueStateText
         });

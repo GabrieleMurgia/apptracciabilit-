@@ -310,7 +310,6 @@ sap.ui.define([
               "sap-language": "IT"
             },
             success: function (oData) {
-              debugger
               BusyIndicator.hide();
 
               if (!oData) {
@@ -511,7 +510,6 @@ _ensureVendorsLoaded: function () {
         oModel.read("/VendorDataSet", {
           urlParameters: { "sap-language": "IT" },
           success: function (oData) {
-            debugger
             BusyIndicator.hide();
             var aVend = (oData && oData.results) || [];
             console.log("[Screen0] VendorDataSet loaded:", aVend.length, "vendors");

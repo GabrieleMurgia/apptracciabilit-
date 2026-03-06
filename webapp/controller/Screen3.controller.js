@@ -759,9 +759,9 @@ sap.ui.define([
       var aAll = oDetail.getProperty("/RecordsAll") || [];
 
       var bHasApprovable = aAll.some(function (r) {
-        var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
-        return st === "ST" || st === "CH";
-      });
+    var st = String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase();
+    return st === "ST" || st === "CH" || st === "AP";
+});
 
       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
       oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);

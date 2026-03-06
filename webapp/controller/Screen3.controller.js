@@ -414,8 +414,10 @@ sap.ui.define([
       }
 
       var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
-      oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
+      /* oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable); */
+      oDetail.setProperty("/__canApprove", sRole === "I");
+      oDetail.setProperty("/__canReject", sRole === "I");
 
       RecordsUtil.refreshHeader3Fields(oDetail);
       this._log("_refreshHeader3Fields done");
@@ -763,8 +765,11 @@ sap.ui.define([
     return st === "ST" || st === "CH" || st === "AP";
 });
 
-      oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable);
+/*       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
+      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable); */
+
+      oDetail.setProperty("/__canApprove", sRole === "I");
+oDetail.setProperty("/__canReject", sRole === "I");
 
       this._clearSelectionMdc();
       this._applyClientFilters();

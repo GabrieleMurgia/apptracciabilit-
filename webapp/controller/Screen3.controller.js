@@ -62,8 +62,10 @@ sap.ui.define([
         RecordsAll: [], Records: [], RecordsCount: 0,
         _mmct: { cat: "", s01: [], s02: [] }, OpenOda: "",
         __q: "", __statusFilter: "",
-        __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false,
-        __noMatListMode: false  // ← NoMatList
+/*         __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false,
+ */        
+__canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false,
+__noMatListMode: false 
       }), "detail");
 
       this._snapshotRecords = null;
@@ -408,9 +410,19 @@ sap.ui.define([
       oDetail.setProperty("/__role", sRole);
 
       // ── NoMatList: disabilita add/copy/delete ──
-      if (this._bNoMatListMode) {
+/*       if (this._bNoMatListMode) {
         oDetail.setProperty("/__canAddRow", false);
         oDetail.setProperty("/__noMatListMode", true);
+      } */
+
+              if (this._bNoMatListMode) {
+        oDetail.setProperty("/__canAddRow", false);
+        oDetail.setProperty("/__noMatListMode", true);
+        oDetail.setProperty("/__canCopyRow", StatusUtil.canEdit(sRole, sAgg));
+        oDetail.setProperty("/__canDeleteRow", StatusUtil.canEdit(sRole, sAgg));
+      } else {
+        oDetail.setProperty("/__canCopyRow", oDetail.getProperty("/__canAddRow"));
+        oDetail.setProperty("/__canDeleteRow", oDetail.getProperty("/__canAddRow"));
       }
 
       var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
@@ -550,8 +562,10 @@ sap.ui.define([
       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per aggiungere righe");
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
-      var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
-      var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
+/*       var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
+ */      
+var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: [], oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
+var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
 
       if (!aTplRows || !aTplRows.length) {
         MessageToast.show("Template mancante: non esiste una riga con CodAgg = \"N\" da usare come modello");
@@ -583,8 +597,9 @@ sap.ui.define([
     onCopyRow: function () {
       var oDetail = this._getODetail();
       if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-      if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per copiare righe");
-
+/*       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per copiare righe");
+ */
+      if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show("Non hai permessi per copiare righe");
       var aSel = this._getSelectedParentObjectsFromMdc();
       if (!aSel.length) return MessageToast.show("Seleziona un record da copiare");
       if (aSel.length > 1) return MessageToast.show("Seleziona un solo record da copiare");

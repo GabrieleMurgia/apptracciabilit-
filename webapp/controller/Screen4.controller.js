@@ -595,6 +595,12 @@ sap.ui.define([
         var oSource = aSel[0];
         var oNew = N.deepClone(oSource) || {};
 
+["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
+    (oD.getProperty(sPath) || []).forEach(function (f) {
+        if (f && f.ui && f.attachment) oNew[f.ui.trim()] = "0";
+    });
+});
+
         // Keep same Guid (same record group), but mark as new detail row
         var shouldUpd = false;
         try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]

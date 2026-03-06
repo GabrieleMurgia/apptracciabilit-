@@ -306,6 +306,17 @@ function _formatDecimalValue(v) {
     });
     return oFormat.format(n);
 }
+var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
+    formatValue: function (v) {
+        if (v == null || v === "") return "";
+        return String(v).replace(".", ",");
+    },
+    parseValue: function (v) {
+        if (v == null || v === "") return "";
+        return String(v).replace(",", ".");
+    },
+    validateValue: function () {}
+});
 
   // =========================
   // ATTACHMENT CELL TEMPLATE
@@ -753,17 +764,11 @@ function _formatDecimalValue(v) {
           }
         });
       } else {
-/*         oEditCtrl = new Input({
+          oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
           editable: !bLocked,
-          value: sValueBind,
-          valueState: sValueState,
-          valueStateText: sValueStateText
-        }); */
-                oEditCtrl = new Input({
-          visible: "{= !" + sReadOnlyExpr + " }",
-          editable: !bLocked,
-          value: bNumeric ? { path: "detail>" + sKey, formatter: _formatDecimalValue } : sValueBind,
+          /* value: bNumeric ? { path: "detail>" + sKey, formatter: _formatDecimalValue } : sValueBind, */
+          value: bNumeric ? { path: "detail>" + sKey, type: new DecimalDisplayType() } : sValueBind,
           valueState: sValueState,
           valueStateText: sValueStateText
         });
@@ -776,6 +781,10 @@ function _formatDecimalValue(v) {
     } else if (opts.view && typeof opts.touchCodAggParentFn === "function") {
       hookDirtyOnEdit(oEditCtrl, opts);
     }
+
+    if (bNumeric && oEditCtrl && oEditCtrl.setValueLiveUpdate) {
+    oEditCtrl.setValueLiveUpdate(false);
+}
 
     return new HBox({ items: [oText, oEditCtrl] });
   }

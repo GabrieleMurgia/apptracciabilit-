@@ -284,52 +284,54 @@ sap.ui.define([
     },
 
     // ==================== TABLE BINDING ====================
-    _bindTable: async function (aRows) {
+_bindTable: async function (aRows) {
       var oDetail = this.getView().getModel("detail");
       var oVm = this.getOwnerComponent().getModel("vm");
 
-      // Use all available s01+s02 config fields for columns
-      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-      var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-
-      // ── SummarySort: read raw MMCT fields to get SummarySort per field ──
-      // mmctFieldsByCat stores the raw OData objects which have SummarySort property
+      // Get category
       var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
+      if (!sCat) {
+        try { sCat = String(this.byId("comboMatCat5").getSelectedKey() || "").trim(); } catch (e) {}
+      }
+
+      // Get raw MMCT fields for this category
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var mSummarySort = {};   // UiFieldname (UPPER) -> SummarySort (int)
-      (aRawFields || []).forEach(function (f) {
-        var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim().toUpperCase();
-        var iSort = parseInt(String(f.SummarySort ?? f.SUMMARYSORT ?? "0").trim(), 10);
-        if (ui) mSummarySort[ui] = isNaN(iSort) ? 0 : iSort;
-      });
-      this._log("SummarySort map", mSummarySort);
 
-      // Merge s01 + s02 with dedup
+      // ── 1) SOLO campi con InSummary = "X" ──
+      // ── 2) Ordinati per SummarySort (ascending) ──
       var seen = Object.create(null);
-      var aCfgAll = [];
-      [aCfg01, aCfg02].forEach(function (arr) {
-        (arr || []).forEach(function (f) {
-          var ui = String(f && f.ui || "").trim();
-          if (!ui) return;
+      var aCfgAll = aRawFields
+        .filter(function (f) {
+          return String(f.InSummary || "").trim().toUpperCase() === "X";
+        })
+        .sort(function (a, b) {
+          var sA = parseInt(String(a.SummarySort ?? a.SUMMARYSORT ?? "0").trim(), 10) || 0;
+          var sB = parseInt(String(b.SummarySort ?? b.SUMMARYSORT ?? "0").trim(), 10) || 0;
+          if (sA > 0 && sB > 0) return sA - sB;
+          if (sA > 0) return -1;
+          if (sB > 0) return 1;
+          return 0;
+        })
+        .map(function (f) {
+          var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+          if (!ui) return null;
           var k = ui.toUpperCase();
-          if (seen[k]) return;
+          if (seen[k]) return null;
           seen[k] = true;
-          aCfgAll.push(f);
-        });
-      });
-
-      // ── SummarySort: order columns by SummarySort (>0 first ascending, 0 at the end) ──
-      aCfgAll.sort(function (a, b) {
-        var uiA = String(a && a.ui || "").trim().toUpperCase();
-        var uiB = String(b && b.ui || "").trim().toUpperCase();
-        var sA = mSummarySort[uiA] || 0;
-        var sB = mSummarySort[uiB] || 0;
-        // Fields with SummarySort > 0 come first, sorted ascending
-        if (sA > 0 && sB > 0) return sA - sB;
-        if (sA > 0) return -1;
-        if (sB > 0) return 1;
-        return 0;  // preserve relative order for fields without SummarySort
-      });
+          var imp = String(f.Impostazione || "").trim().toUpperCase();
+          return {
+            ui: ui,
+            label: String(f.UiFieldLabel || f.Descrizione || ui).trim(),
+            domain: String(f.Dominio || "").trim(),
+            required: imp === "O",
+            locked: imp === "B",
+            attachment: imp === "A",
+            download: imp === "D",
+            multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X",
+            order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999
+          };
+        })
+        .filter(Boolean);
 
       // Ensure Stato column exists
       if (!seen["STATO"]) {
@@ -379,7 +381,6 @@ sap.ui.define([
 
       this._log("_bindTable done", { rows: aRows.length, cols: aCfgAll.length });
     },
-
     _rebuildColumnsHard: async function (oTbl, aCfgAll) {
       if (!oTbl) return;
       if (oTbl.initialized) await oTbl.initialized();

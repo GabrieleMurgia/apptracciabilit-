@@ -623,6 +623,14 @@ sap.ui.define([
       oNewParent.__readOnly = false;
       oNewParent.Note = "";
 
+            ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
+        (oDetail.getProperty(sPath) || []).forEach(function (f) {
+          if (f && f.ui && f.attachment) {
+            oNewParent[f.ui.trim()] = "0";
+          }
+        });
+      });
+
       var aNewRaws = aSourceRaws.map(function (r) {
         var x = N.deepClone(r);
         x.Guid = sNewGuid;
@@ -633,6 +641,14 @@ sap.ui.define([
         x.Note = "";
         x.__isNew = true;
         delete x.__metadata;
+
+                ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
+          (oDetail.getProperty(sPath) || []).forEach(function (f) {
+            if (f && f.ui && f.attachment) {
+              x[f.ui.trim()] = "0";
+            }
+          });
+        });
         return x;
       });
 

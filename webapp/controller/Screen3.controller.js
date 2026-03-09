@@ -415,11 +415,13 @@ __noMatListMode: false
         oDetail.setProperty("/__noMatListMode", true);
       } */
 
-              if (this._bNoMatListMode) {
+      if (this._bNoMatListMode) {
         oDetail.setProperty("/__canAddRow", false);
         oDetail.setProperty("/__noMatListMode", true);
-        oDetail.setProperty("/__canCopyRow", StatusUtil.canEdit(sRole, sAgg));
-        oDetail.setProperty("/__canDeleteRow", StatusUtil.canEdit(sRole, sAgg));
+/*         oDetail.setProperty("/__canCopyRow", StatusUtil.canEdit(sRole, sAgg));
+        oDetail.setProperty("/__canDeleteRow", StatusUtil.canEdit(sRole, sAgg)); */
+        oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
+        oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
       } else {
         oDetail.setProperty("/__canCopyRow", oDetail.getProperty("/__canAddRow"));
         oDetail.setProperty("/__canDeleteRow", oDetail.getProperty("/__canAddRow"));

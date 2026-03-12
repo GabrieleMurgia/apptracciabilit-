@@ -669,7 +669,7 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
 
     if (bUseCombo) {
       if (bMultiple) {
-/*         oEditCtrl = new MultiComboBox({
+        oEditCtrl = new MultiComboBox({
           width: "100%",
           visible: "{= !" + sReadOnlyExpr + " }",
           enabled: !bLocked,
@@ -695,42 +695,8 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
             }),
             length: 1000
           }
-        }); */
-oEditCtrl = new MultiComboBox({
-  width: "100%",
-  visible: "{= !" + sReadOnlyExpr + " }",
-  enabled: !bLocked,
+        });
 
-  selectedKeys: sValueBind,
-
-  valueState: sValueState,
-  valueStateText: sValueStateText,
-  showValueStateMessage: true,
-  showSecondaryValues: true,
-
-  items: {
-    path: "vm>/domainsByName/" + sDomain,
-    templateShareable: false,
-    template: new ListItem({
-      key: "{vm>key}",
-      text: "{vm>key}",          // quello che vuoi vedere/selezionare
-      additionalText: "{vm>text}" // descrizione usata anche per ricerca
-    }),
-    length: 1000
-  }
-});
-
-oEditCtrl.setFilterFunction(function (sTerm, oItem) {
-  var sSearch = String(sTerm || "").trim().toUpperCase();
-  if (!sSearch) {
-    return true;
-  }
-
-  var sKey = String(oItem.getText() || "").toUpperCase();           // text = key
-  var sDesc = String(oItem.getAdditionalText() || "").toUpperCase(); // additionalText = text
-
-  return sKey.indexOf(sSearch) >= 0 || sDesc.indexOf(sSearch) >= 0;
-});
         // Manual model update via row context (not two-way binding)
         // This ensures only the specific row is updated
         (function (fieldKey) {
@@ -760,7 +726,7 @@ oEditCtrl.setFilterFunction(function (sTerm, oItem) {
             templateShareable: false,
             template: new Item({
               key: "{vm>key}",
-              text: "{vm>text}",
+              text: "{vm>text}"
             }),
             length: 1000
           }

@@ -180,6 +180,7 @@ sap.ui.define([
           }
         }
       });
+      oVm.setSizeLimit(100000);
 
       oComponent.setModel(oVm, "vm");
 
@@ -508,7 +509,7 @@ _ensureVendorsLoaded: function () {
       this._vendorPromise = new Promise(function (resolve, reject) {
         BusyIndicator.show(0);
         oModel.read("/VendorDataSet", {
-          urlParameters: { "sap-language": "IT" },
+          urlParameters: { "sap-language": "IT", "$top": "99999" },
           success: function (oData) {
             BusyIndicator.hide();
             var aVend = (oData && oData.results) || [];

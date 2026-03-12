@@ -53,6 +53,9 @@
             <Table
                 id="tableVendors1"
                 mode="SingleSelectMaster"
+                growing="true"
+                growingThreshold="200"
+                growingScrollToLoad="true"
                 items="{
                     path: 'vm>/userVendors'
                 }"

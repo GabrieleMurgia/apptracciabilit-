@@ -328,7 +328,13 @@ _bindTable: async function (aRows) {
             attachment: imp === "A",
             download: imp === "D",
             multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X",
-            order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999
+            order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999,
+            numeric: (function () {
+                var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+                var aNum = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
+                            "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
+                return aNum.indexOf(sUi) >= 0;
+            })()
           };
         })
         .filter(Boolean);

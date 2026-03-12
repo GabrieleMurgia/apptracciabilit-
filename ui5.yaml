@@ -18,7 +18,7 @@ server:
         backend:
           - path: /sap
             url: http://s4d:44300
-            destination: SAP_PLM_Gateway # SAP_Gateway SAP_PLM_Gateway
+            destination: SAP_PLM_Gateway # SAP_PLM_Gateway SAP_PLM_Gateway
     - name: fiori-tools-appreload
       afterMiddleware: compression
       configuration:

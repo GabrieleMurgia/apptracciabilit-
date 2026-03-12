@@ -203,7 +203,7 @@ sap.ui.define([
     // =========================
     // HAS UNSAVED CHANGES
     // =========================
-    hasUnsavedChanges: function (oDetail, snapshotRecords) {
+/*     hasUnsavedChanges: function (oDetail, snapshotRecords) {
       var aCurrent = oDetail.getProperty("/RecordsAll") || [];
       var aSnapshot = snapshotRecords || [];
 
@@ -245,12 +245,92 @@ sap.ui.define([
               return v !== vSnap[j];
             });
           }
-
+          if(vCurr !== vSnap){
+            debugger
+          }
           return vCurr !== vSnap;
         });
       });
-    },
+    }, */
+    hasUnsavedChanges: function (oDetail, snapshotRecords) {
+  var aCurrent = oDetail.getProperty("/RecordsAll") || [];
+  var aSnapshot = snapshotRecords || [];
 
+  var isDateLikeString = function (value) {
+    return typeof value === "string" && !isNaN(Date.parse(value));
+  };
+
+  var normalizeValue = function (value) {
+    if (value == null) {
+      return value;
+    }
+
+    // Date -> stringa ISO
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    // stringa data -> stringa ISO canonica
+    if (isDateLikeString(value)) {
+      return new Date(value).toISOString();
+    }
+
+    // Set -> array ordinato e normalizzato
+    if (value instanceof Set) {
+      return Array.from(value)
+        .map(normalizeValue)
+        .sort();
+    }
+
+    // Array -> normalizza ogni elemento
+    if (Array.isArray(value)) {
+      return value
+        .map(normalizeValue)
+        .sort(function (a, b) {
+          return JSON.stringify(a).localeCompare(JSON.stringify(b));
+        });
+    }
+
+    // Oggetto -> normalizza ricorsivamente
+    if (typeof value === "object") {
+      var result = {};
+      Object.keys(value)
+        .sort()
+        .forEach(function (key) {
+          result[key] = normalizeValue(value[key]);
+        });
+      return result;
+    }
+
+    return value;
+  };
+
+  var normalizeRecord = function (obj) {
+    var result = {};
+
+    Object.keys(obj).forEach(function (k) {
+      if (k.indexOf("__") === 0) return;
+      if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+      result[k] = normalizeValue(obj[k]);
+    });
+
+    return result;
+  };
+
+  aSnapshot = aSnapshot.map(normalizeRecord);
+  aCurrent = aCurrent.map(normalizeRecord);
+
+  if (!aSnapshot.length) return false;
+  if (aCurrent.length !== aSnapshot.length) return true;
+
+  return aCurrent.some(function (rCurr, i) {
+    var rSnap = aSnapshot[i];
+    if (!rSnap) return true;
+
+    return JSON.stringify(rCurr) !== JSON.stringify(rSnap);
+  });
+},
     // =========================
     // TO ARRAY MULTI
     // =========================

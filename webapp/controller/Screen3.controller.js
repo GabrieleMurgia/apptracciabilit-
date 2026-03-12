@@ -483,7 +483,7 @@ __noMatListMode: false
     // ==================== FILTERS ====================
     _applyClientFilters: function () {
       FilterSortUtil.applyClientFilters(this._getODetail(), this._inlineFS, this.byId("mdcTable3"));
-      RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll", showToast: false });
+      /* RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll", showToast: false }); */
     },
     onStatusFilterPress: function (oEvt) { FilterSortUtil.onStatusFilterPress(oEvt, this._getODetail(), this._applyClientFilters.bind(this)); },
     onGlobalFilter: function (oEvt) { FilterSortUtil.onGlobalFilter(oEvt, this._getODetail(), this._applyClientFilters.bind(this)); },
@@ -525,7 +525,7 @@ __noMatListMode: false
     // ==================== TOUCH CODAGG ====================
     _touchCodAggParent: function (p, sPath) {
       TouchCodAggUtil.touchCodAggParent(p, sPath, { oDetail: this._getODetail(), oVm: this._getOVm(), cacheKey: this._getExportCacheKey() });
-      RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" });
+      /* RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" }); */
     },
 
     // ==================== NAV SCREEN4 ====================
@@ -722,7 +722,7 @@ var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cach
 
     // ==================== SAVE ====================
     onSave: function () {
-      if (!RecordsUtil.validatePercBeforeSave(this._getODetail(), "/RecordsAll")) return;
+      /* if (!RecordsUtil.validatePercBeforeSave(this._getODetail(), "/RecordsAll")) return; */
 
       var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
       if (!vr.ok) {

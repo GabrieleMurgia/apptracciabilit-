@@ -24,42 +24,75 @@ sap.ui.define([
         var oVm = self.getOwnerComponent().getModel("vm");
         self.getView().setModel(oVm, "vm");
         self._sUserType = oVm.getProperty("/userType");
-        /* self._applyFilters(); */
         self._reloadVendors();
       });
     },
+
     _reloadVendors: function () {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var oModel = this.getOwnerComponent().getModel();
-  if (!oModel || typeof oModel.read !== "function") { this._applyFilters(); return; }
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var oModel = this.getOwnerComponent().getModel();
+      if (!oModel || typeof oModel.read !== "function") { this._applyFilters(); return; }
 
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  if (mock.mockS0 || mock.mockVendors) { this._applyFilters(); return; }
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      if (mock.mockS0 || mock.mockVendors) { this._applyFilters(); return; }
 
-  var sUserId = oVm.getProperty("/userId") || "";
-  var self = this;
-  BusyIndicator.show(0);
+      var sUserId = oVm.getProperty("/userId") || "";
+      var self = this;
+      BusyIndicator.show(0);
 
-  oModel.read("/VendorDataSet", {
-    filters: sUserId ? [new Filter("UserID", FilterOperator.EQ, sUserId)] : [],
-    urlParameters: { "sap-language": "IT" },
-    success: function (oData) {
-      BusyIndicator.hide();
-      var aVend = (oData && oData.results) || [];
-      console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
-      oVm.setProperty("/userVendors", aVend);
-      oVm.setProperty("/UserInfosVend", aVend);
-      oVm.setProperty("/__vendorCacheStale", true);
-      self._applyFilters();
+      oModel.read("/VendorDataSet", {
+        filters: sUserId ? [new Filter("UserID", FilterOperator.EQ, sUserId)] : [],
+        urlParameters: { "sap-language": "IT", "$top": "99999" },
+        success: function (oData) {
+          BusyIndicator.hide();
+          var aVend = (oData && oData.results) || [];
+          console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
+          oVm.setProperty("/userVendors", aVend);
+          oVm.setProperty("/UserInfosVend", aVend);
+          oVm.setProperty("/__vendorCacheStale", true);
+
+          // Build categories list from vendor data
+          self._buildCategoriesList(aVend);
+
+          self._applyFilters();
+        },
+        error: function (oError) {
+          BusyIndicator.hide();
+          console.error("[Screen1] VendorDataSet reload ERROR", oError);
+          self._applyFilters();
+        }
+      });
     },
-    error: function (oError) {
-      BusyIndicator.hide();
-      console.error("[Screen1] VendorDataSet reload ERROR", oError);
-      self._applyFilters();
-    }
-  });
-},
 
+    // =========================================================
+    // BUILD CATEGORIES LIST from vendor records
+    // =========================================================
+    _buildCategoriesList: function (aVend) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      // If userCategoriesList already populated (from Screen0/Screen5), skip
+      var aExisting = oVm.getProperty("/userCategoriesList") || [];
+      if (aExisting.length) return;
+
+      // Extract unique CatMateriale values from vendors
+      var mCats = {};
+      (aVend || []).forEach(function (v) {
+        var sCat = String(v.CatMateriale || "").trim();
+        if (sCat && !mCats[sCat]) {
+          mCats[sCat] = true;
+        }
+      });
+
+      var aList = Object.keys(mCats).sort().map(function (k) {
+        return { key: k, text: k };
+      });
+
+      oVm.setProperty("/userCategoriesList", aList);
+      console.log("[Screen1] Categories built from vendors:", aList.length);
+    },
+
+    // =========================================================
+    // VENDOR PRESS — passa anche la categoria selezionata
+    // =========================================================
     onVendorPress: function (oEvent) {
       var oItem = oEvent.getParameter("listItem");
       if (!oItem) {
@@ -74,6 +107,13 @@ sap.ui.define([
       }
 
       var sVendorId = oCtx.getProperty("Fornitore");
+
+      // Save selected category in vm so Screen2 can use it as filter
+      var oCombo = this.byId("comboCatMat1");
+      var sSelectedCat = (oCombo && oCombo.getSelectedKey()) || "";
+      var oVm = this.getOwnerComponent().getModel("vm");
+      oVm.setProperty("/__selectedCatMateriale", sSelectedCat);
+
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.navTo("Screen2", {
         vendorId: encodeURIComponent(sVendorId),
@@ -88,15 +128,20 @@ sap.ui.define([
     _applyFilters: function () {
       var oTable = this.byId("tableVendors1");
       var oBinding = oTable && oTable.getBinding("items");
-      if (!oBinding) {
-        return;
-      }
+      if (!oBinding) return;
 
       var aFilters = [];
 
+      // ── Filtro per Categoria Materiale ──
+      var oCombo = this.byId("comboCatMat1");
+      var sSelectedCat = (oCombo && oCombo.getSelectedKey()) || "";
+      if (sSelectedCat) {
+        aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
+      }
+
+      // ── Filtro solo dati incompleti ──
       var oSwitch = this.byId("switchOnlyIncomplete1");
       var bOnlyIncomplete = oSwitch ? oSwitch.getState() : false;
-
       if (bOnlyIncomplete) {
         aFilters.push(new Filter({
           filters: [
@@ -108,6 +153,7 @@ sap.ui.define([
         }));
       }
 
+      // ── Filtro testo fornitore ──
       var sText = this.byId("inputVendorFilter1").getValue();
       if (sText) {
         aFilters.push(new Filter({
@@ -122,9 +168,8 @@ sap.ui.define([
       oBinding.filter(aFilters, "Application");
     },
 
-    // NavBack fallback: torna a Screen0
     _getNavBackFallback: function () {
       return { route: "Screen0", params: {} };
     }
   });
-});/*  */
+});

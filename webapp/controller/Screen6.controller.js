@@ -756,7 +756,7 @@ sap.ui.define([
       }
     },
     // ==================== SEND DATA (POST) ====================
-    onSendData: function () {
+/*     onSendData: function () {
       var oDetail = this.getView().getModel("detail");
       var aRows = oDetail.getProperty("/RowsAll") || [];
       if (!aRows.length) {
@@ -783,9 +783,77 @@ sap.ui.define([
           }
         }
       );
-    },
+    }, */
+    onSendData: function () {
+      var oDetail = this.getView().getModel("detail");
+      var aRows = oDetail.getProperty("/RowsAll") || [];
+      if (!aRows.length) {
+        MessageToast.show("Nessun dato da inviare");
+        return;
+      }
 
-    _executePost: function (aRows, sCat) {
+      var sCat = this._getSelectedCat();
+      if (!sCat) {
+        MessageToast.show("Seleziona una categoria materiale");
+        return;
+      }
+
+      // ── Validazione campi obbligatori ──
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+      var aRequired = [];
+      (aRawFields || []).forEach(function (f) {
+        var imp = String(f.Impostazione || "").trim().toUpperCase();
+        if (imp === "O") {
+          var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+          var sLabel = String(f.UiFieldLabel || f.Descrizione || sUi).trim();
+          if (sUi) aRequired.push({ ui: sUi, label: sLabel });
+        }
+      });
+
+      if (aRequired.length) {
+        var aErrors = [];
+        aRows.forEach(function (row, idx) {
+          var aMissing = [];
+          aRequired.forEach(function (req) {
+            var v = row[req.ui];
+            if (v == null || String(v).trim() === "") {
+              aMissing.push(req.label);
+            }
+          });
+          if (aMissing.length) {
+            aErrors.push("Riga " + (idx + 1) + ": " + aMissing.join(", "));
+          }
+        });
+
+        if (aErrors.length) {
+          // Show max 10 errors to avoid huge dialog
+          var sMsg = "Campi obbligatori mancanti:\n\n";
+          sMsg += aErrors.slice(0, 10).join("\n");
+          if (aErrors.length > 10) {
+            sMsg += "\n\n... e altre " + (aErrors.length - 10) + " righe con errori.";
+          }
+          sMsg += "\n\nTotale righe con errori: " + aErrors.length + " su " + aRows.length;
+          MessageBox.warning(sMsg);
+          return;
+        }
+      }
+
+      var self = this;
+      MessageBox.confirm(
+        "Stai per inviare " + aRows.length + " righe al sistema.\nProseguire?",
+        {
+          actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+          emphasizedAction: MessageBox.Action.OK,
+          onClose: function (sAction) {
+            if (sAction === MessageBox.Action.OK) {
+              self._executePost(aRows, sCat);
+            }
+          }
+        }
+      );
+    },
+/*     _executePost: function (aRows, sCat) {
       var oODataModel = this.getOwnerComponent().getModel();
       var oVm = this.getOwnerComponent().getModel("vm");
       var oDetail = this.getView().getModel("detail");
@@ -841,8 +909,75 @@ sap.ui.define([
           MessageBox.error(sMsg);
         }
       });
-    },
+    }, */
+    _executePost: function (aRows, sCat) {
+      var oODataModel = this.getOwnerComponent().getModel();
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var oDetail = this.getView().getModel("detail");
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
+      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
 
+      // Build lines like saveUtil.sanitizeForPost
+      var aLines = aRows.map(function (r) {
+        var o = {};
+        Object.keys(r).forEach(function (k) {
+          if (!k) return;
+          if (k.indexOf("__") === 0) return;
+          if (k === "__metadata" || k === "AllData") return;
+          if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+          var v = r[k];
+          if (mMulti[k]) {
+            v = N.normalizeMultiString ? N.normalizeMultiString(v, "|") : (Array.isArray(v) ? v.join("|") : v);
+          } else if (Array.isArray(v)) {
+            v = v.join(";");
+          }
+          o[k] = (v === undefined ? "" : v);
+        });
+
+        // Ensure structural fields
+        o.CodAgg = "I";
+        o.UserID = sUserId;
+        o.Guid = null;
+        if (!o.CatMateriale) o.CatMateriale = sCat;
+
+        // Cleanup
+        delete o.GUID;
+        delete o.GuidKey;
+
+        return o;
+      });
+
+      var oPayload = {
+        UserID: sUserId,
+        PostDataCollection: aLines
+      };
+
+      console.log("[S6] POST payload /PostDataSet", JSON.parse(JSON.stringify(oPayload)));
+
+      BusyIndicator.show(0);
+      var self = this;
+
+      oODataModel.create("/PostDataSet", oPayload, {
+        urlParameters: { "sap-language": "IT" },
+        success: function (oData) {
+          BusyIndicator.hide();
+          console.log("[S6] POST success", oData);
+          MessageBox.success("Dati inviati con successo (" + aLines.length + " righe)");
+          self.onClearUpload();
+        },
+        error: function (oError) {
+          BusyIndicator.hide();
+          console.error("[S6] POST error", oError);
+          var sMsg = "Errore nell'invio dei dati";
+          try {
+            var oBody = JSON.parse(oError.responseText);
+            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
+          } catch (e) {}
+          MessageBox.error(sMsg);
+        }
+      });
+    },
     // ==================== NAV ====================
     _getNavBackFallback: function () {
       return { route: "Screen0", params: {} };

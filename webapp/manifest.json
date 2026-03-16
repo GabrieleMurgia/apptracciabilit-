@@ -199,5 +199,10 @@
   "sap.cloud": {
     "public": true,
     "service": "apptracciabilitaapptracciabilita"
+  },
+  "sap.cloud.portal": {
+    "apptracciabilita-display": {
+      "vizType": "apptratile"
+    }
   }
 }

@@ -32,7 +32,7 @@
         </customHeader>
 
         <subHeader>
-            <Toolbar id="toolbarFilters1">
+            <Toolbar id="toolbarFilters1" class="filterToolbarWrap">
              <Label id="lblCatMat1" text="Categoria Materiale:" />
                 <ComboBox
                     id="comboCatMat1"

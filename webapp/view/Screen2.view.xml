@@ -34,7 +34,7 @@
         </customHeader>
 
         <subHeader>
-            <Toolbar id="toolbarFilters2">
+            <Toolbar id="toolbarFilters2" class="filterToolbarWrap">
                 <Label id="labelVendor2" text="Fornitore:" />
                 <Text id="textVendor2" text="{/CurrentVendorName}" />
 

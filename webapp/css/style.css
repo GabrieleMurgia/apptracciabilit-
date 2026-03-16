@@ -71,20 +71,6 @@
   vertical-align: baseline;
 }
 
-/* .hdrDynLbl {
-  font-size: 0.8125rem;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-.hdrDynVal {
-  font-weight: 600 !important;
-  font-size: 0.875rem;
-  color: #1e293b;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  font-family: Arial, Helvetica, sans-serif !important;
-} */
 .hdrDynLbl {
   font-size: 0.8125rem;
   color: #1e293b;
@@ -221,6 +207,24 @@
 }
 
 /* ============================================================
+   NEW: SCREEN0 TILES CONTAINER (desktop = no change, mobile below)
+   ============================================================ */
+.tilesContainer {
+  gap: 16px;
+  padding: 16px;
+}
+
+/* ============================================================
+   NEW: SCREEN1/SCREEN2 FILTER TOOLBAR WRAPPING
+   ============================================================ */
+.filterToolbarWrap > .sapMTBContent {
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: auto !important;
+}
+
+/* ============================================================
    RESPONSIVE / MOBILE
    ============================================================ */
 
@@ -247,7 +251,35 @@
     display: none !important;
   }
 
-  /* Sub-header: horizontal scroll when fields overflow */
+  /* ── FIX 1: Screen0 tiles vertical + scrollable ── */
+  .tilesContainer {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px;
+    padding: 12px;
+  }
+  .tilesContainer .sapMGT {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* ── FIX 2: Screen1/Screen2 header wraps to multiple rows ── */
+  .filterToolbarWrap > .sapMTBContent {
+    flex-wrap: wrap !important;
+    gap: 4px 8px;
+    padding: 4px 0;
+  }
+  .filterToolbarWrap .sapMLabel {
+    white-space: nowrap;
+    font-size: 0.75rem;
+  }
+  .filterToolbarWrap .sapMSF {
+    min-width: 120px;
+    max-width: 100%;
+  }
+
+  /* ── Sub-header (Screen3 dynamic fields): keep existing behavior ── */
   .subHeaderBar {
     padding: 4px 8px !important;
   }
@@ -257,6 +289,7 @@
     flex-wrap: nowrap;
   }
 
+  /* Header cards: smaller font on mobile only (alignment untouched) */
   .hdrDynPair {
     padding: 3px 8px;
     margin: 2px 3px;
@@ -269,13 +302,28 @@
     font-size: 0.75rem;
   }
 
+  /* ── FIX 3: Screen3 vertical scroll on mobile ── */
+  .fullHeightPage > section {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fullSizeTable {
+    height: auto !important;
+    min-height: 400px;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fullSizeTable .sapUiMdcTable {
+    height: auto !important;
+    min-height: 400px;
+  }
+
   /* Control bar: stack vertically */
   .tableControlBar {
-    /* top: 47px; */
     top: 38px;
     flex-direction: column !important;
     align-items: stretch !important;
-    /* padding: 0 4px; */
     padding: 0 30px;
     gap: 4px;
   }
@@ -307,14 +355,14 @@
     min-width: auto !important;
   }
 
-  /* Table: horizontal swipe */
-  .fullSizeTable {
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
   .odaStatusChip {
     padding: 3px 8px;
+  }
+
+  /* First title smaller on mobile */
+  .FirstTitle {
+    font-size: 1.25rem !important;
+    margin: 12px !important;
   }
 }
 
@@ -322,5 +370,8 @@
 @media screen and (max-width: 380px) {
   .statusChip .sapMObjStatusText {
     display: none;
+  }
+  .tilesContainer .sapMGT {
+    min-height: 100px;
   }
 }

@@ -130,7 +130,12 @@
           "name": "Screen5",
           "pattern": "dati-tabella",
           "target": "Screen5"
-        }
+        },
+        {
+  "name": "Screen6",
+  "pattern": "caricamento-excel",
+  "target": "Screen6"
+}
       ],
       "targets": {
         "Screen0": {
@@ -174,7 +179,14 @@
           "clearControlAggregation": false,
           "viewId": "Screen5",
           "viewName": "Screen5"
-        }
+        },
+        "Screen6": {
+  "viewType": "XML",
+  "transition": "slide",
+  "clearControlAggregation": false,
+  "viewId": "Screen6",
+  "viewName": "Screen6"
+}
       }
     },
     "rootView": {

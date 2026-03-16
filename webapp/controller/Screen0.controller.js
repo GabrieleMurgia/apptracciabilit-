@@ -576,7 +576,7 @@ _ensureVendorsLoaded: function () {
       });
     },
 
-    onPressFlowB: function () {
+/*     onPressFlowB: function () {
       var oRouter = this.getOwnerComponent().getRouter();
       this._ensureVendorsLoaded().then(function () {
         oRouter.navTo("Screen1", { mode: "M" });
@@ -584,6 +584,9 @@ _ensureVendorsLoaded: function () {
         console.error("[Screen0] onPressFlowB vendor load failed", err);
         MessageBox.error("Errore nel caricamento fornitori");
       });
+    }, */
+     onPressFlowB: function () {
+      this.getOwnerComponent().getRouter().navTo("Screen6");
     },
 
 /*     onPressFlowC: function () {

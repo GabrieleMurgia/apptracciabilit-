@@ -21,6 +21,7 @@
           "semanticObject": "AppTracciabilita",
           "action": "display",
           "title": "{{appTitle}}",
+          "icon": "sap-icon://shipping-status",
           "signature": {
             "parameters": {},
             "additionalParameters": "allowed"

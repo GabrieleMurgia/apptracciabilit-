@@ -7,7 +7,7 @@ sap.ui.define(
   
       return BaseController.extend("apptracciabilita.apptracciabilita.controller.App", {
         onInit: function() {
-        }
+        }/*  */
       });
     }
   );

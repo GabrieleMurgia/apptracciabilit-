@@ -130,7 +130,7 @@
 
       <VBox id="legalFooter5" class="appLegalFooter appLegalFooter56" alignItems="Center">
           <Text id="legalTitle5" text="VALENTINO.COM" class="legalFooterTitle"/>
-          <Text id="legalCopy5" text="Powered by Valentino Copyright © 2025 VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+<Text id="legalCopy5" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
       </VBox>
 
   </Page>

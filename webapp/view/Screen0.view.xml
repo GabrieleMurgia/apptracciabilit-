@@ -107,6 +107,14 @@
                     </GenericTile>
                 </HBox>
             </VBox>
+                                        <!-- Spacer pushes footer to bottom -->
+            <VBox id="legalSpacer0" class="legalFooterSpacer"/>
+            <!-- Legal Footer -->
+            <VBox id="legalFooter0" class="appLegalFooter" alignItems="Center">
+                <Text id="legalTitle0" text="VALENTINO.COM" class="legalFooterTitle"/>
+                <Text id="legalCopy0" text="Powered by Valentino Copyright © 2025 VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+            </VBox>
         </content>
+
     </Page>
 </mvc:View>

@@ -6,7 +6,7 @@
   xmlns:core="sap.ui.core"
   xmlns:mdc="sap.ui.mdc">
 
-  <Page id="page4" title="Dettaglio" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
+  <Page id="page4" title="Dettaglio" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar4" class="appCustomHeader">
@@ -96,6 +96,7 @@
           }
         }'>
       </mdc:Table>
+
 
     </content>
 

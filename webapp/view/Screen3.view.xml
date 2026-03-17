@@ -8,7 +8,7 @@
   xmlns:mdctable="sap.ui.mdc.table"
   displayBlock="true">
 
-  <Page id="page3" title="Tracciabilità" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
+  <Page id="page3" title="Tracciabilità" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar3" class="appCustomHeader">
@@ -143,7 +143,7 @@
       </mdc:Table>
 
     </content>
-
+ 
     <footer>
       <OverflowToolbar id="footerToolbar5">
         <ToolbarSpacer id="footerSpacer5"/>

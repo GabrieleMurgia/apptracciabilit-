@@ -31,36 +31,38 @@
             </Toolbar>
         </customHeader>
 
-        <subHeader>
-            <Toolbar id="toolbarFilters1" class="filterToolbarWrap">
-             <Label id="lblCatMat1" text="Categoria Materiale:" />
-                <ComboBox
-                    id="comboCatMat1"
-                    width="250px"
-                    placeholder="Tutte le categorie"
-                    items="{vm>/userCategoriesList}"
-                    selectionChange=".onFilterChanged">
-                    <items>
-                        <core:Item id="catItem1" key="{vm>key}" text="{vm>text}"/>
-                    </items>
-                </ComboBox>
-                <Label id="labelOnlyIncomplete1" text="Solo dati incompleti" />
-                <Switch
-                    id="switchOnlyIncomplete1"
-                    state="true"
-                    change=".onFilterChanged" />
-                <ToolbarSpacer id="toolbarSpacerFilters1" />
-                <Label id="labelVendorFilter1" text="Fornitore" />
-                <SearchField
-                    id="inputVendorFilter1"
-                    width="15rem"
-                    liveChange=".onFilterChanged"
-                    search=".onFilterChanged"
-                    placeholder="Cerca per nome o codice..." />
-            </Toolbar>
-        </subHeader>
-
         <content>
+            <!-- Filter bar: desktop=one row, mobile=2 rows -->
+            <VBox id="vboxFilters1" class="mobileFilterBar">
+                <HBox id="filterRow1A" alignItems="Center" class="filterRow">
+                    <Label id="lblCatMat1" text="Categoria:" class="sapUiTinyMarginEnd"/>
+                    <ComboBox
+                        id="comboCatMat1"
+                        width="250px"
+                        placeholder="Tutte le categorie"
+                        items="{vm>/userCategoriesList}"
+                        selectionChange=".onFilterChanged">
+                        <items>
+                            <core:Item id="catItem1" key="{vm>key}" text="{vm>text}"/>
+                        </items>
+                    </ComboBox>
+                    <Label id="labelOnlyIncomplete1" text="Solo dati incompleti" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <Switch
+                        id="switchOnlyIncomplete1"
+                        state="true"
+                        change=".onFilterChanged" />
+                </HBox>
+                <HBox id="filterRow1B" alignItems="Center" class="filterRow filterRowRight">
+                    <Label id="labelVendorFilter1" text="Fornitore" class="sapUiTinyMarginEnd"/>
+                    <SearchField
+                        id="inputVendorFilter1"
+                        width="15rem"
+                        liveChange=".onFilterChanged"
+                        search=".onFilterChanged"
+                        placeholder="Cerca per nome o codice..." />
+                </HBox>
+            </VBox>
+
             <Table
                 id="tableVendors1"
                 mode="SingleSelectMaster"
@@ -85,7 +87,7 @@
                     <Column id="columnOpenPo1" hAlign="Center">
                         <Text id="textColumnOpenPo1" text="Aperti" />
                     </Column>
-                                        <Column id="columnCatMat1" hAlign="Center">
+                    <Column id="columnCatMat1" hAlign="Center">
                         <Text id="textColumnCatMat1" text="Cat. Materiale" />
                     </Column>
                     <Column id="columnToUnlock1" hAlign="Center">
@@ -118,7 +120,7 @@
                                 src="{= ${vm>Open} === 'X' ? 'sap-icon://open-folder' : 'sap-icon://folder' }"
                                 tooltip="{= ${vm>Open} === 'X' ? 'Aperti' : 'Nessun aperto' }" />
 
-                                                            <Text
+                            <Text
                                 id="textCatMat1"
                                 text="{vm>MatCatDesc}" />
 

@@ -27,77 +27,72 @@
                     </contentMiddle>
 
                     <contentRight>
-                        <HBox id ="hbox3" width="200px"/>
+                        <HBox id="hbox3" width="200px"/>
                     </contentRight>
                 </Bar>
             </Toolbar>
         </customHeader>
 
-        <subHeader>
-            <Toolbar id="toolbarFilters2" class="filterToolbarWrap">
-                <Label id="labelVendor2" text="Fornitore:" />
-                <Text id="textVendor2" text="{/CurrentVendorName}" />
-
-                <ToolbarSpacer id="toolbarSpacerFilters2" />
-
-                <Label id="labelOnlyIncomplete2" text="Solo dati incompleti" />
-                <Switch
-                    id="switchOnlyIncomplete2"
-                    state="true"
-                    change=".onFilterChanged" />
-
-                <Label id="labelDescCatFilter2" text="Cat. Materiale" />
-                <MultiComboBox
-                    id="inputDescCatFilter2"
-                    width="14rem"
-                    items="{ path: '/DescCatMaterialeValues', sorter: { path: 'text' } }"
-                    selectionChange=".onFilterChanged"
-                    placeholder="Es. Pelle, Tessuto...">
-                    <core:Item id="random1" key="{key}" text="{text}" />
-                </MultiComboBox>
-
-                <!-- filtro Stagione -->
-                <Label id="labelSeasonFilter2" text="Stagione" />
-                <MultiComboBox
-                    id="inputSeasonFilter2"
-                    width="10rem"
-                    items="{ path: '/StagioneValues', sorter: { path: 'text' } }"
-                    selectionChange=".onFilterChanged"
-                    placeholder="Es. 44...">
-                    <core:Item id="random2" key="{key}" text="{text}" />
-                </MultiComboBox>
-
-                <!-- filtro Materiale -->
-                <Label id="labelMaterialOnly2" text="Materiale" />
-                <SearchField
-                    id="inputMaterialOnly2"
-                    width="12rem"
-                    liveChange=".onFilterChanged"
-                    search=".onFilterChanged"
-                    placeholder="Codice materiale..." />
-
-                <!-- filtro generale su tutte le proprietà -->
-                <Label id="labelGeneralFilter2" text="Filtro generale" />
-                <SearchField
-                    id="inputMaterialFilter2"
-                    width="15rem"
-                    liveChange=".onFilterChanged"
-                    search=".onFilterChanged"
-                    placeholder="Cerca in tutte le colonne..." />
-            </Toolbar>
-        </subHeader>
-
         <content>
-                <Table
-  id="tableMaterials2"
-  mode="{= ${/showMatStatusCol} ? 'MultiSelect' : 'SingleSelectMaster' }"
-  includeItemInSelection="false"
-  selectionChange=".onTableSelectionChange"
-  items="{ path: '/Materials' }"
-  growing="true"
-  growingThreshold="100"
-  growingScrollToLoad="true"
-  itemPress=".onMaterialPress">
+            <!-- Filter bar: desktop=one row, mobile=3 rows -->
+            <VBox id="vboxFilters2" class="mobileFilterBar">
+                <HBox id="filterRow2A" alignItems="Center" class="filterRow">
+                    <Label id="labelVendor2" text="Fornitore:" class="sapUiTinyMarginEnd"/>
+                    <Text id="textVendor2" text="{/CurrentVendorName}" class="sapUiSmallMarginEnd"/>
+                    <Label id="labelOnlyIncomplete2" text="Solo incompleti" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <Switch
+                        id="switchOnlyIncomplete2"
+                        state="true"
+                        change=".onFilterChanged" />
+                </HBox>
+                <HBox id="filterRow2B" alignItems="Center" class="filterRow">
+                    <Label id="labelDescCatFilter2" text="Cat. Materiale" class="sapUiTinyMarginEnd"/>
+                    <MultiComboBox
+                        id="inputDescCatFilter2"
+                        width="14rem"
+                        items="{ path: '/DescCatMaterialeValues', sorter: { path: 'text' } }"
+                        selectionChange=".onFilterChanged"
+                        placeholder="Es. Pelle, Tessuto...">
+                        <core:Item id="random1" key="{key}" text="{text}" />
+                    </MultiComboBox>
+                    <Label id="labelSeasonFilter2" text="Stagione" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <MultiComboBox
+                        id="inputSeasonFilter2"
+                        width="10rem"
+                        items="{ path: '/StagioneValues', sorter: { path: 'text' } }"
+                        selectionChange=".onFilterChanged"
+                        placeholder="Es. 44...">
+                        <core:Item id="random2" key="{key}" text="{text}" />
+                    </MultiComboBox>
+                </HBox>
+                <HBox id="filterRow2C" alignItems="Center" class="filterRow">
+                    <Label id="labelMaterialOnly2" text="Materiale" class="sapUiTinyMarginEnd"/>
+                    <SearchField
+                        id="inputMaterialOnly2"
+                        width="12rem"
+                        liveChange=".onFilterChanged"
+                        search=".onFilterChanged"
+                        placeholder="Codice materiale..." />
+                    <Label id="labelGeneralFilter2" text="Filtro generale" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <SearchField
+                        id="inputMaterialFilter2"
+                        width="15rem"
+                        liveChange=".onFilterChanged"
+                        search=".onFilterChanged"
+                        placeholder="Cerca in tutte le colonne..." />
+                </HBox>
+            </VBox>
+
+            <Table
+                id="tableMaterials2"
+                mode="{= ${/showMatStatusCol} ? 'MultiSelect' : 'SingleSelectMaster' }"
+                includeItemInSelection="false"
+                selectionChange=".onTableSelectionChange"
+                items="{ path: '/Materials' }"
+                growing="true"
+                growingThreshold="100"
+                growingScrollToLoad="true"
+                itemPress=".onMaterialPress">
 
                 <headerToolbar>
                     <Toolbar id="toolbarTableHeader2">
@@ -105,32 +100,33 @@
                             id="titleTable2"
                             text="Materiali"
                             level="H2" />
-                                <Button
-      id="btnSortMaterials2"
-      icon="sap-icon://sort"
-      tooltip="Ordina"
-      type="Transparent"
-      press=".onOpenSortDialog" />
-      
-   <Button
-      id="btnMassApprove"
-      text="Rilascio Massivo"
-      icon="sap-icon://accept"
-      type="Accept"
-      press=".onMassApprovePress" 
-      visible="{/showMatStatusCol}"
-      />
-
-    <Button
-      id="btnMassReject"
-      text="Blocco Massivo"
-      icon="sap-icon://decline"
-      type="Reject"
-      press=".onMassRejectPress"
-      visible="{/showMatStatusCol}"
-      />
-      <Button id="btnDeselectAll" text="Deseleziona Tutto" icon="sap-icon://reset" type="Transparent" press=".onDeselectAll" visible="{/showMatStatusCol}" />
-
+                        <Button
+                            id="btnSortMaterials2"
+                            icon="sap-icon://sort"
+                            tooltip="Ordina"
+                            type="Transparent"
+                            press=".onOpenSortDialog" />
+                        <Button
+                            id="btnMassApprove"
+                            text="Rilascio Massivo"
+                            icon="sap-icon://accept"
+                            type="Accept"
+                            press=".onMassApprovePress"
+                            visible="{/showMatStatusCol}" />
+                        <Button
+                            id="btnMassReject"
+                            text="Blocco Massivo"
+                            icon="sap-icon://decline"
+                            type="Reject"
+                            press=".onMassRejectPress"
+                            visible="{/showMatStatusCol}" />
+                        <Button
+                            id="btnDeselectAll"
+                            text="Deseleziona Tutto"
+                            icon="sap-icon://reset"
+                            type="Transparent"
+                            press=".onDeselectAll"
+                            visible="{/showMatStatusCol}" />
                     </Toolbar>
                 </headerToolbar>
 
@@ -138,92 +134,71 @@
                     <Column id="columnMaterial2">
                         <Text id="textColumnMaterial2" text="Materiale" />
                     </Column>
-
                     <Column id="columnMaterialDesc2">
                         <Text id="textColumnMaterialDesc2" text="Descrizione" />
                     </Column>
-
                     <Column id="DescCatMateriale">
                         <Text id="TextDescCatMateriale" text="Desc.Cat.Materiale" />
                     </Column>
-
-                    
-
                     <Column id="columnSeason2">
                         <Text id="textColumnSeason2" text="Stagione" />
                     </Column>
-
                     <Column id="columnOpenPo2">
                         <Text id="textColumnOpenPo2" text="Aperti" />
                     </Column>
-
                     <Column id="columnRejected2">
                         <Text id="textColumnRejected2" text="Rifiutati" />
                     </Column>
-
                     <Column id="columnPending2">
                         <Text id="textColumnPending2" text="In attesa approvazione" />
                     </Column>
-
                     <Column id="columnApproved2">
                         <Text id="textColumnApproved2" text="Approvati" />
                     </Column>
-
-                   <Column id="columnModified2" hAlign="Center">
+                    <Column id="columnModified2" hAlign="Center">
                         <Text id="textColumnModified2" text="Modificati" />
-                    </Column> 
-
-                   <Column id="columnMatStatus2" hAlign="Center" visible="{/showMatStatusCol}">
-  <Text id="textColumnMatStatus2" text="Stato" />
-</Column>
+                    </Column>
+                    <Column id="columnMatStatus2" hAlign="Center" visible="{/showMatStatusCol}">
+                        <Text id="textColumnMatStatus2" text="Stato" />
+                    </Column>
                 </columns>
 
                 <items>
                     <ColumnListItem
                         id="columnListItemMaterial2"
                         type="Active">
-
                         <cells>
                             <ObjectIdentifier
                                 id="objectIdentifierMaterial2"
                                 title="{Material}" />
-
                             <Text
                                 id="textMaterialDescription2"
                                 text="{MaterialDescription}" />
-
                             <Text
                                 id="DescCatMateriale2"
                                 text="{DescCatMateriale}" />
-
                             <Text
                                 id="textSeason2"
                                 text="{Stagione}" />
-
                             <core:Icon
                                 id="iconOpenPo2"
                                 src="{= ${Open} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
                                 color="{= ${Open} === 'X' ? 'green' : 'red' }" />
-
                             <ObjectNumber
                                 id="objectNumberRejected2"
                                 number="{Rejected}"
                                 state="Error" />
-
                             <ObjectNumber
                                 id="objectNumberPending2"
                                 number="{Pending}"
                                 state="Warning" />
-
                             <ObjectNumber
                                 id="objectNumberApproved2"
                                 number="{Approved}"
                                 state="Success" />
-
-                                 <Text
+                            <Text
                                 id="textModified2"
                                 text="{Modified}" />
-
                             <Button
                                 id="btnMatStatus2"
                                 enabled="true"

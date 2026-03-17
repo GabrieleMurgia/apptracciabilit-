@@ -207,7 +207,7 @@
 }
 
 /* ============================================================
-   NEW: SCREEN0 TILES CONTAINER (desktop = no change, mobile below)
+   SCREEN0 TILES CONTAINER (desktop = no change, mobile below)
    ============================================================ */
 .tilesContainer {
   gap: 16px;
@@ -215,13 +215,31 @@
 }
 
 /* ============================================================
-   NEW: SCREEN1/SCREEN2 FILTER TOOLBAR WRAPPING
+   SCREEN1/SCREEN2: FILTER BAR
+   Desktop: overrides VBox column → row (looks like original Toolbar)
+   Mobile: reverts to column (each HBox = one row)
    ============================================================ */
-.filterToolbarWrap > .sapMTBContent {
-  flex-wrap: wrap !important;
+.mobileFilterBar {
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #cbd5e1;
+  padding: 6px 12px;
+  flex-shrink: 0;
+  /* Desktop: override VBox column → row, like original Toolbar */
+  flex-direction: row !important;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
-  min-height: auto !important;
+  gap: 4px 12px;
+}
+
+.mobileFilterBar .filterRow {
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Pushes last group to the right on desktop (like ToolbarSpacer) */
+.mobileFilterBar .filterRowRight {
+  margin-left: auto;
 }
 
 /* ============================================================
@@ -230,6 +248,9 @@
 
 /* Tablets */
 @media screen and (max-width: 1024px) {
+    .fullHeightPage section{
+    overflow-y: scroll!important;
+  }
   .tableControlBar {
     padding: 0 8px;
   }
@@ -245,7 +266,14 @@
 
 /* Phones */
 @media screen and (max-width: 600px) {
+  .fullSizeTable{
+    overflow-y: scroll;
+  }
+  .fullHeightPage section{
+    overflow-y: scroll!important;
+  }
 
+  
   /* Hide logo on small screens */
   .hideLogo {
     display: none !important;
@@ -264,19 +292,29 @@
     margin: 0 !important;
   }
 
-  /* ── FIX 2: Screen1/Screen2 header wraps to multiple rows ── */
-  .filterToolbarWrap > .sapMTBContent {
-    flex-wrap: wrap !important;
-    gap: 4px 8px;
-    padding: 4px 0;
+  /* ── FIX 2: Screen1/Screen2 — VBox reverts to column on mobile ── */
+  .mobileFilterBar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 4px 8px;
+    gap: 4px;
   }
-  .filterToolbarWrap .sapMLabel {
-    white-space: nowrap;
+  .mobileFilterBar .filterRow {
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    padding: 2px 0;
+  }
+  .mobileFilterBar .filterRowRight {
+    margin-left: 0;
+  }
+  .mobileFilterBar .sapMLabel {
     font-size: 0.75rem;
+    white-space: nowrap;
   }
-  .filterToolbarWrap .sapMSF {
-    min-width: 120px;
-    max-width: 100%;
+  .mobileFilterBar .sapMSF,
+  .mobileFilterBar .sapMInputBase {
+    flex: 1 1 auto;
+    min-width: 100px;
   }
 
   /* ── Sub-header (Screen3 dynamic fields): keep existing behavior ── */
@@ -302,29 +340,13 @@
     font-size: 0.75rem;
   }
 
-  /* ── FIX 3: Screen3 vertical scroll on mobile ── */
-  .fullHeightPage > section {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .fullSizeTable {
-    height: auto !important;
-    min-height: 400px;
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .fullSizeTable .sapUiMdcTable {
-    height: auto !important;
-    min-height: 400px;
-  }
-
-  /* Control bar: stack vertically */
+  /* ── FIX 3: Screen3 — control bar not sticky on mobile ── */
   .tableControlBar {
-    top: 38px;
+    position: static !important;
+    top: auto !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    padding: 0 30px;
+    padding: 0 12px;
     gap: 4px;
   }
 

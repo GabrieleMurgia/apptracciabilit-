@@ -13,7 +13,9 @@
 
         <Bar id="bar0">
             <contentLeft>
-            <Image id="imageLogo0" src="IMG/Valentino.png" decorative="false" width="200px"/>
+            <!-- <Image id="imageLogo0" src="IMG/Valentino.png" decorative="false" width="200px"/> -->
+            <Image id="imageLogo0" src="{vm>/logoSrc}" decorative="false" width="200px"/>
+
             </contentLeft>
 
         <contentMiddle>

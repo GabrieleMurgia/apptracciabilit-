@@ -14,7 +14,8 @@
       <Toolbar id="toolbar6" class="appCustomHeader">
         <Bar id="bar6">
           <contentLeft>
-            <Image id="imageLogo6" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/>
+            <!-- <Image id="imageLogo6" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/> -->
+            <Image id="imageLogo6" src="{vm>/logoSrc}" decorative="false" width="200px" class="hideLogo"/>
             <Button id="buttonBack6" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>

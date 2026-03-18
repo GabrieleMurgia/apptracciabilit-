@@ -13,7 +13,8 @@
             <Toolbar id="toolbar1">
                 <Bar id="bar1">
                     <contentLeft>
-                        <Image id="imageLogo1" src="IMG/Valentino.png" decorative="false" width="200px"/>
+                        <!-- <Image id="imageLogo1" src="IMG/Valentino.png" decorative="false" width="200px"/> -->
+                        <Image id="imageLogo1" src="{vm>/logoSrc}" decorative="false" width="200px"/>
                         <Button
                             id="buttonBack1"
                             icon="sap-icon://nav-back"

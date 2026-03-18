@@ -49,7 +49,10 @@ sap.ui.define([
         selectedCat: "",
         RowsAll: [], Rows: [], RowsCount: 0,
         _mmct: { cat: "", s01: [], s02: [] },
-        __q: ""
+        __q: "",
+        checkDone: false,
+        checkPassed: false,
+        checkErrorCount: 0
       }), "detail");
 
       this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
@@ -200,65 +203,6 @@ sap.ui.define([
       });
     },
 
-/*     _exportMaterialListToExcel: async function (aResults, sCat) {
-      try {
-        var EdmType = sap.ui.require("sap/ui/export/library").EdmType;
-        var Spreadsheet = sap.ui.require("sap/ui/export/Spreadsheet");
-
-        if (!Spreadsheet) {
-          await new Promise(function (res) { sap.ui.require(["sap/ui/export/Spreadsheet"], function (S) { Spreadsheet = S; res(); }); });
-          EdmType = sap.ui.require("sap/ui/export/library").EdmType;
-        }
-
-        // Define columns based on the fields in the response
-        var aCols = [
-          { label: "Categoria Materiale", property: "CatMateriale" },
-          { label: "Desc. Categoria", property: "MatCatDesc" },
-          { label: "Fornitore", property: "Fornitore" },
-          { label: "Materiale", property: "Materiale" },
-          { label: "Descrizione Materiale", property: "DescMat" },
-          { label: "Stagione", property: "Stagione" },
-          { label: "Collezione", property: "Collezione" },
-          { label: "Linea", property: "Linea" },
-          { label: "Uscita", property: "Uscita" },
-          { label: "Fibra", property: "Fibra" },
-          { label: "Qtà Fibra", property: "QtaFibra" },
-          { label: "Unità Misura Fibra", property: "UmFibra" },
-          { label: "UdM", property: "UdM" },
-          { label: "Plant", property: "Plant" },
-          { label: "Dest. Uso", property: "DestUso" },
-          { label: "Famiglia", property: "Famiglia" }
-        ];
-
-        // Clean data: remove __metadata
-        var aData = aResults.map(function (r) {
-          var o = {};
-          aCols.forEach(function (c) {
-            o[c.property] = String(r[c.property] != null ? r[c.property] : "");
-          });
-          return o;
-        });
-
-        var oSheet = new Spreadsheet({
-          workbook: {
-            columns: aCols.map(function (c) {
-              return { label: c.label, property: c.property, type: EdmType.String };
-            })
-          },
-          dataSource: aData,
-          fileName: "ListaMateriali_" + sCat + ".xlsx"
-        });
-
-        await oSheet.build();
-        oSheet.destroy();
-        MessageToast.show("Lista materiali esportata (" + aData.length + " righe)");
-      } catch (e) {
-        console.error("[S6] Export material list error", e);
-        MessageBox.error("Errore nell'esportazione della lista materiali");
-      } finally {
-        BusyIndicator.hide();
-      }
-    }, */
     _exportMaterialListToExcel: async function (aResults, sCat) {
       try {
         var Spreadsheet, EdmType;
@@ -423,9 +367,8 @@ sap.ui.define([
             r.guidKey = N.genGuidNew ? N.genGuidNew() : ("EXCEL-" + Date.now() + "-" + i);
           });
 
-          self._populatePreviewTable(aMapped, sCat);
-          BusyIndicator.hide();
-          MessageToast.show(aMapped.length + " righe caricate dal file");
+          // ── Auto-check via CheckDataSet, then populate ──
+          self._executeCheck(aMapped, sCat);
 
         } catch (ex) {
           BusyIndicator.hide();
@@ -506,6 +449,46 @@ sap.ui.define([
 
       console.log("[S6] Column mapping:", mColMap);
 
+      // ── Detect multi-value columns (e.g. Nazione1, Nazione2, Nazione3 → Nazione) ──
+      // Build set of multi-value field names from MMCT
+      var mMultiFields = {};
+      (aRawFields || []).forEach(function (f) {
+        var sMulti = String(f.MultipleVal || "").trim().toUpperCase();
+        if (sMulti === "X") {
+          var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+          if (sUi) mMultiFields[sUi.toUpperCase()] = sUi;
+        }
+      });
+
+      // Detect pattern: Excel header ends with digits, base name is a multi-field
+      // e.g. "Nazione1" → base "Nazione", "PaeseOrigine3" → base "PaeseOrigine"
+      var mMergeGroups = {}; // baseName → [excelHeader1, excelHeader2, ...]
+      aExcelHeaders.forEach(function (h) {
+        var match = String(h || "").trim().match(/^(.+?)(\d+)$/);
+        if (!match) return;
+        var sBase = match[1];
+        var sBaseUpper = sBase.toUpperCase();
+        // Check if base name is a known multi-value field
+        if (mMultiFields[sBaseUpper]) {
+          var sTargetField = mMultiFields[sBaseUpper];
+          if (!mMergeGroups[sTargetField]) mMergeGroups[sTargetField] = [];
+          mMergeGroups[sTargetField].push(h);
+        }
+      });
+
+      // Sort each group by trailing number
+      Object.keys(mMergeGroups).forEach(function (field) {
+        mMergeGroups[field].sort(function (a, b) {
+          var nA = parseInt(a.match(/(\d+)$/)[1], 10);
+          var nB = parseInt(b.match(/(\d+)$/)[1], 10);
+          return nA - nB;
+        });
+      });
+
+      if (Object.keys(mMergeGroups).length) {
+        console.log("[S6] Multi-field merge groups:", mMergeGroups);
+      }
+
       // Map each row
       return aJsonRows.map(function (row) {
         var oMapped = {};
@@ -513,10 +496,334 @@ sap.ui.define([
           var sField = mColMap[h] || h;
           oMapped[sField] = row[h];
         });
+
+        // Merge multi-value columns with pipe
+        Object.keys(mMergeGroups).forEach(function (sTargetField) {
+          var aHeaders = mMergeGroups[sTargetField];
+          var aValues = [];
+          aHeaders.forEach(function (h) {
+            var v = String(row[h] != null ? row[h] : "").trim();
+            if (v) aValues.push(v);
+          });
+          if (aValues.length) {
+            oMapped[sTargetField] = aValues.join("|");
+          }
+          // Remove individual numbered columns from mapped row
+          aHeaders.forEach(function (h) {
+            var sMappedKey = mColMap[h] || h;
+            if (sMappedKey !== sTargetField) {
+              delete oMapped[sMappedKey];
+            }
+          });
+        });
+
         // Ensure CatMateriale
         if (!oMapped.CatMateriale) oMapped.CatMateriale = sCat;
         return oMapped;
       });
+    },
+
+    // ==================== CHECK DATA (auto after upload) ====================
+    _buildPayloadLines: function (aRows, sCat) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var oDetail = this.getView().getModel("detail");
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
+      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
+
+      // Build whitelist of allowed field names from MMCT
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+      var mAllowed = {};
+      var mNumeric = {};
+      var mFieldDomain = {}; // fieldName → domainName
+      (aRawFields || []).forEach(function (f) {
+        var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+        if (sUi) mAllowed[sUi] = true;
+        var sFn = String(f.Fieldname || "").trim();
+        if (sFn) mAllowed[sFn] = true;
+        // Map field → domain
+        var sDom = String(f.Dominio || "").trim();
+        if (sUi && sDom) mFieldDomain[sUi] = sDom;
+      });
+
+      // Build reverse lookup per domain: description (uppercase) → key
+      var mDomainReverse = {}; // domainName → { "ITALIA": "IT", "FRANCIA": "FR", ... }
+      Object.keys(mFieldDomain).forEach(function (field) {
+        var sDom = mFieldDomain[field];
+        if (mDomainReverse[sDom]) return; // already built
+        var aDomValues = (oVm.getProperty("/domainsByName/" + sDom)) || [];
+        var mReverse = {};
+        (aDomValues || []).forEach(function (entry) {
+          var sKey = String(entry.key || "").trim();
+          var sText = String(entry.text || "").trim();
+          if (sKey && sText) {
+            mReverse[sText.toUpperCase()] = sKey;
+            // Also map key itself (in case user entered the code)
+            mReverse[sKey.toUpperCase()] = sKey;
+          }
+        });
+        mDomainReverse[sDom] = mReverse;
+      });
+
+      var iDomainCount = Object.keys(mFieldDomain).length;
+      if (iDomainCount) {
+        console.log("[S6] Domain fields:", iDomainCount, "| Domains with reverse map:", Object.keys(mDomainReverse).length);
+      }
+
+      // Detect numeric fields
+      var aNumFields = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
+                        "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
+      aNumFields.forEach(function (k) { mNumeric[k] = true; });
+
+      // Always allow structural fields
+      ["CodAgg", "UserID", "Guid", "CatMateriale", "Fornitore", "Materiale",
+       "Stagione", "Fibra", "Collezione", "Linea", "Uscita", "Plant",
+       "PartitaFornitore", "Famiglia", "Stato", "Note", "UdM",
+       "DescMat", "MatCatDesc", "DestUso", "QtaFibra", "UmFibra"
+      ].forEach(function (k) { mAllowed[k] = true; });
+
+      console.log("[S6] Allowed payload fields:", Object.keys(mAllowed).length);
+
+      // Helper: resolve a single value against a domain reverse map
+      function resolveValue(sVal, mReverse) {
+        if (!sVal || !mReverse) return sVal;
+        var sUpper = String(sVal).trim().toUpperCase();
+        return mReverse[sUpper] !== undefined ? mReverse[sUpper] : sVal;
+      }
+
+      return aRows.map(function (r) {
+        var o = {};
+        Object.keys(r).forEach(function (k) {
+          if (!k) return;
+          if (k.indexOf("__") === 0) return;
+          if (k === "__metadata" || k === "AllData") return;
+          if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+          // Only include fields known to MMCT/OData
+          if (!mAllowed[k]) return;
+
+          var v = r[k];
+
+          // Domain fields: resolve description → key
+          var sDomain = mFieldDomain[k];
+          var mReverse = sDomain ? mDomainReverse[sDomain] : null;
+
+          if (mMulti[k]) {
+            // Multi-value: split by pipe, resolve each, rejoin
+            var sRaw = N.normalizeMultiString ? N.normalizeMultiString(v, "|") : (Array.isArray(v) ? v.join("|") : String(v || ""));
+            if (mReverse) {
+              var aParts = String(sRaw).split("|");
+              sRaw = aParts.map(function (p) { return resolveValue(p.trim(), mReverse); }).filter(Boolean).join("|");
+            }
+            v = sRaw;
+          } else if (Array.isArray(v)) {
+            v = v.join(";");
+          } else if (mReverse) {
+            // Single value with domain: resolve
+            v = resolveValue(String(v != null ? v : ""), mReverse);
+          }
+
+          // Numeric fields: ensure valid decimal string or empty
+          if (mNumeric[k]) {
+            var sVal = String(v != null ? v : "").trim().replace(",", ".");
+            var fNum = parseFloat(sVal);
+            v = isNaN(fNum) ? "0" : String(fNum);
+          }
+
+          o[k] = (v === undefined ? "" : v);
+        });
+
+        o.CodAgg = "I";
+        o.UserID = sUserId;
+        o.Guid = "";
+        if (!o.CatMateriale) o.CatMateriale = sCat;
+
+        delete o.GUID;
+        delete o.GuidKey;
+
+        return o;
+      });
+    },
+
+    _executeCheck: function (aRows, sCat) {
+      var oODataModel = this.getOwnerComponent().getModel();
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
+      var self = this;
+
+      var aLines = this._buildPayloadLines(aRows, sCat);
+
+      var oPayload = {
+        UserID: sUserId,
+        PostDataCollection: aLines
+      };
+
+      console.log("[S6] CHECK payload /CheckDataSet", JSON.parse(JSON.stringify(oPayload)));
+
+      oODataModel.setHeaders({ "sap-language": "IT" });
+      oODataModel.create("/CheckDataSet", oPayload, {
+        urlParameters: { "sap-language": "IT" },
+        success: function (oData) {
+          BusyIndicator.hide();
+          console.log("[S6] CHECK success", oData);
+
+          self._processCheckResponse(aRows, oData);
+
+          var oDetail2 = self.getView().getModel("detail");
+          var iErrCount = oDetail2.getProperty("/checkErrorCount") || 0;
+          console.log("[S6] CHECK processed: errors=" + iErrCount + ", rows with __checkHasError:", aRows.filter(function(r){return r.__checkHasError;}).length);
+
+          self._populatePreviewTable(aRows, sCat);
+
+          // Highlight error rows after table renders
+          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
+
+          var oDetail = self.getView().getModel("detail");
+          var iErrors = oDetail.getProperty("/checkErrorCount") || 0;
+          var iTotal = aRows.length;
+
+          if (iErrors === 0) {
+            MessageToast.show(iTotal + " righe verificate: tutte OK");
+          } else {
+            // Build per-row error detail like Screen3/4
+            var aErrDetails = [];
+            aRows.forEach(function (r, idx) {
+              if (r.__checkHasError) {
+                aErrDetails.push("Riga " + (idx + 1) + ": " + (r.__checkMessage || "Errore"));
+              }
+            });
+            var sMsg = "Verifica completata: " + iErrors + " righe con errori su " + iTotal + " totali.\n\n";
+            sMsg += aErrDetails.slice(0, 15).join("\n");
+            if (aErrDetails.length > 15) {
+              sMsg += "\n\n... e altre " + (aErrDetails.length - 15) + " righe con errori.";
+            }
+            sMsg += "\n\nCorreggere gli errori e ricaricare il file, oppure procedere con le sole righe valide.";
+            MessageBox.warning(sMsg);
+          }
+        },
+        error: function (oError) {
+          BusyIndicator.hide();
+          console.error("[S6] CHECK error", oError);
+          var sMsg = "Errore nella verifica dei dati";
+          try {
+            var oBody = JSON.parse(oError.responseText);
+            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
+          } catch (e) {}
+          MessageBox.error(sMsg);
+
+          // Still populate preview even if check fails
+          console.log("[S6] CHECK failed with HTTP error, populating preview anyway. Rows:", aRows.length);
+          aRows.forEach(function (r) {
+            r.__checkEsito = "Attenzione";
+            r.__checkMessage = "Verifica non riuscita";
+            r.__checkHasError = false;
+          });
+          self._populatePreviewTable(aRows, sCat);
+          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
+        }
+      });
+    },
+
+    _processCheckResponse: function (aRows, oData) {
+      var oDetail = this.getView().getModel("detail");
+      var aRespLines = [];
+
+      if (oData && oData.PostDataCollection && oData.PostDataCollection.results) {
+        aRespLines = oData.PostDataCollection.results;
+      } else if (oData && oData.PostDataCollection && Array.isArray(oData.PostDataCollection)) {
+        aRespLines = oData.PostDataCollection;
+      }
+
+      console.log("[S6] Check response lines:", aRespLines.length);
+
+      var iErrors = 0;
+
+      aRows.forEach(function (row, idx) {
+        var oResp = aRespLines[idx] || {};
+        var sEsito = String(oResp.Esito || oResp.esito || oResp.ESITO || "").trim().toUpperCase();
+        var sMessage = String(oResp.Message || oResp.message || oResp.MESSAGE || oResp.Messaggio || "").trim();
+
+        if (sEsito === "E" || sEsito === "ERROR" || sEsito === "KO") {
+          row.__checkEsito = "Errore";
+          row.__checkMessage = sMessage || "Errore";
+          row.__checkHasError = true;
+          iErrors++;
+        } else if (sEsito === "W" || sEsito === "WARNING") {
+          row.__checkEsito = "Attenzione";
+          row.__checkMessage = sMessage || "Attenzione";
+          row.__checkHasError = false;
+        } else if (sEsito === "S" || sEsito === "OK" || sEsito === "SUCCESS" || sEsito === "") {
+          row.__checkEsito = "OK";
+          row.__checkMessage = sMessage || "OK";
+          row.__checkHasError = false;
+        } else {
+          // Unknown esito: treat as error to be safe
+          row.__checkEsito = sEsito || "Errore";
+          row.__checkMessage = sMessage || "Esito sconosciuto: " + sEsito;
+          row.__checkHasError = true;
+          iErrors++;
+        }
+      });
+
+      oDetail.setProperty("/checkErrorCount", iErrors);
+      oDetail.setProperty("/checkPassed", iErrors === 0);
+      oDetail.setProperty("/checkDone", true);
+    },
+
+    // ==================== CHECK ERROR ROW HIGHLIGHTING ====================
+    _updateCheckErrorRowStyles: function () {
+      var oMdcTbl = this.byId("mdcTable6");
+      if (!oMdcTbl) { console.log("[S6] ROW-STYLE: mdcTable6 not found"); return; }
+
+      var oInner = MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
+      if (!oInner) { console.log("[S6] ROW-STYLE: inner table not found"); return; }
+
+      console.log("[S6] ROW-STYLE: inner table type =", oInner.getMetadata().getName());
+
+      // GridTable (sap.ui.table.Table)
+      if (oInner.isA && oInner.isA("sap.ui.table.Table")) {
+        var aRows = (oInner.getRows && oInner.getRows()) || [];
+        var iMarked = 0;
+        aRows.forEach(function (oRowCtrl) {
+          if (!oRowCtrl) return;
+          var oCtx = oRowCtrl.getBindingContext("detail") || oRowCtrl.getBindingContext();
+          var oObj = oCtx && oCtx.getObject && oCtx.getObject();
+          if (oObj && oObj.__checkHasError) {
+            oRowCtrl.addStyleClass("s3PostErrorRow");
+            iMarked++;
+          } else {
+            oRowCtrl.removeStyleClass("s3PostErrorRow");
+          }
+        });
+        console.log("[S6] ROW-STYLE: GridTable rows=" + aRows.length + ", marked red=" + iMarked);
+
+        // Re-apply on scroll
+        var self = this;
+        if (!this._s6ErrorScrollHooked) {
+          this._s6ErrorScrollHooked = true;
+          oInner.attachFirstVisibleRowChanged(function () {
+            setTimeout(function () { self._updateCheckErrorRowStyles(); }, 100);
+          });
+        }
+        return;
+      }
+
+      // ResponsiveTable (sap.m.Table)
+      if (oInner.isA && (oInner.isA("sap.m.Table") || oInner.isA("sap.m.ListBase"))) {
+        var aItems = (oInner.getItems && oInner.getItems()) || [];
+        var iMarked2 = 0;
+        aItems.forEach(function (it) {
+          if (!it) return;
+          var oCtx2 = it.getBindingContext("detail") || it.getBindingContext();
+          var oObj2 = oCtx2 && oCtx2.getObject && oCtx2.getObject();
+          if (oObj2 && oObj2.__checkHasError) {
+            it.addStyleClass("s3PostErrorRow");
+            iMarked2++;
+          } else {
+            it.removeStyleClass("s3PostErrorRow");
+          }
+        });
+        console.log("[S6] ROW-STYLE: ResponsiveTable items=" + aItems.length + ", marked red=" + iMarked2);
+      }
     },
 
     // ==================== POPULATE PREVIEW TABLE ====================
@@ -635,12 +942,9 @@ sap.ui.define([
       }.bind(this));
     },
 
-    _createCellTemplate: function (sKey, oMeta) {
-      return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
-        view: this.getView(),
-        domainHasValuesFn: function (d) { return Domains.domainHasValues(this.getOwnerComponent(), d); }.bind(this),
-        hookDirtyOnEditFn: function () { /* upload preview: no dirty tracking */ }
-      });
+    _createCellTemplate: function (sKey) {
+      // Screen6: read-only preview — always use Text
+      return new Text({ text: "{detail>" + sKey + "}", wrapping: false });
     },
 
     // ==================== FILTERS ====================
@@ -679,44 +983,15 @@ sap.ui.define([
       oDetail.setProperty("/RowsAll", []);
       oDetail.setProperty("/Rows", []);
       oDetail.setProperty("/RowsCount", 0);
+      oDetail.setProperty("/checkDone", false);
+      oDetail.setProperty("/checkPassed", false);
+      oDetail.setProperty("/checkErrorCount", 0);
+      this._s6ErrorScrollHooked = false;
       this.byId("fileUploader6").clear();
       MessageToast.show("Dati caricati rimossi");
     },
 
     // ==================== EXPORT PREVIEW ====================
-/*     onExportExcel: async function () {
-      try {
-        BusyIndicator.show(0);
-        var oDetail = this.getView().getModel("detail");
-        var aRows = oDetail.getProperty("/Rows") || [];
-        if (!aRows.length) { MessageToast.show("Nessun dato da esportare"); return; }
-
-        var EdmType = sap.ui.require("sap/ui/export/library").EdmType;
-        var Spreadsheet = sap.ui.require("sap/ui/export/Spreadsheet");
-        if (!Spreadsheet) {
-          await new Promise(function (res) { sap.ui.require(["sap/ui/export/Spreadsheet"], function (S) { Spreadsheet = S; res(); }); });
-          EdmType = sap.ui.require("sap/ui/export/library").EdmType;
-        }
-
-        var aKeys = Object.keys(aRows[0] || {}).filter(function (k) { return k.charAt(0) !== "_"; });
-        var aCols = aKeys.map(function (k) { return { label: k, property: k, type: EdmType.String }; });
-        var aData = aRows.map(function (r) {
-          var o = {};
-          aKeys.forEach(function (k) { o[k] = String(r[k] != null ? r[k] : ""); });
-          return o;
-        });
-
-        var oSheet = new Spreadsheet({ workbook: { columns: aCols }, dataSource: aData, fileName: "Preview_Upload.xlsx" });
-        await oSheet.build();
-        oSheet.destroy();
-        MessageToast.show("Excel esportato");
-      } catch (e) {
-        console.error("[S6] Export error", e);
-        MessageToast.show("Errore export");
-      } finally {
-        BusyIndicator.hide();
-      }
-    }, */
     onExportExcel: async function () {
       try {
         BusyIndicator.show(0);
@@ -755,35 +1030,8 @@ sap.ui.define([
         BusyIndicator.hide();
       }
     },
+
     // ==================== SEND DATA (POST) ====================
-/*     onSendData: function () {
-      var oDetail = this.getView().getModel("detail");
-      var aRows = oDetail.getProperty("/RowsAll") || [];
-      if (!aRows.length) {
-        MessageToast.show("Nessun dato da inviare");
-        return;
-      }
-
-      var sCat = this._getSelectedCat();
-      if (!sCat) {
-        MessageToast.show("Seleziona una categoria materiale");
-        return;
-      }
-
-      var self = this;
-      MessageBox.confirm(
-        "Stai per inviare " + aRows.length + " righe al sistema.\nProseguire?",
-        {
-          actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-          emphasizedAction: MessageBox.Action.OK,
-          onClose: function (sAction) {
-            if (sAction === MessageBox.Action.OK) {
-              self._executePost(aRows, sCat);
-            }
-          }
-        }
-      );
-    }, */
     onSendData: function () {
       var oDetail = this.getView().getModel("detail");
       var aRows = oDetail.getProperty("/RowsAll") || [];
@@ -827,7 +1075,6 @@ sap.ui.define([
         });
 
         if (aErrors.length) {
-          // Show max 10 errors to avoid huge dialog
           var sMsg = "Campi obbligatori mancanti:\n\n";
           sMsg += aErrors.slice(0, 10).join("\n");
           if (aErrors.length > 10) {
@@ -839,114 +1086,41 @@ sap.ui.define([
         }
       }
 
+      // Filter out rows with check errors
+      var aRowsToSend = aRows;
+      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
+      if (iCheckErrors > 0) {
+        aRowsToSend = aRows.filter(function (r) { return !r.__checkHasError; });
+        if (!aRowsToSend.length) {
+          MessageBox.error("Tutte le righe hanno errori di verifica. Correggere e ricaricare il file.");
+          return;
+        }
+      }
+
       var self = this;
-      MessageBox.confirm(
-        "Stai per inviare " + aRows.length + " righe al sistema.\nProseguire?",
-        {
-          actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-          emphasizedAction: MessageBox.Action.OK,
-          onClose: function (sAction) {
-            if (sAction === MessageBox.Action.OK) {
-              self._executePost(aRows, sCat);
-            }
+      var sConfirmMsg = "Stai per inviare " + aRowsToSend.length + " righe al sistema.";
+      if (iCheckErrors > 0) {
+        sConfirmMsg += "\n(" + iCheckErrors + " righe con errori saranno escluse)";
+      }
+      sConfirmMsg += "\nProseguire?";
+
+      MessageBox.confirm(sConfirmMsg, {
+        actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+        emphasizedAction: MessageBox.Action.OK,
+        onClose: function (sAction) {
+          if (sAction === MessageBox.Action.OK) {
+            self._executePost(aRowsToSend, sCat);
           }
         }
-      );
+      });
     },
-/*     _executePost: function (aRows, sCat) {
-      var oODataModel = this.getOwnerComponent().getModel();
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var oDetail = this.getView().getModel("detail");
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
 
-      // Build payload: each row as a PostDataCollection entry
-      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
-
-      var aPayloadLines = aRows.map(function (r) {
-        var o = {};
-        Object.keys(r).forEach(function (k) {
-          if (k.charAt(0) === "_") return; // skip internal fields
-          var v = r[k];
-          if (Array.isArray(v)) {
-            v = N.normalizeMultiString ? N.normalizeMultiString(v) : v.join("|");
-          }
-          o[k] = (v != null) ? String(v) : "";
-        });
-        // Ensure required structural fields
-        o.CatMateriale = o.CatMateriale || sCat;
-        o.CodAgg = "I";
-        o.UserID = sUserId;
-        if (!o.Guid && N.uuidv4) o.Guid = N.uuidv4();
-        return o;
-      });
-
-      var oPayload = {
-        CodAgg: "I",
-        Guid: N.uuidv4 ? N.uuidv4() : ("BATCH-" + Date.now()),
-        UserID: sUserId,
-        PostLines: aPayloadLines
-      };
-
-      BusyIndicator.show(0);
-      var self = this;
-
-      oODataModel.create("/PostDataCollection", oPayload, {
-        success: function (oData) {
-          BusyIndicator.hide();
-          console.log("[S6] POST success", oData);
-          MessageBox.success("Dati inviati con successo (" + aPayloadLines.length + " righe)");
-          // Clear uploaded data
-          self.onClearUpload();
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S6] POST error", oError);
-          var sMsg = "Errore nell'invio dei dati";
-          try {
-            var oBody = JSON.parse(oError.responseText);
-            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-          } catch (e) {}
-          MessageBox.error(sMsg);
-        }
-      });
-    }, */
     _executePost: function (aRows, sCat) {
       var oODataModel = this.getOwnerComponent().getModel();
       var oVm = this.getOwnerComponent().getModel("vm");
-      var oDetail = this.getView().getModel("detail");
       var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
 
-      // Build lines like saveUtil.sanitizeForPost
-      var aLines = aRows.map(function (r) {
-        var o = {};
-        Object.keys(r).forEach(function (k) {
-          if (!k) return;
-          if (k.indexOf("__") === 0) return;
-          if (k === "__metadata" || k === "AllData") return;
-          if (k === "idx" || k === "guidKey" || k === "StatoText") return;
-
-          var v = r[k];
-          if (mMulti[k]) {
-            v = N.normalizeMultiString ? N.normalizeMultiString(v, "|") : (Array.isArray(v) ? v.join("|") : v);
-          } else if (Array.isArray(v)) {
-            v = v.join(";");
-          }
-          o[k] = (v === undefined ? "" : v);
-        });
-
-        // Ensure structural fields
-        o.CodAgg = "I";
-        o.UserID = sUserId;
-        o.Guid = null;
-        if (!o.CatMateriale) o.CatMateriale = sCat;
-
-        // Cleanup
-        delete o.GUID;
-        delete o.GuidKey;
-
-        return o;
-      });
+      var aLines = this._buildPayloadLines(aRows, sCat);
 
       var oPayload = {
         UserID: sUserId,
@@ -958,6 +1132,7 @@ sap.ui.define([
       BusyIndicator.show(0);
       var self = this;
 
+      oODataModel.setHeaders({ "sap-language": "IT" });
       oODataModel.create("/PostDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {

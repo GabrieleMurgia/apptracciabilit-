@@ -14,8 +14,7 @@
       <Toolbar id="toolbar6" class="appCustomHeader">
         <Bar id="bar6">
           <contentLeft>
-            <!-- <Image id="imageLogo6" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/> -->
-            <Image id="imageLogo6" src="{vm>/logoSrc}" decorative="false" width="200px" class="hideLogo"/>
+            <Image id="imageLogo6" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/>
             <Button id="buttonBack6" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
@@ -83,6 +82,15 @@
           text="{= 'Righe caricate: ' + (${detail>/RowsCount} || 0) }"
           state="None"/>
 
+        <!-- Check result status -->
+        <ObjectStatus
+          id="osCheckStatus6"
+          visible="{detail>/checkDone}"
+          text="{= ${detail>/checkErrorCount} === 0 ? 'Verifica OK' : ('Errori: ' + ${detail>/checkErrorCount}) }"
+          state="{= ${detail>/checkErrorCount} === 0 ? 'Success' : 'Error' }"
+          icon="{= ${detail>/checkErrorCount} === 0 ? 'sap-icon://status-completed' : 'sap-icon://alert' }"
+          class="sapUiSmallMarginBegin"/>
+
       </OverflowToolbar>
     </subHeader>
 
@@ -135,12 +143,16 @@
         }'>
       </mdc:Table>
 
+      <!-- Spacer pushes footer to bottom -->
+            <VBox id="legalSpacer6" class="legalFooterSpacer"/>
+            <!-- Legal Footer -->
+      <VBox id="legalFooter6" class="appLegalFooter" alignItems="Center">
+          <Text id="legalTitle6" text="VALENTINO.COM" class="legalFooterTitle"/>
+          <Text id="legalCopy6" text="Powered by Valentino Copyright © 2025 VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+      </VBox>
+
     </content>
 
-      <VBox id="legalFooter6" class="appLegalFooter appLegalFooter562" alignItems="Center">
-          <Text id="legalTitle6" text="VALENTINO.COM" class="legalFooterTitle"/>
-<Text id="legalCopy6" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
-      </VBox>
     <footer>
       <OverflowToolbar id="footerToolbar6">
         <ToolbarSpacer id="footerSpacer6"/>

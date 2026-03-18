@@ -586,7 +586,7 @@ _ensureVendorsLoaded: function () {
       });
     }, */
      onPressFlowB: function () {
-      return; /* temp return */
+      /* return;  *//* temp return */
       this.getOwnerComponent().getRouter().navTo("Screen6");
     },
 

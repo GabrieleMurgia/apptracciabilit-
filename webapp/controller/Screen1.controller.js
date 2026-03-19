@@ -46,8 +46,8 @@ sap.ui.define([
         success: function (oData) {
           BusyIndicator.hide();
           var aVend = (oData && oData.results) || [];
-          console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
-          oVm.setProperty("/userVendors", aVend);
+/*           console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
+ */          oVm.setProperty("/userVendors", aVend);
           oVm.setProperty("/UserInfosVend", aVend);
           oVm.setProperty("/__vendorCacheStale", true);
 
@@ -87,8 +87,8 @@ sap.ui.define([
       });
 
       oVm.setProperty("/userCategoriesList", aList);
-      console.log("[Screen1] Categories built from vendors:", aList.length);
-    },
+/*       console.log("[Screen1] Categories built from vendors:", aList.length);
+ */    },
 
     // =========================================================
     // VENDOR PRESS — passa anche la categoria selezionata

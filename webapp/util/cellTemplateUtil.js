@@ -389,8 +389,8 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           readOnly: bReadOnly,
           onCountChange: function (iNewCount) {
             var sVal = String(iNewCount);
-            console.log("[cellTemplateUtil] onCountChange fired", sKey, "=", sVal, "guid=", sRowGuid);
-            try {
+/*             console.log("[cellTemplateUtil] onCountChange fired", sKey, "=", sVal, "guid=", sRowGuid);
+ */            try {
               if (!oDetailModel) return;
               // Update the record directly in RecordsAll and Records by GUID
               /* ["/RecordsAll", "/Records"].forEach(function (sArrPath) { */
@@ -618,8 +618,8 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
     var bNumeric = !!(oMeta && oMeta.numeric);
-    console.log("[cellTemplate]", sKey, "numeric=", bNumeric);
-
+/*     console.log("[cellTemplate]", sKey, "numeric=", bNumeric);
+ */
     /*var oText = new Text({
       width: "100%",
       text: { path: "detail>" + sKey, formatter: _formatCellValue },

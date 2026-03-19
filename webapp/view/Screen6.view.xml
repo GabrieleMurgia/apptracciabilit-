@@ -8,13 +8,13 @@
   xmlns:mdc="sap.ui.mdc"
   displayBlock="true">
 
-  <Page id="page6" title="Caricamento da Excel" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
+  <Page id="page6" title="Caricamento da Excel" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar6" class="appCustomHeader">
         <Bar id="bar6">
           <contentLeft>
-            <Image id="imageLogo6" src="IMG/Valentino.png" decorative="false" width="200px" class="hideLogo"/>
+            <Image id="imageLogo6" src="{vm>/logoSrc}" decorative="false" width="200px" class="hideLogo"/>
             <Button id="buttonBack6" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
@@ -27,12 +27,12 @@
       </Toolbar>
     </customHeader>
 
-    <subHeader>
-      <OverflowToolbar id="toolbarInfo6" design="Transparent" class="subHeaderBar">
+    <content>
 
-        <!-- Category selection -->
-        <HBox id="hboxCatSelect6" alignItems="Center" class="searchFilterBox">
-          <Label id="lblCatMat6" text="Categoria Materiale:" class="sapUiSmallMarginEnd filterLabel"/>
+      <!-- Filter bar: desktop=one row, mobile=2 rows -->
+      <VBox id="vboxFilters6" class="mobileFilterBar">
+        <HBox id="filterRow6A" alignItems="Center" class="filterRow">
+          <Label id="lblCatMat6" text="Categoria Materiale:" class="sapUiTinyMarginEnd"/>
           <ComboBox
             id="comboCatMat6"
             width="250px"
@@ -43,58 +43,44 @@
               <core:Item id="catItem6" key="{vm>key}" text="{vm>text}"/>
             </items>
           </ComboBox>
+          <Button
+            id="btnDownloadTemplate6"
+            text="Scarica Template"
+            icon="sap-icon://download"
+            type="Emphasized"
+            press=".onDownloadTemplate"
+            class="sapUiSmallMarginBegin"/>
+          <Button
+            id="btnDownloadMaterials6"
+            text="Scarica Lista Materiali"
+            icon="sap-icon://excel-attachment"
+            type="Default"
+            press=".onDownloadMaterialList"
+            class="sapUiSmallMarginBegin"/>
         </HBox>
-
-        <ToolbarSpacer id="hdr6Spacer1"/>
-
-        <!-- Download buttons -->
-        <Button
-          id="btnDownloadTemplate6"
-          text="Scarica Template"
-          icon="sap-icon://download"
-          type="Emphasized"
-          press=".onDownloadTemplate"
-          class="sapUiSmallMarginEnd"/>
-        <Button
-          id="btnDownloadMaterials6"
-          text="Scarica Lista Materiali"
-          icon="sap-icon://excel-attachment"
-          type="Default"
-          press=".onDownloadMaterialList"/>
-
-        <ToolbarSpacer id="hdr6Spacer2"/>
-
-        <!-- Upload -->
-        <u:FileUploader
-          id="fileUploader6"
-          name="excelUpload"
-          fileType="xlsx,xls"
-          placeholder="Seleziona file Excel compilato..."
-          width="350px"
-          change=".onFileSelected"
-          buttonText="Scegli file"/>
-
-        <ToolbarSpacer id="hdr6Spacer3"/>
-
-        <!-- Row count -->
-        <ObjectStatus
-          id="osRowCount6"
-          text="{= 'Righe caricate: ' + (${detail>/RowsCount} || 0) }"
-          state="None"/>
-
-        <!-- Check result status -->
-        <ObjectStatus
-          id="osCheckStatus6"
-          visible="{detail>/checkDone}"
-          text="{= ${detail>/checkErrorCount} === 0 ? 'Verifica OK' : ('Errori: ' + ${detail>/checkErrorCount}) }"
-          state="{= ${detail>/checkErrorCount} === 0 ? 'Success' : 'Error' }"
-          icon="{= ${detail>/checkErrorCount} === 0 ? 'sap-icon://status-completed' : 'sap-icon://alert' }"
-          class="sapUiSmallMarginBegin"/>
-
-      </OverflowToolbar>
-    </subHeader>
-
-    <content>
+        <HBox id="filterRow6B" alignItems="Center" class="filterRow">
+          <u:FileUploader
+            id="fileUploader6"
+            name="excelUpload"
+            fileType="xlsx,xls"
+            placeholder="Seleziona file Excel compilato..."
+            width="350px"
+            change=".onFileSelected"
+            buttonText="Scegli file"/>
+          <ObjectStatus
+            id="osRowCount6"
+            text="{= 'Righe caricate: ' + (${detail>/RowsCount} || 0) }"
+            state="None"
+            class="sapUiSmallMarginBegin"/>
+          <ObjectStatus
+            id="osCheckStatus6"
+            visible="{detail>/checkDone}"
+            text="{= ${detail>/checkErrorCount} === 0 ? 'Verifica OK' : ('Errori: ' + ${detail>/checkErrorCount}) }"
+            state="{= ${detail>/checkErrorCount} === 0 ? 'Success' : 'Error' }"
+            icon="{= ${detail>/checkErrorCount} === 0 ? 'sap-icon://status-completed' : 'sap-icon://alert' }"
+            class="sapUiSmallMarginBegin"/>
+        </HBox>
+      </VBox>
 
       <!-- Filters toolbar -->
       <HBox
@@ -143,14 +129,6 @@
         }'>
       </mdc:Table>
 
-      <!-- Spacer pushes footer to bottom -->
-            <VBox id="legalSpacer6" class="legalFooterSpacer"/>
-            <!-- Legal Footer -->
-      <VBox id="legalFooter6" class="appLegalFooter" alignItems="Center">
-          <Text id="legalTitle6" text="VALENTINO.COM" class="legalFooterTitle"/>
-          <Text id="legalCopy6" text="Powered by Valentino Copyright © 2025 VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
-      </VBox>
-
     </content>
 
     <footer>
@@ -161,7 +139,7 @@
           text="Invia Dati"
           icon="sap-icon://upload-to-cloud"
           type="Emphasized"
-          enabled="{= ${detail>/RowsCount} > 0 }"
+          enabled="{= ${detail>/RowsCount} > 0 &amp;&amp; ${detail>/checkDone} === true &amp;&amp; ${detail>/checkErrorCount} === 0 }"
           press=".onSendData"/>
       </OverflowToolbar>
     </footer>

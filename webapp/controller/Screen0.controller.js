@@ -110,19 +110,19 @@ sap.ui.define([
         var mock = oVm.getProperty("/mock") || {};
         oVm.setProperty("/mock", Object.assign({}, mock, { mockS0: true }));
 
-        console.log("[Screen0][MOCK FALLBACK] applyVm OK", {
+/*         console.log("[Screen0][MOCK FALLBACK] applyVm OK", {
           userId: oVm.getProperty("/userId"),
           userType: oVm.getProperty("/userType"),
           mock: oVm.getProperty("/mock")
-        });
+        }); */
       } catch (e) {
         console.error("[Screen0][MOCK FALLBACK] ERROR", e);
       }
     },
 
     onInit: function () {
-      console.log("[Screen0] " + ts() + " onInit START");
-
+/*       console.log("[Screen0] " + ts() + " onInit START");
+ */
       var oComponent = this.getOwnerComponent();
 
       // 1) Intercetta subito errori $metadata / requestFailed
@@ -266,12 +266,12 @@ sap.ui.define([
             }
           });
 
-          console.log("[Screen0][MOCK FILE] UserInfosSet OK", {
+/*           console.log("[Screen0][MOCK FILE] UserInfosSet OK", {
             userId: oVm.getProperty("/userId"),
             userType: oVm.getProperty("/userType"),
             vendors: (oVm.getProperty("/userVendors") || []).length,
             mmctCats: (oVm.getProperty("/userMMCT") || []).length
-          });
+          }); */
 
         }).catch(function (err) {
           BusyIndicator.hide();
@@ -369,8 +369,8 @@ sap.ui.define([
                     aAllFields = (r && (r.fields || r.fieldsPatched)) || aAllFields;
 
                     if (r && r.logs && Array.isArray(r.logs) && r.logs.length) {
-                      console.log("[Screen0][DomainFallback] ON - logs:", r.logs);
-                    }
+/*                       console.log("[Screen0][DomainFallback] ON - logs:", r.logs);
+ */                    }
                     return;
                   }
                 } catch (e1) {
@@ -433,8 +433,8 @@ sap.ui.define([
                 cache: oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} }
               }, true);
 
-              console.log("[Screen0] userType:", sUserType, "auth:", oVm.getProperty("/auth"), "mock:", oVm.getProperty("/mock"));
-
+/*               console.log("[Screen0] userType:", sUserType, "auth:", oVm.getProperty("/auth"), "mock:", oVm.getProperty("/mock"));
+ */
             }.bind(this),
             error: function (oError) {
               BusyIndicator.hide();
@@ -513,8 +513,8 @@ _ensureVendorsLoaded: function () {
           success: function (oData) {
             BusyIndicator.hide();
             var aVend = (oData && oData.results) || [];
-            console.log("[Screen0] VendorDataSet loaded:", aVend.length, "vendors");
-            oVm.setProperty("/userVendors", aVend);
+/*             console.log("[Screen0] VendorDataSet loaded:", aVend.length, "vendors");
+ */            oVm.setProperty("/userVendors", aVend);
             oVm.setProperty("/UserInfosVend", aVend);
             resolve(aVend);
           },
@@ -559,8 +559,8 @@ _ensureVendorsLoaded: function () {
             return;
           }
 
-          console.log("[Screen0] FORNITORE -> skip Screen1, vendor:", sVendorId);
-
+/*           console.log("[Screen0] FORNITORE -> skip Screen1, vendor:", sVendorId);
+ */
           oRouter.navTo("Screen2", {
             vendorId: encodeURIComponent(String(sVendorId)),
             mode: "A"

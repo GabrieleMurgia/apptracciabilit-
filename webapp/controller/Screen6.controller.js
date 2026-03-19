@@ -297,7 +297,7 @@ sap.ui.define([
       this._xlsxPromise = new Promise(function (resolve, reject) {
         // Try loading from local project first, then CDN
         var aPaths = [
-          jQuery.sap.getModulePath("apptracciabilita/apptracciabilita") + "/lib/xlsx.full.min.js",
+          jQuery.sap.getModulePath("apptracciabilita/apptracciabilita") + "/thirdparty/xlsx.full.min.js",
           "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
         ];
 
@@ -351,8 +351,8 @@ sap.ui.define([
             return;
           }
 
-          console.log("[S6] Parsed Excel:", aJsonRows.length, "rows. Headers:", Object.keys(aJsonRows[0]));
-          self._log("Parsed Excel", { rows: aJsonRows.length, headers: Object.keys(aJsonRows[0]) });
+          /* console.log("[S6] Parsed Excel:", aJsonRows.length, "rows. Headers:", Object.keys(aJsonRows[0]));
+          self._log("Parsed Excel", { rows: aJsonRows.length, headers: Object.keys(aJsonRows[0]) }); */
 
           // Map Excel headers to MMCT field names
           var aMapped = self._mapExcelToMmctFields(aJsonRows, sCat);
@@ -447,8 +447,8 @@ sap.ui.define([
         }
       });
 
-      console.log("[S6] Column mapping:", mColMap);
-
+/*       console.log("[S6] Column mapping:", mColMap);
+ */
       // ── Detect multi-value columns (e.g. Nazione1, Nazione2, Nazione3 → Nazione) ──
       // Build set of multi-value field names from MMCT
       var mMultiFields = {};
@@ -486,8 +486,8 @@ sap.ui.define([
       });
 
       if (Object.keys(mMergeGroups).length) {
-        console.log("[S6] Multi-field merge groups:", mMergeGroups);
-      }
+/*         console.log("[S6] Multi-field merge groups:", mMergeGroups);
+ */      }
 
       // Map each row
       return aJsonRows.map(function (row) {
@@ -566,13 +566,13 @@ sap.ui.define([
 
       var iDomainCount = Object.keys(mFieldDomain).length;
       if (iDomainCount) {
-        console.log("[S6] Domain fields:", iDomainCount, "| Domains with reverse map:", Object.keys(mDomainReverse).length);
-      }
+/*         console.log("[S6] Domain fields:", iDomainCount, "| Domains with reverse map:", Object.keys(mDomainReverse).length);
+ */      }
 
       // Detect numeric fields
-      var aNumFields = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
+/*       var aNumFields = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
                         "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
-      aNumFields.forEach(function (k) { mNumeric[k] = true; });
+      aNumFields.forEach(function (k) { mNumeric[k] = true; }); */
 
       // Always allow structural fields
       ["CodAgg", "UserID", "Guid", "CatMateriale", "Fornitore", "Materiale",
@@ -581,8 +581,8 @@ sap.ui.define([
        "DescMat", "MatCatDesc", "DestUso", "QtaFibra", "UmFibra"
       ].forEach(function (k) { mAllowed[k] = true; });
 
-      console.log("[S6] Allowed payload fields:", Object.keys(mAllowed).length);
-
+/*       console.log("[S6] Allowed payload fields:", Object.keys(mAllowed).length);
+ */
       // Helper: resolve a single value against a domain reverse map
       function resolveValue(sVal, mReverse) {
         if (!sVal || !mReverse) return sVal;
@@ -623,13 +623,13 @@ sap.ui.define([
           }
 
           // Numeric fields: ensure valid decimal string or empty
-          if (mNumeric[k]) {
+/*           if (mNumeric[k]) {
             var sVal = String(v != null ? v : "").trim().replace(",", ".");
             var fNum = parseFloat(sVal);
             v = isNaN(fNum) ? "0" : String(fNum);
-          }
+          } */
 
-          o[k] = (v === undefined ? "" : v);
+          o[k] = (v == null || v === undefined) ? "" : String(v);
         });
 
         o.CodAgg = "I";
@@ -657,15 +657,16 @@ sap.ui.define([
         PostDataCollection: aLines
       };
 
-      console.log("[S6] CHECK payload /CheckDataSet", JSON.parse(JSON.stringify(oPayload)));
-
+/*       console.log("[S6] CHECK payload /CheckDataSet", JSON.parse(JSON.stringify(oPayload)));
+ */
+      debugger
       oODataModel.setHeaders({ "sap-language": "IT" });
       oODataModel.create("/CheckDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
-          console.log("[S6] CHECK success", oData);
-
+/*           console.log("[S6] CHECK success", oData);
+ */
           self._processCheckResponse(aRows, oData);
 
           var oDetail2 = self.getView().getModel("detail");
@@ -675,7 +676,7 @@ sap.ui.define([
           self._populatePreviewTable(aRows, sCat);
 
           // Highlight error rows after table renders
-          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
+          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 500);
 
           var oDetail = self.getView().getModel("detail");
           var iErrors = oDetail.getProperty("/checkErrorCount") || 0;
@@ -711,14 +712,14 @@ sap.ui.define([
           MessageBox.error(sMsg);
 
           // Still populate preview even if check fails
-          console.log("[S6] CHECK failed with HTTP error, populating preview anyway. Rows:", aRows.length);
-          aRows.forEach(function (r) {
+/*           console.log("[S6] CHECK failed with HTTP error, populating preview anyway. Rows:", aRows.length);
+ */          aRows.forEach(function (r) {
             r.__checkEsito = "Attenzione";
             r.__checkMessage = "Verifica non riuscita";
             r.__checkHasError = false;
           });
           self._populatePreviewTable(aRows, sCat);
-          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
+          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 500);
         }
       });
     },
@@ -733,8 +734,8 @@ sap.ui.define([
         aRespLines = oData.PostDataCollection;
       }
 
-      console.log("[S6] Check response lines:", aRespLines.length);
-
+/*       console.log("[S6] Check response lines:", aRespLines.length);
+ */
       var iErrors = 0;
 
       aRows.forEach(function (row, idx) {
@@ -777,8 +778,8 @@ sap.ui.define([
       var oInner = MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
       if (!oInner) { console.log("[S6] ROW-STYLE: inner table not found"); return; }
 
-      console.log("[S6] ROW-STYLE: inner table type =", oInner.getMetadata().getName());
-
+/*       console.log("[S6] ROW-STYLE: inner table type =", oInner.getMetadata().getName());
+ */
       // GridTable (sap.ui.table.Table)
       if (oInner.isA && oInner.isA("sap.ui.table.Table")) {
         var aRows = (oInner.getRows && oInner.getRows()) || [];
@@ -794,8 +795,8 @@ sap.ui.define([
             oRowCtrl.removeStyleClass("s3PostErrorRow");
           }
         });
-        console.log("[S6] ROW-STYLE: GridTable rows=" + aRows.length + ", marked red=" + iMarked);
-
+/*         console.log("[S6] ROW-STYLE: GridTable rows=" + aRows.length + ", marked red=" + iMarked);
+ */
         // Re-apply on scroll
         var self = this;
         if (!this._s6ErrorScrollHooked) {
@@ -822,7 +823,7 @@ sap.ui.define([
             it.removeStyleClass("s3PostErrorRow");
           }
         });
-        console.log("[S6] ROW-STYLE: ResponsiveTable items=" + aItems.length + ", marked red=" + iMarked2);
+        /* console.log("[S6] ROW-STYLE: ResponsiveTable items=" + aItems.length + ", marked red=" + iMarked2); */
       }
     },
 
@@ -1046,6 +1047,18 @@ sap.ui.define([
         return;
       }
 
+      // ── Blocco se CheckDataSet ha errori ──
+      var bCheckDone = oDetail.getProperty("/checkDone");
+      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
+      if (!bCheckDone) {
+        MessageBox.warning("I dati non sono ancora stati verificati. Caricare un file Excel per avviare la verifica.");
+        return;
+      }
+      if (iCheckErrors > 0) {
+        MessageBox.error("La verifica ha riscontrato " + iCheckErrors + " errori.\nCorreggere il file e ricaricarlo prima di inviare.");
+        return;
+      }
+
       // ── Validazione campi obbligatori ──
       var oVm = this.getOwnerComponent().getModel("vm");
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
@@ -1090,7 +1103,7 @@ sap.ui.define([
       var aRowsToSend = aRows;
       var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
       if (iCheckErrors > 0) {
-        aRowsToSend = aRows.filter(function (r) { return !r.__checkHasError; });
+        /* aRowsToSend = aRows.filter(function (r) { return !r.__checkHasError; }); */
         if (!aRowsToSend.length) {
           MessageBox.error("Tutte le righe hanno errori di verifica. Correggere e ricaricare il file.");
           return;
@@ -1127,17 +1140,17 @@ sap.ui.define([
         PostDataCollection: aLines
       };
 
-      console.log("[S6] POST payload /PostDataSet", JSON.parse(JSON.stringify(oPayload)));
+      /* console.log("[S6] POST payload /PostMassDataSet", JSON.parse(JSON.stringify(oPayload))); */
 
       BusyIndicator.show(0);
       var self = this;
 
       oODataModel.setHeaders({ "sap-language": "IT" });
-      oODataModel.create("/PostDataSet", oPayload, {
+      oODataModel.create("/PostMassDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
-          console.log("[S6] POST success", oData);
+          /* console.log("[S6] POST success", oData); */
           MessageBox.success("Dati inviati con successo (" + aLines.length + " righe)");
           self.onClearUpload();
         },

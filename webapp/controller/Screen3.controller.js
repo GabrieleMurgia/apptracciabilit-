@@ -745,8 +745,8 @@ var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cach
     _invalidateScreen3Cache: function () { var k = this._getExportCacheKey(), v = this._getOVm(); v.setProperty("/cache/dataRowsByKey/" + k, []); v.setProperty("/cache/recordsByKey/" + k, []); },
 
     _refreshAfterPost: function (oPostData) {
-      console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
-      var self = this;
+/*       console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
+ */      var self = this;
       return new Promise(function (resolve) {
         self._reloadDataFromBackend(function (aResults) {
           self._hydrateAndFormat(aResults);

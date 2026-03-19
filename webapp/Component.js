@@ -53,7 +53,7 @@ sap.ui.define([
                     }
                 };
                 fnSetLogo();
-                this.getRouter().attachEventOnce("routeMatched", fnSetLogo);
+                this.getRouter().attachRouteMatched(fnSetLogo);
             }
         });
     }

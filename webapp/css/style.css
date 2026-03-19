@@ -2,6 +2,10 @@
    TRACCIABILITÀ APP – Improved Styles
    ============================================================ */
 
+   .sapMTBHeader-CTX .sapUiIconMirrorInRTL{
+    display: none;
+   }
+
    /* ============================================================
    LEGAL FOOTER (all screens)
    ============================================================ */

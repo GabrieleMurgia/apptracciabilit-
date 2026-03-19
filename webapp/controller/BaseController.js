@@ -30,14 +30,14 @@ sap.ui.define([
     _log: function () {
       var a = Array.prototype.slice.call(arguments);
       a.unshift(this._sLogPrefix + " " + N.ts());
-      console.log.apply(console, a);
+      /* console.log.apply(console, a); */
     },
 
     _dbg: function () {
       if (this._DBG === false) return;
       var a = Array.prototype.slice.call(arguments);
       a.unshift(this._sLogPrefix + "DBG " + N.ts());
-      console.log.apply(console, a);
+      /* console.log.apply(console, a); */
     },
 
     _logTable: function (label, sTableId) {
@@ -440,11 +440,11 @@ sap.ui.define([
         }
       });
 
-      console.log("[BaseController] _applyStatusChange", {
+ /*      console.log("[BaseController] _applyStatusChange", {
         newStatus: sNewStatus, isParentTable: bIsParentTable,
         guidKeys: aMatchGuids, compositeKeys: JSON.parse(JSON.stringify(aCompositeKeys)),
         selectedCount: aSelected.length
-      });
+      }); */
 
       function matchesRow(r) {
         var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
@@ -484,8 +484,8 @@ sap.ui.define([
         });
       });
 
-      console.log("[BaseController] _applyStatusChange updated", iUpdated, "rows in model");
-
+/*       console.log("[BaseController] _applyStatusChange updated", iUpdated, "rows in model");
+ */
       // Also update raw cache rows
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
@@ -518,7 +518,7 @@ sap.ui.define([
         });
       }
 
-      console.log("[BaseController] _applyStatusChange updated", iRawUpdated, "raw cache rows");
+      /* console.log("[BaseController] _applyStatusChange updated", iRawUpdated, "raw cache rows"); */
 
       oDetail.refresh(true);
 

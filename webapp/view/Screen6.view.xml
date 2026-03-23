@@ -6,7 +6,7 @@
   xmlns:core="sap.ui.core"
   xmlns:u="sap.ui.unified"
   xmlns:mdc="sap.ui.mdc"
-  displayBlock="true">
+  displayBlock="true"> 
 
   <Page id="page6" title="Caricamento da Excel" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 

@@ -45,7 +45,13 @@ sap.ui.define([
                 this.getRouter().attachRouteMatched(fnSetYear);
 
                 // ── Dynamic logo from OData ──
-                var sLogoUrl = "/sap/opu/odata/sap/ZVEND_TRACE_SRV/GetFieldFileSet(FieldName='Loghi',FieldValue='VALENTINO')/$value";
+                /* var sLogoUrl = "/sap/opu/odata/sap/ZVEND_TRACE_SRV/GetFieldFileSet(FieldName='Loghi',FieldValue='VALENTINO')/$value"; */
+
+                var oModel = this.getModel();
+                var sServiceUrl = (oModel && oModel.sServiceUrl) || "/sap/opu/odata/sap/ZVEND_TRACE_SRV";
+                var sLogoUrl = sServiceUrl + "/GetFieldFileSet(FieldName='Loghi',FieldValue='VALENTINO')/$value";
+
+
                 var fnSetLogo = function () {
                     var oVm = self.getModel("vm");
                     if (oVm) {

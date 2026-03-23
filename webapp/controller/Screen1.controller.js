@@ -24,34 +24,43 @@ sap.ui.define([
         var oVm = self.getOwnerComponent().getModel("vm");
         self.getView().setModel(oVm, "vm");
         self._sUserType = oVm.getProperty("/userType");
+
+        // Reload vendors from backend to get fresh counters
         self._reloadVendors();
       });
     },
 
+    // =========================================================
+    // RELOAD VENDORS (fresh call to /VendorDataSet)
+    // =========================================================
     _reloadVendors: function () {
       var oVm = this.getOwnerComponent().getModel("vm");
       var oModel = this.getOwnerComponent().getModel();
       if (!oModel || typeof oModel.read !== "function") { this._applyFilters(); return; }
 
+      // Mock path — skip reload
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       if (mock.mockS0 || mock.mockVendors) { this._applyFilters(); return; }
 
       var sUserId = oVm.getProperty("/userId") || "";
+
       var self = this;
       BusyIndicator.show(0);
 
       oModel.read("/VendorDataSet", {
         filters: sUserId ? [new Filter("UserID", FilterOperator.EQ, sUserId)] : [],
-        urlParameters: { "sap-language": "IT", "$top": "99999" },
+        urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
           var aVend = (oData && oData.results) || [];
-/*           console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
- */          oVm.setProperty("/userVendors", aVend);
+          console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
+          oVm.setProperty("/userVendors", aVend);
           oVm.setProperty("/UserInfosVend", aVend);
+
+          // Invalidate Screen0's cached promise so it reloads too
           oVm.setProperty("/__vendorCacheStale", true);
 
-          // Build categories list from vendor data
+          // Build categories list with descriptions for ComboBox
           self._buildCategoriesList(aVend);
 
           self._applyFilters();
@@ -59,40 +68,59 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[Screen1] VendorDataSet reload ERROR", oError);
+          // Use stale data as fallback
           self._applyFilters();
         }
       });
     },
 
     // =========================================================
-    // BUILD CATEGORIES LIST from vendor records
+    // BUILD CATEGORIES LIST (with descriptions, like Screen5)
     // =========================================================
-    _buildCategoriesList: function (aVend) {
+    _buildCategoriesList: function (aVendors) {
       var oVm = this.getOwnerComponent().getModel("vm");
-      // If userCategoriesList already populated (from Screen0/Screen5), skip
-      var aExisting = oVm.getProperty("/userCategoriesList") || [];
-      if (aExisting.length) return;
+      var mSeen = {};
+      var aCatList = [];
 
-      // Extract unique CatMateriale values from vendors
-      var mCats = {};
-      (aVend || []).forEach(function (v) {
+      // Extract from vendor records
+      (aVendors || []).forEach(function (v) {
         var sCat = String(v.CatMateriale || "").trim();
-        if (sCat && !mCats[sCat]) {
-          mCats[sCat] = true;
-        }
+        if (!sCat || mSeen[sCat]) return;
+        mSeen[sCat] = true;
+        var sDesc = String(v.MatCatDesc || "").trim();
+        aCatList.push({ key: sCat, text: sDesc ? (sCat + " – " + sDesc) : sCat });
       });
 
-      var aList = Object.keys(mCats).sort().map(function (k) {
-        return { key: k, text: k };
+      // Also merge from MMCT if available
+      var mCats = oVm.getProperty("/mmctFieldsByCat") || {};
+      Object.keys(mCats).forEach(function (k) {
+        if (mSeen[k]) return;
+        mSeen[k] = true;
+        // Try to find description from MMCT
+        var sDesc = "";
+        try {
+          var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
+          (aMMCT || []).some(function (cat) {
+            var c = String(cat.CatMateriale || cat.CATMATERIALE || "").trim();
+            if (c === k) {
+              sDesc = String(cat.CatMaterialeDesc || cat.MatCatDesc || cat.DescCatMateriale || "").trim();
+              return true;
+            }
+            return false;
+          });
+        } catch (e) {}
+        aCatList.push({ key: k, text: sDesc ? (k + " – " + sDesc) : k });
       });
 
-      oVm.setProperty("/userCategoriesList", aList);
-/*       console.log("[Screen1] Categories built from vendors:", aList.length);
- */    },
+      aCatList.sort(function (a, b) { return a.text.localeCompare(b.text); });
 
-    // =========================================================
-    // VENDOR PRESS — passa anche la categoria selezionata
-    // =========================================================
+      // Add empty option at the beginning to clear filter
+      aCatList.unshift({ key: "", text: "Tutte le categorie" });
+
+      oVm.setProperty("/userCategoriesList", aCatList);
+      console.log("[Screen1] Categories built:", aCatList.length);
+    },
+
     onVendorPress: function (oEvent) {
       var oItem = oEvent.getParameter("listItem");
       if (!oItem) {
@@ -108,11 +136,13 @@ sap.ui.define([
 
       var sVendorId = oCtx.getProperty("Fornitore");
 
-      // Save selected category in vm so Screen2 can use it as filter
-      var oCombo = this.byId("comboCatMat1");
-      var sSelectedCat = (oCombo && oCombo.getSelectedKey()) || "";
+      // Save CatMateriale from the clicked row to pass to Screen2
+      var sCatFromRow = String(oCtx.getProperty("CatMateriale") || "").trim();
       var oVm = this.getOwnerComponent().getModel("vm");
-      oVm.setProperty("/__selectedCatMateriale", sSelectedCat);
+      if (oVm) {
+        oVm.setProperty("/__selectedCatMateriale", sCatFromRow);
+        console.log("[Screen1] Passing CatMateriale to Screen2:", sCatFromRow);
+      }
 
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.navTo("Screen2", {
@@ -128,20 +158,23 @@ sap.ui.define([
     _applyFilters: function () {
       var oTable = this.byId("tableVendors1");
       var oBinding = oTable && oTable.getBinding("items");
-      if (!oBinding) return;
+      if (!oBinding) {
+        return;
+      }
 
       var aFilters = [];
 
-      // ── Filtro per Categoria Materiale ──
+      // Category filter
       var oCombo = this.byId("comboCatMat1");
-      var sSelectedCat = (oCombo && oCombo.getSelectedKey()) || "";
+      var sSelectedCat = oCombo ? oCombo.getSelectedKey() : "";
       if (sSelectedCat) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
       }
 
-      // ── Filtro solo dati incompleti ──
+      // Only incomplete filter
       var oSwitch = this.byId("switchOnlyIncomplete1");
       var bOnlyIncomplete = oSwitch ? oSwitch.getState() : false;
+
       if (bOnlyIncomplete) {
         aFilters.push(new Filter({
           filters: [
@@ -153,7 +186,7 @@ sap.ui.define([
         }));
       }
 
-      // ── Filtro testo fornitore ──
+      // Vendor text search
       var sText = this.byId("inputVendorFilter1").getValue();
       if (sText) {
         aFilters.push(new Filter({
@@ -168,6 +201,7 @@ sap.ui.define([
       oBinding.filter(aFilters, "Application");
     },
 
+    // NavBack fallback: torna a Screen0
     _getNavBackFallback: function () {
       return { route: "Screen0", params: {} };
     }

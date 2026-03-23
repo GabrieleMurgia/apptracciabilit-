@@ -555,22 +555,18 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
       BusyIndicator.show(0);
 
-/*       var aFilters = [
-        new Filter("Fornitore", FilterOperator.EQ, sVendorId),
-        new Filter("UserID", FilterOperator.EQ, sUserId2)
-      ];
- */
       var aFilters = [
         new Filter("Fornitore", FilterOperator.EQ, sVendorId),
         new Filter("UserID", FilterOperator.EQ, sUserId2)
       ];
 
-      // Add CatMateriale filter if selected on Screen1
+      // Category filter passed from Screen1
       var sSelectedCat = (oVm && oVm.getProperty("/__selectedCatMateriale")) || "";
       if (sSelectedCat) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
+        console.log("[Screen2] Filtering by CatMateriale from Screen1:", sSelectedCat);
       }
-      
+
       oODataModel.read("/MaterialDataSet", {
         filters: aFilters,
         success: function (oData) {

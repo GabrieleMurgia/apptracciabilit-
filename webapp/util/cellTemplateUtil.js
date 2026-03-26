@@ -685,6 +685,13 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           showValueStateMessage: true,
           showSecondaryValues: true,
 
+          //FIX UI CHIPS MULTICOMBOBOX 26.03.2026
+          // Clear typed search text after selection to avoid residual text next to chip
+          selectionChange: function (oEvt) {
+            var oMcb = oEvt.getSource();
+            setTimeout(function () { oMcb.setValue(""); }, 0);
+          },
+
           items: {
             path: "vm>/domainsByName/" + sDomain,
             templateShareable: false,

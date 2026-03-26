@@ -2,6 +2,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
+  "sap/m/MessageBox",
   "sap/ui/mdc/table/Column",
   "sap/ui/mdc/p13n/StateUtil",
 
@@ -17,15 +18,15 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
+  "apptracciabilita/apptracciabilita/util/postUtil",
+  "apptracciabilita/apptracciabilita/util/saveUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
-
 
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
-  BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
+  BaseController, JSONModel, MessageToast, MessageBox, MdcColumn, StateUtil,
   N, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, RecordsUtil, TableColumnAutoSize,
-  PercUtil,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, RecordsUtil, PostUtil, SaveUtil, TableColumnAutoSize,
   MockData
 ) {
   "use strict";
@@ -105,7 +106,7 @@ sap.ui.define([
     },
 
     // ==================== CACHE / CONFIG ====================
-    // _getOVm (= _ensureVmCache), _getCacheKeySafe inherited from BaseController
+    // _getOVm, _getCacheKeySafe inherited from BaseController
     _getDataCacheKey: function () {
       var mock = (this.getOwnerComponent().getModel("vm").getProperty("/mock")) || {};
       return (!!(mock.mockS3 || mock.mockS4) ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
@@ -244,7 +245,6 @@ sap.ui.define([
 
         var aSelected = aByGuid;
         var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
-        // Conservative aggregate: all AP→AP, any RJ→RJ, any CH→CH, else ST
         var aRowSt = aSelected.map(function (r) { return StatusUtil.normStatoRow(r, oVm); });
         var gSt;
         if (aRowSt.length && aRowSt.every(function (s) { return s === "AP"; })) { gSt = "AP"; }
@@ -256,7 +256,6 @@ sap.ui.define([
         aSelected.forEach(function (r) { r.Stato = StatusUtil.normStatoRow(r, oVm); r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato); });
         oD.setProperty("/__role", sRole); oD.setProperty("/__status", gSt); oD.setProperty("/__canEdit", bEdit);
         oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-        // Approve/Reject is handled only in Screen3, not Screen4
         oD.setProperty("/__canApprove", false);
         oD.setProperty("/__canReject", false);
 
@@ -338,7 +337,6 @@ sap.ui.define([
       var oD = this.getView().getModel("detail"), oTbl = this.byId("mdcTable4"); if (!oTbl) return;
       this._ensureMdcCfgScreen4(oD.getProperty("/_mmct/s02") || []);
       await this._rebuildColumnsHard(oTbl, oD.getProperty("/_mmct/s02") || []);
-      /* COLONNE DINAMICHE */
       TableColumnAutoSize.autoSize(this.byId("mdcTable4"), 60);
       if (oTbl.initialized) await oTbl.initialized();
       oTbl.setModel(oD, "detail");
@@ -443,18 +441,26 @@ sap.ui.define([
       } catch (e) { console.error("[S4] onDeleteRows ERROR", e); MessageToast.show("Errore eliminazione righe"); }
     },
 
-/*     onAddRow: function () {
+    onAddRow: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
         var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
 
-        // Use the first row only for structural fields (Guid, Fornitore, Materiale, CatMateriale)
         var oBase = aAll[0] || {};
         var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
 
-        // Build a clean new row with only structural fields, all others empty
-        var oNew = {};
+        var oFullRow = aAll.reduce(function (best, r) {
+          return (Object.keys(r).length > Object.keys(best).length) ? r : best;
+        }, oBase);
+        var oNew = N.deepClone(oFullRow) || {};
+
+        Object.keys(oNew).forEach(function (k) {
+          if (k.indexOf("__") === 0 || k === "__metadata") { delete oNew[k]; return; }
+          if (["Guid", "GUID", "guidKey", "Fornitore", "Materiale", "CatMateriale", "Stagione", "Plant"].indexOf(k) >= 0) return;
+          oNew[k] = Array.isArray(oNew[k]) ? [] : "";
+        });
+
         oNew.Guid = sGuid;
         oNew.GUID = sGuid;
         oNew.guidKey = sGuid;
@@ -467,13 +473,9 @@ sap.ui.define([
         oNew.Stato = "ST";
         oNew.Note = "";
 
-        // Initialize all s02 config fields as empty
         var self = this;
         (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-          if (!f || !f.ui) return;
-          var k = String(f.ui).trim();
-          if (oNew[k] !== undefined) return; // don't override structural fields
-          oNew[k] = f.multiple ? [] : "";
+          if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
         });
 
         var shouldUpd = false;
@@ -493,7 +495,7 @@ sap.ui.define([
         oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
         oD.setProperty("/__dirty", true);
 
-        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
+        var oVm = this.getOwnerComponent().getModel("vm"), sCK = this._getDataCacheKey();
         var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
         aC.push(oNew);
         oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
@@ -506,82 +508,8 @@ sap.ui.define([
 
         MessageToast.show("Riga aggiunta");
       } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
-    }, */
+    },
 
-    onAddRow: function () {
-  try {
-    var oD = this.getView().getModel("detail"); if (!oD) return;
-    if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
-    var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
-
-    var oBase = aAll[0] || {};
-    var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
-
-    // Start from a full row clone to get ALL entity properties
-    var oFullRow = aAll.reduce(function (best, r) {
-      return (Object.keys(r).length > Object.keys(best).length) ? r : best;
-    }, oBase);
-    var oNew = N.deepClone(oFullRow) || {};
-
-    // Reset ALL value fields to empty (keep only structural)
-    Object.keys(oNew).forEach(function (k) {
-      if (k.indexOf("__") === 0 || k === "__metadata") { delete oNew[k]; return; }
-      // Keep structural fields
-      if (["Guid", "GUID", "guidKey", "Fornitore", "Materiale", "CatMateriale", "Stagione", "Plant"].indexOf(k) >= 0) return;
-      // Reset everything else
-      oNew[k] = Array.isArray(oNew[k]) ? [] : "";
-    });
-
-    // Set structural fields explicitly
-    oNew.Guid = sGuid;
-    oNew.GUID = sGuid;
-    oNew.guidKey = sGuid;
-    oNew.Fornitore = oBase.Fornitore || "";
-    oNew.Materiale = oBase.Materiale || "";
-    oNew.CatMateriale = oBase.CatMateriale || oD.getProperty("/_mmct/cat") || "";
-    oNew.Stagione = oBase.Stagione || "";
-    oNew.Plant = oBase.Plant || "";
-    oNew.Fibra = "";
-    oNew.Stato = "ST";
-    oNew.Note = "";
-
-    // Normalize multi-value fields
-    var self = this;
-    (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-      if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
-    });
-
-    var shouldUpd = false;
-    try {
-      shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
-        .filter(function (i) { return i.Guid === oNew.Guid; })
-        .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
-    } catch (e) { }
-
-    oNew.CodAgg = shouldUpd ? "U" : "I";
-    oNew.__isNew = true;
-    oNew.__readOnly = false;
-    oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-
-    aAll = aAll.slice(); aAll.push(oNew);
-    oD.setProperty("/RowsAll", aAll);
-    oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
-    oD.setProperty("/__dirty", true);
-
-    var oVm = this.getOwnerComponent().getModel("vm"), sCK = this._getDataCacheKey();
-    var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
-    aC.push(oNew);
-    oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
-
-    this._applyUiPermissions(); this._applyFiltersAndSort();
-    var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
-
-    var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
-    MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
-
-    MessageToast.show("Riga aggiunta");
-  } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
-},
     // ==================== COPY ROW ====================
     onCopyRow: function () {
       try {
@@ -595,13 +523,12 @@ sap.ui.define([
         var oSource = aSel[0];
         var oNew = N.deepClone(oSource) || {};
 
-["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
-    (oD.getProperty(sPath) || []).forEach(function (f) {
-        if (f && f.ui && f.attachment) oNew[f.ui.trim()] = "0";
-    });
-});
+        ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
+          (oD.getProperty(sPath) || []).forEach(function (f) {
+            if (f && f.ui && f.attachment) oNew[f.ui.trim()] = "0";
+          });
+        });
 
-        // Keep same Guid (same record group), but mark as new detail row
         var shouldUpd = false;
         try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
           .filter(function (i) { return i.Guid === oNew.Guid; })
@@ -624,7 +551,6 @@ sap.ui.define([
         oD.setProperty("/RowsAll", aAll);
         oD.setProperty("/__dirty", true);
 
-        // Add to raw cache
         var oVm = this._getOVm(), sCK = this._getDataCacheKey();
         var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
         aC.push(oNew);
@@ -647,7 +573,6 @@ sap.ui.define([
         var oD = this.getView().getModel("detail"); if (!oD) return;
         if (!oD.getProperty("/__dirty")) { MessageToast.show("Nessuna modifica da salvare"); return; }
 
-        // Validate percentage sum
         if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
 
         var aRows = oD.getProperty("/RowsAll") || [];
@@ -663,11 +588,121 @@ sap.ui.define([
       } catch (e) { console.error("[S4] onSaveLocal ERROR", e); MessageToast.show("Errore salvataggio"); }
     },
 
+    // ==================== SAVE TO BACKEND (PostDataSet) ====================
+    onSaveToBackend: function () {
+      var oD = this.getView().getModel("detail");
+      if (!oD) return;
+
+      if (oD.getProperty("/__dirty")) {
+        this.onSaveLocal();
+      }
+
+      var oVm = this._getOVm();
+      var sCK = this._getDataCacheKey();
+
+      if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
+
+      var aRecordsAll = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+      if (!aRecordsAll.length) {
+        MessageBox.warning("Nessun record trovato. Tornare alla schermata precedente e riprovare.");
+        return;
+      }
+
+      var sCat = String(oD.getProperty("/_mmct/cat") || "").trim();
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+      var aS01 = aRawFields
+        .filter(function (f) {
+          var sLiv = String(f.LivelloSchermata || "").trim();
+          return sLiv !== "02";
+        })
+        .map(function (f) {
+          return {
+            ui: String(f.UiFieldname || f.UIFIELDNAME || "").trim(),
+            label: String(f.UiFieldLabel || f.Descrizione || "").trim(),
+            domain: String(f.Dominio || "").trim(),
+            required: String(f.Impostazione || "").trim().toUpperCase() === "O",
+            multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X"
+          };
+        })
+        .filter(function (f) { return !!f.ui; });
+
+      var oProxyDetail = new JSONModel({
+        RecordsAll: aRecordsAll,
+        _mmct: { s01: aS01 },
+        __deletedLinesForPost: oVm.getProperty("/cache/__deletedLinesForPost_" + sCK) || []
+      });
+
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
+      var sVendor10 = N.normalizeVendor10(this._sVendorId);
+      var sMaterial = String(this._sMaterial || "").trim();
+
+      var vr = SaveUtil.validateRequiredBeforePost({
+        oDetail: oProxyDetail, oVm: oVm,
+        getCacheKeySafe: this._getCacheKeySafe.bind(this),
+        getExportCacheKey: this._getDataCacheKey.bind(this),
+        toStableString: N.toStableString,
+        rowGuidKey: RecordsUtil.rowGuidKey,
+        getCodAgg: N.getCodAgg
+      });
+      if (!vr.ok) {
+        var top = vr.errors.slice(0, 15).map(function (e) {
+          return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
+        }).join("\n");
+        MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top +
+          (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
+        oProxyDetail.destroy();
+        return;
+      }
+
+      var oPayload = SaveUtil.buildSavePayload({
+        oDetail: oProxyDetail, oVm: oVm,
+        userId: sUserId, vendor10: sVendor10, material: sMaterial,
+        getExportCacheKey: this._getDataCacheKey.bind(this),
+        toStableString: N.toStableString,
+        getCodAgg: N.getCodAgg,
+        getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oProxyDetail); },
+        normalizeMultiString: N.normalizeMultiString,
+        uuidv4: N.uuidv4
+      });
+
+      this._log("onSaveToBackend payload", { lines: oPayload.PostDataCollection ? oPayload.PostDataCollection.length : 0 });
+
+      var self = this;
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      SaveUtil.executePost({
+        oModel: this.getOwnerComponent().getModel(),
+        payload: oPayload,
+        mock: !!mock.mockS4,
+        onSuccess: function (oData) {
+          oProxyDetail.destroy();
+          oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
+          oVm.setProperty("/cache/dataRowsByKey/" + sCK, []);
+          oVm.setProperty("/cache/recordsByKey/" + sCK, []);
+          oVm.setProperty("/__skipS3BackendOnce", false);
+          MessageToast.show("Dati salvati con successo");
+/*           self._markSkipS3BackendOnce = function () {};
+          self.onNavBack(); */
+          oVm.setProperty("/__skipS3BackendOnce", false);
+self.getOwnerComponent().getRouter().navTo("Screen3", {
+    vendorId: encodeURIComponent(self._sVendorId),
+    material: encodeURIComponent(self._sMaterial),
+    mode: self._sMode || "A"
+}, true);
+        },
+        onPartialError: function (aErr) {
+          oProxyDetail.destroy();
+          PostUtil.showPostErrorMessagePage(aErr);
+        },
+        onFullError: function (oError) {
+          oProxyDetail.destroy();
+          MessageBox.error(N.getBackendErrorMessage(oError));
+        }
+      });
+    },
+
     // ==================== EXPORT ====================
     onPrint: function () { S4Export.onPrint(this.getView().getModel("detail")); },
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
-
-    // Approve/Reject is handled only in Screen3 (not in Screen4)
 
     // ==================== NAVIGATION ====================
     _markSkipS3BackendOnce: function () { this._getOVm().setProperty("/__skipS3BackendOnce", true); },

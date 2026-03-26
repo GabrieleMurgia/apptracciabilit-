@@ -104,6 +104,12 @@
     <footer>
       <OverflowToolbar id="footerToolbar4">
         <ToolbarSpacer id="footerSpacer4"/>
+        <Button
+          id="btnSaveToBackend4"
+          text="Salva"
+          icon="sap-icon://save"
+          type="Emphasized"
+          press=".onSaveToBackend"/>
       </OverflowToolbar>
     </footer>
 

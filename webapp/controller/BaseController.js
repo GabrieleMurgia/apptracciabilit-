@@ -440,12 +440,6 @@ sap.ui.define([
         }
       });
 
- /*      console.log("[BaseController] _applyStatusChange", {
-        newStatus: sNewStatus, isParentTable: bIsParentTable,
-        guidKeys: aMatchGuids, compositeKeys: JSON.parse(JSON.stringify(aCompositeKeys)),
-        selectedCount: aSelected.length
-      }); */
-
       function matchesRow(r) {
         var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
         if (bIsParentTable) {

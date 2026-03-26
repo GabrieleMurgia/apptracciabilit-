@@ -390,6 +390,37 @@ sap.ui.define([], function () {
     return STATUS_TEXT_MAP[c] || c || "";
   }
 
+  /**
+ * Estrae il messaggio di errore dalla response OData.
+ * - Se il backend risponde con un messaggio → lo restituisce
+ * - Se non c'è risposta (connection error) → "Backend non raggiungibile"
+ */
+function getBackendErrorMessage(oError) {
+    // 1) Prova a estrarre il messaggio dal backend
+    try {
+        if (oError && oError.responseText) {
+            var oBody = JSON.parse(oError.responseText);
+            var sMsg = oBody && oBody.error && oBody.error.message;
+            if (typeof sMsg === "object") sMsg = sMsg.value;
+            if (sMsg) return sMsg; // Messaggio di Fabio → mostralo così com'è
+        }
+    } catch (e) { /* JSON parse failed → non è una risposta backend */ }
+
+    // 2) Se siamo qui, il backend non ha risposto con un messaggio parsabile
+    var iStatus = parseInt(oError && oError.statusCode, 10) || 0;
+    if (iStatus === 0 || iStatus === 502 || iStatus === 503 || iStatus === 504) {
+        return "Backend non raggiungibile. Verificare la connessione e riprovare.";
+    }
+    if (iStatus === 404) {
+        return "Servizio non trovato. Contattare l'amministratore.";
+    }
+    if (iStatus === 401 || iStatus === 403) {
+        return "Accesso non autorizzato. Verificare le credenziali.";
+    }
+
+    return "Errore di comunicazione con il server (HTTP " + (iStatus || "?") + ").";
+}
+
   // -------------------------------------------------------
   // Safe string helpers (previously in Screen2_controller.js)
   // -------------------------------------------------------
@@ -448,6 +479,7 @@ sap.ui.define([], function () {
     readODataError: readODataError,
     normEsito: normEsito,
     normMsg: normMsg,
+    getBackendErrorMessage:getBackendErrorMessage,
 
     // UUID
     uuidv4: uuidv4,
@@ -459,6 +491,7 @@ sap.ui.define([], function () {
 
     // Status display
     statusText: statusText,
-    STATUS_TEXT_MAP: STATUS_TEXT_MAP
+    STATUS_TEXT_MAP: STATUS_TEXT_MAP,
+
   };
 });

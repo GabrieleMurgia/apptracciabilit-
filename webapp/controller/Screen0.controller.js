@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "apptracciabilita/apptracciabilita/util/domainFallback",
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/mockData"
-], function (Controller, JSONModel, BusyIndicator, DomainFallback, MessageToast, MockData) {
+  "apptracciabilita/apptracciabilita/util/mockData",
+  "apptracciabilita/apptracciabilita/util/normalize"
+], function (Controller, JSONModel, BusyIndicator, DomainFallback, MessageToast, MockData, N) {
   "use strict";
 
   function ts() { return new Date().toISOString(); }
@@ -15,7 +16,7 @@ sap.ui.define([
     // =========================================================
     // HANDLER CENTRALIZZATO "BACKEND DOWN"
     // =========================================================
-    _handleBackendDown: function (info) {
+    _handleBackendDown: function (info, oError) {
       try {
         var oModel = this.getOwnerComponent && this.getOwnerComponent().getModel && this.getOwnerComponent().getModel();
         if (oModel && oModel.__vendTraceBackendDownToastShown) return;
@@ -24,9 +25,16 @@ sap.ui.define([
 
       try { BusyIndicator.hide(); } catch (e1) { /* ignore */ }
 
-      try { MessageToast.show("Backend non raggiungibile"); } catch (e2) { /* ignore */ }
+      var sMsg = "Backend non raggiungibile";
+      try {
+        if (oError && N && N.getBackendErrorMessage) {
+          sMsg = N.getBackendErrorMessage(oError);
+        }
+      } catch (e3) { /* ignore */ }
 
-      console.error("[Screen0][BACKEND DOWN]", info || {});
+      try { MessageToast.show(sMsg); } catch (e2) { /* ignore */ }
+
+      console.error("[Screen0][BACKEND DOWN]", sMsg, info || {});
     },
 
     // =========================================================
@@ -78,7 +86,7 @@ sap.ui.define([
         });
       }
 
-      // 3) metadataLoaded().catch (copre “già fallito”)
+      // 3) metadataLoaded().catch (copre "già fallito")
       if (typeof oModel.metadataLoaded === "function") {
         try {
           oModel.metadataLoaded().catch(function (err) {
@@ -87,7 +95,7 @@ sap.ui.define([
               statusCode: err && (err.statusCode || err.status),
               message: (err && err.message) || String(err || "")
             };
-            that._handleBackendDown(info);
+            that._handleBackendDown(info, err);
           });
         } catch (e3) {
           that._handleBackendDown({ where: "metadataLoaded().catch (throw)", message: e3 && e3.message });
@@ -109,12 +117,6 @@ sap.ui.define([
 
         var mock = oVm.getProperty("/mock") || {};
         oVm.setProperty("/mock", Object.assign({}, mock, { mockS0: true }));
-
-/*         console.log("[Screen0][MOCK FALLBACK] applyVm OK", {
-          userId: oVm.getProperty("/userId"),
-          userType: oVm.getProperty("/userType"),
-          mock: oVm.getProperty("/mock")
-        }); */
       } catch (e) {
         console.error("[Screen0][MOCK FALLBACK] ERROR", e);
       }
@@ -265,13 +267,6 @@ sap.ui.define([
               dataSet: sMockDataSetFile
             }
           });
-
-/*           console.log("[Screen0][MOCK FILE] UserInfosSet OK", {
-            userId: oVm.getProperty("/userId"),
-            userType: oVm.getProperty("/userType"),
-            vendors: (oVm.getProperty("/userVendors") || []).length,
-            mmctCats: (oVm.getProperty("/userMMCT") || []).length
-          }); */
 
         }).catch(function (err) {
           BusyIndicator.hide();
@@ -443,7 +438,7 @@ sap.ui.define([
                 where: "UserInfosSet.read error",
                 statusCode: oError && oError.statusCode,
                 message: (oError && oError.message) || "Errore lettura UserInfosSet"
-              });
+              }, oError);
 
               if (bAutoFallbackToMockWhenBackendDown) {
                 this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
@@ -457,7 +452,7 @@ sap.ui.define([
             where: "metadataLoaded().catch in onInit",
             statusCode: err && (err.statusCode || err.status),
             message: (err && err.message) || String(err || "")
-          });
+          }, err);
 
           if (bAutoFallbackToMockWhenBackendDown) {
             this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
@@ -513,8 +508,7 @@ _ensureVendorsLoaded: function () {
           success: function (oData) {
             BusyIndicator.hide();
             var aVend = (oData && oData.results) || [];
-/*             console.log("[Screen0] VendorDataSet loaded:", aVend.length, "vendors");
- */            oVm.setProperty("/userVendors", aVend);
+            oVm.setProperty("/userVendors", aVend);
             oVm.setProperty("/UserInfosVend", aVend);
             resolve(aVend);
           },
@@ -539,10 +533,8 @@ _ensureVendorsLoaded: function () {
 
       var self = this;
 
-      // Load vendors lazily, then navigate
       this._ensureVendorsLoaded().then(function () {
 
-        // Se FORNITORE: salto Screen1 e vado diretto a Screen2 col vendor [vendorIdx]
         if (sUserType === "E") {
           var aVend = (oVm && oVm.getProperty("/userVendors")) || (oVm && oVm.getProperty("/UserInfosVend")) || [];
           var mock = (oVm && oVm.getProperty("/mock")) || {};
@@ -559,8 +551,6 @@ _ensureVendorsLoaded: function () {
             return;
           }
 
-/*           console.log("[Screen0] FORNITORE -> skip Screen1, vendor:", sVendorId);
- */
           oRouter.navTo("Screen2", {
             vendorId: encodeURIComponent(String(sVendorId)),
             mode: "A"
@@ -572,33 +562,15 @@ _ensureVendorsLoaded: function () {
 
       }).catch(function (err) {
         console.error("[Screen0] onPressFlowA vendor load failed", err);
-        MessageBox.error("Errore nel caricamento fornitori");
+        MessageToast.show(N.getBackendErrorMessage(err));
       });
     },
 
-/*     onPressFlowB: function () {
-      var oRouter = this.getOwnerComponent().getRouter();
-      this._ensureVendorsLoaded().then(function () {
-        oRouter.navTo("Screen1", { mode: "M" });
-      }).catch(function (err) {
-        console.error("[Screen0] onPressFlowB vendor load failed", err);
-        MessageBox.error("Errore nel caricamento fornitori");
-      });
-    }, */
      onPressFlowB: function () {
       /* return;  *//* temp return */
       this.getOwnerComponent().getRouter().navTo("Screen6");
     },
 
-/*     onPressFlowC: function () {
-      var oRouter = this.getOwnerComponent().getRouter();
-      this._ensureVendorsLoaded().then(function () {
-        oRouter.navTo("Screen1", { mode: "T" });
-      }).catch(function (err) {
-        console.error("[Screen0] onPressFlowC vendor load failed", err);
-        MessageBox.error("Errore nel caricamento fornitori");
-      });
-    } */
    onPressFlowC: function () {
   this.getOwnerComponent().getRouter().navTo("Screen5");
 }

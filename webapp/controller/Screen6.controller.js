@@ -160,12 +160,13 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] GetFieldFileSet error", oError);
-          var sMsg = "Errore nel recupero del template";
+/*           var sMsg = "Errore nel recupero del template";
           try {
             var oBody = JSON.parse(oError.responseText);
             sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
           } catch (e) {}
-          MessageBox.error(sMsg);
+          MessageBox.error(sMsg); */
+          MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });
     },
@@ -721,12 +722,13 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] CHECK error", oError);
-          var sMsg = "Errore nella verifica dei dati";
+/*           var sMsg = "Errore nella verifica dei dati";
           try {
             var oBody = JSON.parse(oError.responseText);
             sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
           } catch (e) {}
-          MessageBox.error(sMsg);
+          MessageBox.error(sMsg); */
+          MessageBox.error(N.getBackendErrorMessage(oError));
 
           // Still populate preview even if check fails
           console.log("[S6] CHECK failed with HTTP error, populating preview anyway. Rows:", aRows.length);
@@ -1162,12 +1164,13 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] POST error", oError);
-          var sMsg = "Errore nell'invio dei dati";
+/*           var sMsg = "Errore nell'invio dei dati";
           try {
             var oBody = JSON.parse(oError.responseText);
             sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
           } catch (e) {}
-          MessageBox.error(sMsg);
+          MessageBox.error(sMsg); */
+          MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });
     },

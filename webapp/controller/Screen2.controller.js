@@ -15,7 +15,7 @@ sap.ui.define([
   var safeStr = N.safeStr;
   var lc = N.lc;
 
-  function getODataErrorMessage(oError) {
+/*   function getODataErrorMessage(oError) {
     try {
       if (oError && oError.responseText) {
         var o = JSON.parse(oError.responseText);
@@ -23,9 +23,11 @@ sap.ui.define([
         if (v) return String(v);
       }
       if (oError && oError.message) return String(oError.message);
-    } catch (e) { /* ignore */ }
+    } catch (e) { 
+      
+     }
     return "Errore imprevisto";
-  }
+  } */
 
   function recomputeSupportFields(row) {
     var searchAll = [
@@ -195,7 +197,8 @@ sap.ui.define([
           BusyIndicator.hide();
           oBtn.setEnabled(true);
           console.error("[Screen2] MaterialStatusSet POST error", oError);
-          MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError));
+          /* MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError)); */
+          MessageToast.show("Errore aggiornamento stato: " + N.getBackendErrorMessage(oError));
         }
       });
     },
@@ -512,7 +515,8 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
         navUsed: sNavName
       });
 
-      MessageToast.show("Errore operazione massiva: " + getODataErrorMessage(oError));
+      /* MessageToast.show("Errore operazione massiva: " + getODataErrorMessage(oError)); */
+      MessageToast.show("Errore aggiornamento massiva: " + N.getBackendErrorMessage(oError));
     }.bind(this)
   });
 },
@@ -584,7 +588,8 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
         error: function (oError) {
           BusyIndicator.hide();
           console.error("Errore lettura MaterialDataSet", oError);
-          MessageToast.show("Errore nel caricamento dei materiali");
+          /* MessageToast.show("Errore nel caricamento dei materiali"); */
+          MessageToast.show(N.getBackendErrorMessage(oError));
         }
       });
     },

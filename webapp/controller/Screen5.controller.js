@@ -189,7 +189,8 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S5] DataSet read ERROR", oError);
-          MessageBox.error("Errore nel caricamento dati per categoria " + sCat);
+          /* MessageBox.error("Errore nel caricamento dati per categoria " + sCat); */
+          MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });
     },

@@ -595,6 +595,10 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
     },
 
     onFilterChanged: function () {
+      var oSeasonCombo = this.byId("inputSeasonFilter2");
+if (oSeasonCombo) setTimeout(function() { oSeasonCombo.setValue(""); }, 0);
+var oDescCatCombo = this.byId("inputDescCatFilter2");
+if (oDescCatCombo) setTimeout(function() { oDescCatCombo.setValue(""); }, 0);
       this._applyFilters();
     },
 

@@ -69,6 +69,7 @@ sap.ui.define([
       (aRawAll || []).forEach(function (r) {
         if (!r) return;
 
+        debugger
         var ca = getCodAgg(r);
         if (ca === "N") return;
         if (ca === "D") return;
@@ -102,6 +103,9 @@ sap.ui.define([
         if (!p) return;
 
         if (getCodAgg(p) === "N") return;
+        // Skip validation for approved records
+        var sSt = String((p.__status || p.Stato || "")).trim().toUpperCase();
+        if (sSt === "AP") return;
 
         var rowNo = getRowNoFromParent(p, iLoop);
 
@@ -148,6 +152,10 @@ sap.ui.define([
         if (!Array.isArray(aDet) || !aDet.length) return;
 
         aDet.forEach(function (r) {
+          // Skip validation for approved detail rows
+          var sStDet = String((r && (r.__status || r.Stato)) || "").trim().toUpperCase();
+          if (sStDet === "AP") return;
+
           Object.keys(req02).forEach(function (k) {
             var meta = req02[k] || {};
             var v = r ? r[k] : undefined;

@@ -15,20 +15,6 @@ sap.ui.define([
   var safeStr = N.safeStr;
   var lc = N.lc;
 
-/*   function getODataErrorMessage(oError) {
-    try {
-      if (oError && oError.responseText) {
-        var o = JSON.parse(oError.responseText);
-        var v = o && o.error && o.error.message && (o.error.message.value || o.error.message);
-        if (v) return String(v);
-      }
-      if (oError && oError.message) return String(oError.message);
-    } catch (e) { 
-      
-     }
-    return "Errore imprevisto";
-  } */
-
   function recomputeSupportFields(row) {
     var searchAll = [
       safeStr(row.Material),
@@ -70,7 +56,7 @@ sap.ui.define([
       open, rejected, pending, approved
     ].join(" ");
 
-    return {
+    var row = {
       Material: materialOrig,
       MaterialOriginal: materialOrig,
       MaterialDescription: desc,
@@ -88,6 +74,8 @@ sap.ui.define([
       Approved: approved,
       Modified: modified,
     };
+    recomputeSupportFields(row);
+    return row;
   }
 
   function _extractDistinctFilterValues(aMaterials, oViewModel) {
@@ -197,7 +185,6 @@ sap.ui.define([
           BusyIndicator.hide();
           oBtn.setEnabled(true);
           console.error("[Screen2] MaterialStatusSet POST error", oError);
-          /* MessageToast.show("Errore aggiornamento stato: " + getODataErrorMessage(oError)); */
           MessageToast.show("Errore aggiornamento stato: " + N.getBackendErrorMessage(oError));
         }
       });
@@ -515,8 +502,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
         navUsed: sNavName
       });
 
-      /* MessageToast.show("Errore operazione massiva: " + getODataErrorMessage(oError)); */
-      MessageToast.show("Errore aggiornamento massiva: " + N.getBackendErrorMessage(oError));
+      MessageToast.show("Errore operazione massiva: " + N.getBackendErrorMessage(oError));
     }.bind(this)
   });
 },
@@ -588,17 +574,18 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
         error: function (oError) {
           BusyIndicator.hide();
           console.error("Errore lettura MaterialDataSet", oError);
-          /* MessageToast.show("Errore nel caricamento dei materiali"); */
           MessageToast.show(N.getBackendErrorMessage(oError));
         }
       });
     },
 
     onFilterChanged: function () {
+      // Clear residual typed text from MultiComboBox filters
       var oSeasonCombo = this.byId("inputSeasonFilter2");
-if (oSeasonCombo) setTimeout(function() { oSeasonCombo.setValue(""); }, 0);
-var oDescCatCombo = this.byId("inputDescCatFilter2");
-if (oDescCatCombo) setTimeout(function() { oDescCatCombo.setValue(""); }, 0);
+      if (oSeasonCombo) setTimeout(function () { oSeasonCombo.setValue(""); }, 0);
+      var oDescCatCombo = this.byId("inputDescCatFilter2");
+      if (oDescCatCombo) setTimeout(function () { oDescCatCombo.setValue(""); }, 0);
+
       this._applyFilters();
     },
 

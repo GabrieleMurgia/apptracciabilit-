@@ -134,6 +134,58 @@ sap.ui.define([
 
       // Live check percentage sum after each edit — with cell coloring
       RecordsUtil.checkPercAndApply(this.byId("mdcTable4"), oD, { rowsPath: "/RowsAll" });
+
+      // Sync attachment counters across all rows (attachments are per-field, not per-row)
+      this._syncAttachmentCounters();
+    },
+
+    /**
+     * In Screen4, all rows share the same Guid → attachments are at field level.
+     * When an attachment counter changes on one row, propagate the MAX value to ALL rows
+     * for each attachment column. This ensures all rows show the same counter.
+     */
+    _syncAttachmentCounters: function () {
+      var oD = this.getView().getModel("detail"); if (!oD) return;
+      var aRows = oD.getProperty("/RowsAll") || [];
+      if (aRows.length <= 1) return;
+
+      // Collect all attachment field names from MMCT s02 config
+      var aAttFields = [];
+      (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
+        if (f && f.attachment && f.ui) aAttFields.push(String(f.ui).trim());
+      });
+      // Also check s01 (some attachment fields may be from Screen3 level)
+      (oD.getProperty("/_mmct/s00") || []).forEach(function (f) {
+        if (f && f.attachment && f.ui) {
+          var sUi = String(f.ui).trim();
+          if (aAttFields.indexOf(sUi) < 0) aAttFields.push(sUi);
+        }
+      });
+
+      if (!aAttFields.length) return;
+
+      var bChanged = false;
+      aAttFields.forEach(function (sField) {
+        // Find the max counter value across all rows for this field
+        var iMax = 0;
+        aRows.forEach(function (r) {
+          var v = parseInt(String(r[sField] || "0"), 10);
+          if (!isNaN(v) && v > iMax) iMax = v;
+        });
+        // Set all rows to the max value
+        aRows.forEach(function (r) {
+          var vCur = parseInt(String(r[sField] || "0"), 10);
+          if (vCur !== iMax) {
+            r[sField] = String(iMax);
+            bChanged = true;
+          }
+        });
+      });
+
+      if (bChanged) {
+        oD.setProperty("/RowsAll", aRows);
+        oD.refresh(true);
+      }
     },
 
     _hookDirtyOnEdit: function (oCtrl) {
@@ -291,6 +343,7 @@ sap.ui.define([
         oD.setProperty("/guidKey", sGuid); oD.setProperty("/Fibra", "");
         oD.setProperty("/RowsAll", aSelected); oD.setProperty("/Rows", aSelected); oD.setProperty("/RowsCount", aSelected.length);
         self._refreshHeader4Fields(); self._applyUiPermissions(); self._applyFiltersAndSort();
+        self._syncAttachmentCounters();
         if (typeof fnDone === "function") fnDone();
       };
 
@@ -506,6 +559,7 @@ sap.ui.define([
         var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
         MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
 
+        this._syncAttachmentCounters();
         MessageToast.show("Riga aggiunta");
       } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
     },
@@ -563,6 +617,7 @@ sap.ui.define([
         var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
         MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
 
+        this._syncAttachmentCounters();
         MessageToast.show("Riga copiata");
       } catch (e) { console.error("[S4] onCopyRow ERROR", e); MessageToast.show("Errore copia riga"); }
     },
@@ -680,14 +735,8 @@ sap.ui.define([
           oVm.setProperty("/cache/recordsByKey/" + sCK, []);
           oVm.setProperty("/__skipS3BackendOnce", false);
           MessageToast.show("Dati salvati con successo");
-/*           self._markSkipS3BackendOnce = function () {};
-          self.onNavBack(); */
-          oVm.setProperty("/__skipS3BackendOnce", false);
-self.getOwnerComponent().getRouter().navTo("Screen3", {
-    vendorId: encodeURIComponent(self._sVendorId),
-    material: encodeURIComponent(self._sMaterial),
-    mode: self._sMode || "A"
-}, true);
+          self._markSkipS3BackendOnce = function () {};
+          self.onNavBack();
         },
         onPartialError: function (aErr) {
           oProxyDetail.destroy();

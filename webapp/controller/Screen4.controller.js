@@ -55,6 +55,13 @@ sap.ui.define([
         __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
       }), "detail");
 
+      // Periodically sync attachment counters across rows.
+      // The attachment dialog updates only ONE row via onCountChange callback.
+      // Since JSONModel.attachPropertyChange doesn't fire for nested array changes,
+      // we use a lightweight polling approach (500ms) that only runs while Screen4 is active.
+      var self = this;
+      this._attachSyncInterval = null;
+
       this._snapshotRows = null;
       this._filterState = { globalQuery: "", colFilters: {}, sortState: null };
       this._hdrFilter = { boxesByKey: {}, seenLast: {} };
@@ -62,6 +69,7 @@ sap.ui.define([
 
     onExit: function () {
       try {
+        if (this._attachSyncInterval) { clearInterval(this._attachSyncInterval); this._attachSyncInterval = null; }
         if (this._dlgSort) { this._dlgSort.destroy(); this._dlgSort = null; }
         S4Filter.resetHeaderCaches(this._hdrFilter, this._hdrSortBtns);
         this._hdrFilter = { boxesByKey: {}, seenLast: {} };
@@ -101,6 +109,13 @@ sap.ui.define([
         S4Filter.resetHeaderCaches(self._hdrFilter, self._hdrSortBtns);
         self._hdrFilter = { boxesByKey: {}, seenLast: {} };
         self._hdrSortBtns = {};
+
+        // Start attachment counter sync polling
+        if (self._attachSyncInterval) clearInterval(self._attachSyncInterval);
+        self._attachSyncInterval = setInterval(function () {
+          self._syncAttachmentCounters();
+        }, 500);
+
         self._loadSelectedRecordRows(function () { self._bindRowsAndColumns(); }.bind(self));
       });
     },
@@ -145,6 +160,7 @@ sap.ui.define([
      * for each attachment column. This ensures all rows show the same counter.
      */
     _syncAttachmentCounters: function () {
+      if (this._bSyncingAttach) return; // prevent re-entry from propertyChange
       var oD = this.getView().getModel("detail"); if (!oD) return;
       var aRows = oD.getProperty("/RowsAll") || [];
       if (aRows.length <= 1) return;
@@ -183,8 +199,10 @@ sap.ui.define([
       });
 
       if (bChanged) {
+        this._bSyncingAttach = true;
         oD.setProperty("/RowsAll", aRows);
         oD.refresh(true);
+        this._bSyncingAttach = false;
       }
     },
 
@@ -730,13 +748,18 @@ sap.ui.define([
         mock: !!mock.mockS4,
         onSuccess: function (oData) {
           oProxyDetail.destroy();
+          if (self._attachSyncInterval) { clearInterval(self._attachSyncInterval); self._attachSyncInterval = null; }
           oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
           oVm.setProperty("/cache/dataRowsByKey/" + sCK, []);
           oVm.setProperty("/cache/recordsByKey/" + sCK, []);
           oVm.setProperty("/__skipS3BackendOnce", false);
           MessageToast.show("Dati salvati con successo");
-          self._markSkipS3BackendOnce = function () {};
-          self.onNavBack();
+          // Navigate back to Screen3 forcing a backend reload (data just saved)
+          self.getOwnerComponent().getRouter().navTo("Screen3", {
+            vendorId: encodeURIComponent(self._sVendorId),
+            material: encodeURIComponent(self._sMaterial),
+            mode: self._sMode || "A"
+          }, true);
         },
         onPartialError: function (aErr) {
           oProxyDetail.destroy();
@@ -759,7 +782,8 @@ sap.ui.define([
       return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
     },
     onNavBack: function () {
-      this._markSkipS3BackendOnce(); /*  */
+      if (this._attachSyncInterval) { clearInterval(this._attachSyncInterval); this._attachSyncInterval = null; }
+      this._markSkipS3BackendOnce();
       this._performNavBack();
     }
   });

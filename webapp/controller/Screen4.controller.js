@@ -759,7 +759,7 @@ sap.ui.define([
       return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
     },
     onNavBack: function () {
-      this._markSkipS3BackendOnce();
+      this._markSkipS3BackendOnce(); /*  */
       this._performNavBack();
     }
   });

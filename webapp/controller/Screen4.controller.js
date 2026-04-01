@@ -91,6 +91,8 @@ sap.ui.define([
         self._log("_onRouteMatched args", oArgs);
 
         self._snapshotRows = null;
+        self._attachSnapshot = null;
+
         self._filterState = { globalQuery: "", colFilters: {}, sortState: null };
         var oInp = self.byId("inputFilter4");
         if (oInp && oInp.setValue) oInp.setValue("");
@@ -159,7 +161,7 @@ sap.ui.define([
      * When an attachment counter changes on one row, propagate the MAX value to ALL rows
      * for each attachment column. This ensures all rows show the same counter.
      */
-    _syncAttachmentCounters: function () {
+/*     _syncAttachmentCounters: function () {
       if (this._bSyncingAttach) return; // prevent re-entry from propertyChange
       var oD = this.getView().getModel("detail"); if (!oD) return;
       var aRows = oD.getProperty("/RowsAll") || [];
@@ -205,7 +207,73 @@ sap.ui.define([
         this._bSyncingAttach = false;
       }
     },
+ */
+   _syncAttachmentCounters: function () {
+  if (this._bSyncingAttach) return;
+  var oD = this.getView().getModel("detail"); if (!oD) return;
+  var aRows = oD.getProperty("/RowsAll") || [];
+  if (aRows.length <= 1) return;
 
+  var aAttFields = [];
+  (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
+    if (f && f.attachment && f.ui) aAttFields.push(String(f.ui).trim());
+  });
+  (oD.getProperty("/_mmct/s00") || []).forEach(function (f) {
+    if (f && f.attachment && f.ui) {
+      var sUi = String(f.ui).trim();
+      if (aAttFields.indexOf(sUi) < 0) aAttFields.push(sUi);
+    }
+  });
+  if (!aAttFields.length) return;
+
+  if (!this._attachSnapshot) this._attachSnapshot = {};
+  var bChanged = false;
+  var snap = this._attachSnapshot;
+
+  aAttFields.forEach(function (sField) {
+    var aCurr = aRows.map(function (r) {
+      return parseInt(String(r[sField] || "0"), 10) || 0;
+    });
+    var aPrev = snap[sField] || aCurr.map(function () { return aCurr[0]; });
+
+    // Find the row that changed vs snapshot
+    var iChangedIdx = -1;
+    var iNewVal = aCurr[0];
+    for (var i = 0; i < aCurr.length; i++) {
+      if (i < aPrev.length && aCurr[i] !== aPrev[i]) {
+        iChangedIdx = i;
+        iNewVal = aCurr[i];
+        break;
+      }
+    }
+
+    if (iChangedIdx < 0) {
+      var allSame = aCurr.every(function (v) { return v === aCurr[0]; });
+      if (allSame) { snap[sField] = aCurr.slice(); return; }
+      // Rows out of sync, no snapshot diff → minority value is the updated one
+      var counts = {};
+      aCurr.forEach(function (v) { counts[v] = (counts[v] || 0) + 1; });
+      var minCount = aRows.length + 1;
+      Object.keys(counts).forEach(function (k) {
+        if (counts[k] < minCount) { minCount = counts[k]; iNewVal = parseInt(k, 10); }
+      });
+    }
+
+    aRows.forEach(function (r) {
+      var vCur = parseInt(String(r[sField] || "0"), 10) || 0;
+      if (vCur !== iNewVal) { r[sField] = String(iNewVal); bChanged = true; }
+    });
+    snap[sField] = aRows.map(function () { return iNewVal; });
+  });
+
+  this._attachSnapshot = snap;
+  if (bChanged) {
+    this._bSyncingAttach = true;
+    oD.setProperty("/RowsAll", aRows);
+    oD.refresh(true);
+    this._bSyncingAttach = false;
+  }
+},
     _hookDirtyOnEdit: function (oCtrl) {
       if (!oCtrl) return;
       try { if (oCtrl.data && oCtrl.data("dirtyHooked")) return; if (oCtrl.data) oCtrl.data("dirtyHooked", true); } catch (e) {}
@@ -680,6 +748,31 @@ sap.ui.define([
         MessageBox.warning("Nessun record trovato. Tornare alla schermata precedente e riprovare.");
         return;
       }
+
+      // ── Guid normalisation ──
+var sGuidFromDetail = N.toStableString(oD.getProperty("/guidKey"));
+aRecordsAll = N.deepClone(aRecordsAll);
+aRecordsAll.forEach(function (rec) {
+  if (!rec) return;
+  var g = N.toStableString(rec.guidKey || rec.Guid || rec.GUID || "");
+  if (!g || g.indexOf("NEW_") >= 0 || g.indexOf("SYNTH_") >= 0 || g.indexOf("-new") >= 0) {
+    g = sGuidFromDetail || N.uuidv4();
+  }
+  rec.Guid = g;
+  rec.GUID = g;
+  rec.guidKey = g;
+});
+
+var aDetailRows = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
+aDetailRows.forEach(function (row) {
+  if (!row) return;
+  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
+  if (!rg || rg.indexOf("NEW_") >= 0 || rg.indexOf("SYNTH_") >= 0 || rg.indexOf("-new") >= 0) {
+    row.Guid = sGuidFromDetail || N.uuidv4();
+    row.GUID = row.Guid;
+    row.guidKey = row.Guid;
+  }
+});
 
       var sCat = String(oD.getProperty("/_mmct/cat") || "").trim();
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];

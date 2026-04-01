@@ -301,7 +301,8 @@ sap.ui.define([
         if (!o.Materiale) o.Materiale = sMaterial;
 
         var g = guidOf(r) || guidOf(o);
-        if (!g || g.indexOf("-new") >= 0) g = null;
+        /* if (!g || g.indexOf("-new") >= 0) g = null; */
+        if (!g || g.indexOf("-new") >= 0) g = uuidv4Fn();
 
         o.Guid = g;
 

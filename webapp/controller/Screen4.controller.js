@@ -792,9 +792,22 @@ aDetailRows.forEach(function (row) {
         })
         .filter(function (f) { return !!f.ui; });
 
+        var aS02 = aRawFields
+  .filter(function (f) { return String(f.LivelloSchermata || "").trim() === "02"; })
+  .map(function (f) {
+    return {
+      ui: String(f.UiFieldname || f.UIFIELDNAME || "").trim(),
+      label: String(f.UiFieldLabel || f.Descrizione || "").trim(),
+      domain: String(f.Dominio || "").trim(),
+      required: String(f.Impostazione || "").trim().toUpperCase() === "O",
+      multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X"
+    };
+  })
+  .filter(function (f) { return !!f.ui; });
+
       var oProxyDetail = new JSONModel({
         RecordsAll: aRecordsAll,
-        _mmct: { s01: aS01 },
+        _mmct: { s01: aS01,s02: aS02 },
         __deletedLinesForPost: oVm.getProperty("/cache/__deletedLinesForPost_" + sCK) || []
       });
 
@@ -843,8 +856,8 @@ aDetailRows.forEach(function (row) {
           oProxyDetail.destroy();
           if (self._attachSyncInterval) { clearInterval(self._attachSyncInterval); self._attachSyncInterval = null; }
           oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-          oVm.setProperty("/cache/dataRowsByKey/" + sCK, []);
-          oVm.setProperty("/cache/recordsByKey/" + sCK, []);
+          /* oVm.setProperty("/cache/dataRowsByKey/" + sCK, []);
+          oVm.setProperty("/cache/recordsByKey/" + sCK, []); */
           oVm.setProperty("/__skipS3BackendOnce", false);
           MessageToast.show("Dati salvati con successo");
           // Navigate back to Screen3 forcing a backend reload (data just saved)

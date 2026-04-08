@@ -272,7 +272,7 @@ sap.ui.define([
 
       var mMulti = getMultiFieldsMap();
 
-      var sanitizeForPost = function (rAny) {
+      var sanitizeForPost = function (rAny, sForcedGuid) {
         var r = rAny || {};
         var o = {};
 
@@ -302,8 +302,8 @@ sap.ui.define([
 
         var g = guidOf(r) || guidOf(o);
         /* if (!g || g.indexOf("-new") >= 0) g = null; */
-        if (!g || g.indexOf("-new") >= 0) g = uuidv4Fn();
-
+        /* if (!g || g.indexOf("-new") >= 0) g = uuidv4Fn(); */
+        if (!g || g.indexOf("-new") >= 0) g = sForcedGuid || uuidv4Fn();
         o.Guid = g;
 
         if (o.GUID !== undefined) delete o.GUID;
@@ -386,7 +386,8 @@ sap.ui.define([
           if (!r.Materiale) r.Materiale = sMaterial;
           r.UserID = sUserId;
 
-          aLines.push(sanitizeForPost(r));
+          /* aLines.push(sanitizeForPost(r)); */
+          aLines.push(sanitizeForPost(r, gGroup));
         });
       });
 

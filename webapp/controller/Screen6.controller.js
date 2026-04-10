@@ -220,7 +220,7 @@ sap.ui.define([
         });
 
         // Define columns based on the fields in the response
-        var aCols = [
+/*         var aCols = [
           { label: "Categoria Materiale", property: "CatMateriale" },
           { label: "Desc. Categoria", property: "MatCatDesc" },
           { label: "Fornitore", property: "Fornitore" },
@@ -237,7 +237,57 @@ sap.ui.define([
           { label: "Plant", property: "Plant" },
           { label: "Dest. Uso", property: "DestUso" },
           { label: "Famiglia", property: "Famiglia" }
-        ];
+        ]; */
+
+        // Build columns dynamically from MMCT config using the SortExcel field:
+        //   - SortExcel = 0  → column excluded from export
+        //   - SortExcel > 0  → column included, sorted by ascending value
+        // Fallback to a hardcoded list if no field has SortExcel configured
+        // (e.g. during MMCT migration or for categories not yet configured).
+        var oVm = this.getOwnerComponent().getModel("vm");
+        var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+
+        var aCols = [];
+        var aSortable = (aRawFields || [])
+          .filter(function (f) {
+            var n = parseInt(String(f.SortExcel != null ? f.SortExcel : 0), 10);
+            return !isNaN(n) && n > 0;
+          })
+          .sort(function (a, b) {
+            var nA = parseInt(String(a.SortExcel || 0), 10) || 0;
+            var nB = parseInt(String(b.SortExcel || 0), 10) || 0;
+            return nA - nB;
+          });
+
+        if (aSortable.length) {
+          aCols = aSortable.map(function (f) {
+            var sProp = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+            var sLabel = String(f.UiFieldLabel || f.Descrizione || sProp).trim();
+            return { label: sLabel, property: sProp };
+          }).filter(function (c) { return !!c.property; });
+          console.log("[S6] Export columns from SortExcel config:", aCols.length, "columns");
+        } else {
+          // Fallback: hardcoded legacy list
+          console.log("[S6] No SortExcel config found for category", sCat, "— using legacy column list");
+          aCols = [
+            { label: "Categoria Materiale", property: "CatMateriale" },
+            { label: "Desc. Categoria", property: "MatCatDesc" },
+            { label: "Fornitore", property: "Fornitore" },
+            { label: "Materiale", property: "Materiale" },
+            { label: "Descrizione Materiale", property: "DescMat" },
+            { label: "Stagione", property: "Stagione" },
+            { label: "Collezione", property: "Collezione" },
+            { label: "Linea", property: "Linea" },
+            { label: "Uscita", property: "Uscita" },
+            { label: "Fibra", property: "Fibra" },
+            { label: "Qtà Fibra", property: "QtaFibra" },
+            { label: "Unità Misura Fibra", property: "UmFibra" },
+            { label: "UdM", property: "UdM" },
+            { label: "Plant", property: "Plant" },
+            { label: "Dest. Uso", property: "DestUso" },
+            { label: "Famiglia", property: "Famiglia" }
+          ];
+        }
 
         // Clean data: remove __metadata
         var aData = aResults.map(function (r) {

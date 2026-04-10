@@ -119,6 +119,50 @@ sap.ui.define([
 
       return out;
     },
+
+
+    /**
+     * Clona i campi configurati di s01 per una nuova riga parent.
+     * Copia tutti i valori dal template TRANNE:
+     *   - campi attachment (resettati a "0")
+     *   - campi esclusi (PartitaFornitore, ...) che restano vuoti
+     *
+     * Usare questa funzione invece di cloneLockedFields quando si crea un
+     * nuovo parent, per permettere l'ereditarietà dei campi dominio
+     * (es. Fibra e QtaFibra sui pellami) senza trascinarsi contatori
+     * allegati o partite fornitore della riga sorgente.
+     */
+    cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
+      src = src || {};
+      var out = {};
+      var aExcluded = ["PartitaFornitore"];
+
+      (aCfg || []).forEach(function (f) {
+        if (!f || !f.ui) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        if (k.toUpperCase() === "STATO") k = "Stato";
+
+        // Attachment fields: reset counter to "0"
+        if (f.attachment) {
+          out[k] = "0";
+          return;
+        }
+
+        // Excluded fields: always empty on new row
+        if (aExcluded.indexOf(k) >= 0) {
+          out[k] = f.multiple ? [] : "";
+          return;
+        }
+
+        // Otherwise: inherit from template
+        var v = src[k];
+        if (f.multiple) out[k] = toArrayMulti(v);
+        else out[k] = (v == null ? "" : v);
+      });
+
+      return out;
+    },
     /**
      * Crea una nuova riga parent
      */
@@ -144,7 +188,7 @@ sap.ui.define([
 
       var sGuidNew = genGuidNew();
 
-      var oLockedParent = this.cloneLockedFields(tpl0, aCfg01, toArrayMulti);
+/*       var oLockedParent = this.cloneLockedFields(tpl0, aCfg01, toArrayMulti);
 
       var oNewRow = N.deepClone(Object.assign({}, oLockedParent, {
         idx: iNewIdx,
@@ -163,6 +207,42 @@ sap.ui.define([
 
         Stato: "ST",
         StatoText: statusTextFn("ST"),
+        __status: "ST",
+
+        __canEdit: true,
+        __canApprove: false,
+        __canReject: false,
+        __readOnly: false,
+
+        __isNew: true,
+        __state: "NEW"
+      })); */
+
+      // Use cloneFieldsForNewParent (not cloneLockedFields) so that configured
+      // s01 fields like Fibra and QtaFibra (used on pellami) are inherited
+      // from the template, while attachment counters and PartitaFornitore
+      // are correctly reset.
+      var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
+
+      var oNewRow = deepClone(Object.assign({}, oParentFields, {
+        idx: iNewIdx,
+
+        GUID: sGuidNew,
+        Guid: sGuidNew,
+        guidKey: sGuidNew,
+
+        CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
+        Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
+        Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
+
+        // NOTE: no explicit Fibra: "" — cloneFieldsForNewParent handles it:
+        // for pellami Fibra is in aCfg01 and gets inherited, for other
+        // categories Fibra is on s02 and not in aCfg01 so stays unset.
+
+        CodAgg: "I",
+
+        Stato: "ST",
+        StatoText: statusText("ST"),
         __status: "ST",
 
         __canEdit: true,

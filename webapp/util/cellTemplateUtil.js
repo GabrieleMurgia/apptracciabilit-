@@ -334,6 +334,25 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
 
     var oBtn = new Button({
       icon: "sap-icon://attachment",
+      // Disable button if record is not yet saved (no valid backend Guid).
+      // Local Guids (NEW_, SYNTH_, -new) mean the record is still pending save.
+      enabled: {
+        parts: [
+          { path: "detail>guidKey" },
+          { path: "detail>Guid" },
+          { path: "detail>GUID" },
+          { path: "detail>__isNew" }
+        ],
+        formatter: function (sGuidKey, sGuid, sGUID, bIsNew) {
+          var g = String(sGuidKey || sGuid || sGUID || "").trim();
+          if (!g) return false;
+          if (g.indexOf("NEW_") >= 0) return false;
+          if (g.indexOf("SYNTH_") >= 0) return false;
+          if (g.indexOf("-new") >= 0) return false;
+          if (bIsNew === true) return false;
+          return true;
+        }
+      },
       text: {
         path: "detail>" + sKey,
         formatter: function (v) {
@@ -343,8 +362,23 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         }
       },
       tooltip: {
-        path: "detail>" + sKey,
-        formatter: function (v) {
+        parts: [
+          { path: "detail>" + sKey },
+          { path: "detail>guidKey" },
+          { path: "detail>Guid" },
+          { path: "detail>GUID" },
+          { path: "detail>__isNew" }
+        ],
+        formatter: function (v, sGuidKey, sGuid, sGUID, bIsNew) {
+          var g = String(sGuidKey || sGuid || sGUID || "").trim();
+          var bUnsaved = !g ||
+            g.indexOf("NEW_") >= 0 ||
+            g.indexOf("SYNTH_") >= 0 ||
+            g.indexOf("-new") >= 0 ||
+            bIsNew === true;
+          if (bUnsaved) {
+            return sLabel + " — Salva il record prima di caricare allegati";
+          }
           var n = parseInt(v, 10);
           if (isNaN(n) || n <= 0) return sLabel + " — Nessun allegato";
           return sLabel + " — " + n + " allegat" + (n === 1 ? "o" : "i");

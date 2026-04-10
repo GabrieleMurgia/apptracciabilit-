@@ -68,8 +68,7 @@ sap.ui.define([
       var mRawByGuid = {};
       (aRawAll || []).forEach(function (r) {
         if (!r) return;
-
-        debugger
+        
         var ca = getCodAgg(r);
         if (ca === "N") return;
         if (ca === "D") return;
@@ -467,7 +466,6 @@ sap.ui.define([
       }
 
       BusyIndicator.show(0);
-      debugger
       oModel.create("/PostDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
 

@@ -413,7 +413,7 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         var sRowGuid = sGuid;
         var oDetailModel = oCtx.getModel();
 
-        AttachmentUtil.openAttachmentDialog({
+AttachmentUtil.openAttachmentDialog({
           oModel: oODataModel,
           guid: sGuid,
           fieldName: sKey,
@@ -421,6 +421,54 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           oView: oView,
           mock: bMock,
           readOnly: bReadOnly,
+          // When uploading an attachment on a rejected record, the backend
+          // automatically changes its status (RJ → U). Propagate the new
+          // status to all records arrays and snapshots so the UI reflects it.
+          onStatusChange: function (sNewStato, oData) {
+            try {
+              if (!oDetailModel || !sNewStato) return;
+              var sStUpper = String(sNewStato).trim().toUpperCase();
+              ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
+                var aArr = oDetailModel.getProperty(sArrPath) || [];
+                for (var i = 0; i < aArr.length; i++) {
+                  var r = aArr[i];
+                  if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                    r.Stato = sStUpper;
+                    r.__status = sStUpper;
+                    // Reset readOnly so user can keep editing the (now modified) record
+                    if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
+                      r.__readOnly = false;
+                    }
+                    oDetailModel.setProperty(sArrPath + "/" + i + "/Stato", sStUpper);
+                    oDetailModel.setProperty(sArrPath + "/" + i + "/__status", sStUpper);
+                    break;
+                  }
+                }
+              });
+              oDetailModel.refresh(true);
+            } catch (e) {
+              console.warn("[cellTemplateUtil] onStatusChange model update error", e);
+            }
+            // Sync snapshots so status change is not detected as unsaved change
+            try {
+              var oController = oView && oView.getController && oView.getController();
+              if (oController && sRowGuid) {
+                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
+                  if (!Array.isArray(aSnap)) return;
+                  for (var i = 0; i < aSnap.length; i++) {
+                    var r = aSnap[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r.Stato = String(sNewStato).trim().toUpperCase();
+                      r.__status = String(sNewStato).trim().toUpperCase();
+                      break;
+                    }
+                  }
+                });
+              }
+            } catch (e2) {
+              console.warn("[cellTemplateUtil] onStatusChange snapshot sync error", e2);
+            }
+          },
           onCountChange: function (iNewCount) {
             var sVal = String(iNewCount);
 /*             console.log("[cellTemplateUtil] onCountChange fired", sKey, "=", sVal, "guid=", sRowGuid);

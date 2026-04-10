@@ -369,7 +369,10 @@ sap.ui.define([
     var sLabel = opts.fieldLabel || sFieldName || "Allegati";
     var bReadOnly = !!opts.readOnly;
     var bMock = !!opts.mock;
+    /* var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null; */
+
     var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null;
+    var fnStatusChange = typeof opts.onStatusChange === "function" ? opts.onStatusChange : null;
 
     if (!sGuid) {
       MessageToast.show("GUID mancante, impossibile caricare gli allegati");
@@ -506,7 +509,8 @@ sap.ui.define([
         // Now prompt for description (file is already read)
         _promptForDescription(sName).then(function (sNote) {
           console.log("[AttachmentUtil] description entered:", sNote);
-          uploadAttachment({
+
+/*           uploadAttachment({
             oModel: oModel,
             guid: sGuid,
             fieldName: sFieldName,
@@ -519,7 +523,37 @@ sap.ui.define([
             _reloadList();
           }).catch(function (err) {
             console.error("[AttachmentUtil] upload failed:", err);
+          }); */
+
+         uploadAttachment({
+            oModel: oModel,
+            guid: sGuid,
+            fieldName: sFieldName,
+            fileName: sName,
+            mimeType: sMime,
+            fileContent: sBase64,
+            note: sNote
+          }).then(function (oData) {
+            console.log("[AttachmentUtil] upload success, reloading list");
+            // Extract new record status from backend response and notify caller.
+            // Backend returns the new Stato when uploading on a rejected record.
+            if (fnStatusChange && oData) {
+              var sNewStato = String(
+                oData.Stato || oData.STATO || oData.NewStato || oData.NewStatus || ""
+              ).trim();
+              if (sNewStato) {
+                console.log("[AttachmentUtil] new status from backend:", sNewStato);
+                try { fnStatusChange(sNewStato, oData); } catch (e) {
+                  console.warn("[AttachmentUtil] onStatusChange callback error", e);
+                }
+              }
+            }
+            _reloadList();
+          }).catch(function (err) {
+            console.error("[AttachmentUtil] upload failed:", err);
           });
+
+
         }).catch(function () {
           console.log("[AttachmentUtil] description prompt cancelled");
         });

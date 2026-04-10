@@ -428,7 +428,7 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           // When uploading an attachment on a rejected record, the backend
           // automatically changes its status (RJ → U). Propagate the new
           // status to all records arrays and snapshots so the UI reflects it.
-          onStatusChange: function (sNewStato, oData) {
+/*           onStatusChange: function (sNewStato, oData) {
             try {
               if (!oDetailModel || !sNewStato) return;
               var sStUpper = String(sNewStato).trim().toUpperCase();
@@ -464,6 +464,109 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
                     if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
                       r.Stato = String(sNewStato).trim().toUpperCase();
                       r.__status = String(sNewStato).trim().toUpperCase();
+                      break;
+                    }
+                  }
+                });
+              }
+            } catch (e2) {
+              console.warn("[cellTemplateUtil] onStatusChange snapshot sync error", e2);
+            }
+          }, */
+          
+          onStatusChange: function (sNewStato, oData) {
+            var sStUpper = String(sNewStato || "").trim().toUpperCase();
+            if (!sStUpper) return;
+
+            // ── 1. Update current view's detail model ──
+            try {
+              if (oDetailModel) {
+                ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
+                  var aArr = oDetailModel.getProperty(sArrPath) || [];
+                  for (var i = 0; i < aArr.length; i++) {
+                    var r = aArr[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r.Stato = sStUpper;
+                      r.__status = sStUpper;
+                      // Reset readOnly so user can keep editing the (now modified) record
+                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
+                        r.__readOnly = false;
+                      }
+                      oDetailModel.setProperty(sArrPath + "/" + i + "/Stato", sStUpper);
+                      oDetailModel.setProperty(sArrPath + "/" + i + "/__status", sStUpper);
+                      break;
+                    }
+                  }
+                });
+                oDetailModel.refresh(true);
+              }
+            } catch (e) {
+              console.warn("[cellTemplateUtil] onStatusChange model update error", e);
+            }
+
+            // ── 2. Update VM cache so Screen3 sees the new status on navigation back ──
+            // Iterate over ALL cache entries (recordsByKey + dataRowsByKey) because we
+            // don't know the specific cache key from here — match by Guid only.
+            try {
+              if (oVm) {
+                var oCache = oVm.getProperty("/cache") || {};
+                var oRecordsByKey = oCache.recordsByKey || {};
+                Object.keys(oRecordsByKey).forEach(function (sCK) {
+                  var aRecs = oRecordsByKey[sCK] || [];
+                  if (!Array.isArray(aRecs)) return;
+                  var bChanged = false;
+                  for (var i = 0; i < aRecs.length; i++) {
+                    var r = aRecs[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r.Stato = sStUpper;
+                      r.__status = sStUpper;
+                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
+                        r.__readOnly = false;
+                      }
+                      bChanged = true;
+                    }
+                  }
+                  if (bChanged) {
+                    oVm.setProperty("/cache/recordsByKey/" + sCK, aRecs);
+                  }
+                });
+
+                var oDataRowsByKey = oCache.dataRowsByKey || {};
+                Object.keys(oDataRowsByKey).forEach(function (sCK) {
+                  var aRows = oDataRowsByKey[sCK] || [];
+                  if (!Array.isArray(aRows)) return;
+                  var bChanged = false;
+                  for (var i = 0; i < aRows.length; i++) {
+                    var r = aRows[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r.Stato = sStUpper;
+                      r.__status = sStUpper;
+                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
+                        r.__readOnly = false;
+                      }
+                      bChanged = true;
+                    }
+                  }
+                  if (bChanged) {
+                    oVm.setProperty("/cache/dataRowsByKey/" + sCK, aRows);
+                  }
+                });
+              }
+            } catch (eVm) {
+              console.warn("[cellTemplateUtil] onStatusChange VM cache update error", eVm);
+            }
+
+            // ── 3. Sync controller snapshots so status change isn't detected as unsaved ──
+            try {
+              var oController = oView && oView.getController && oView.getController();
+              if (oController && sRowGuid) {
+                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
+                  if (!Array.isArray(aSnap)) return;
+                  for (var i = 0; i < aSnap.length; i++) {
+                    var r = aSnap[i];
+                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
+                      r.Stato = sStUpper;
+                      r.__status = sStUpper;
                       break;
                     }
                   }

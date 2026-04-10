@@ -73,7 +73,7 @@ sap.ui.define([
     /**
      * Clona i campi locked da un template
      */
-    cloneLockedFields: function (src, aCfg, toArrayMulti) {
+/*     cloneLockedFields: function (src, aCfg, toArrayMulti) {
       src = src || {};
       toArrayMulti = toArrayMulti || N.toArrayMulti;
       var out = {};
@@ -94,8 +94,31 @@ sap.ui.define([
       });
 
       return out;
-    },
+    }, */
 
+        cloneLockedFields: function (src, aCfg, toArrayMulti) {
+      src = src || {};
+      var out = {};
+
+      (aCfg || []).forEach(function (f) {
+        if (!f || !f.ui) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        if (k.toUpperCase() === "STATO") k = "Stato";
+
+        if (f.locked) {
+          // Locked field: copy from source template
+          var v = src[k];
+          if (f.multiple) out[k] = toArrayMulti(v);
+          else out[k] = (v == null ? "" : v);
+        } else {
+          // Not locked: use empty default
+          out[k] = f.multiple ? [] : "";
+        }
+      });
+
+      return out;
+    },
     /**
      * Crea una nuova riga parent
      */
@@ -170,7 +193,7 @@ sap.ui.define([
     /**
      * Crea le righe dettaglio per un nuovo parent
      */
-    createNewDetailRows: function (aTplRows, opts) {
+/*     createNewDetailRows: function (aTplRows, opts) {
       var tpl0 = opts.template;
       var aCfg02 = opts.cfg02;
       var sGuidNew = opts.guid;
@@ -219,14 +242,77 @@ sap.ui.define([
         return x;
       });
     },
+ */
+    
+        createNewDetailRows: function (aTplRows, opts) {
+      var tpl0 = opts.template;
+      var aCfg02 = opts.cfg02;
+      var sGuidNew = opts.guid;
+      var sVendorId = opts.vendorId;
+      var sMaterial = opts.material;
+      var sCat = opts.cat;
+      var normalizeVendor10 = opts.normalizeVendor10;
+      var toArrayMulti = opts.toArrayMulti;
 
+      var self = this;
+
+      return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
+        var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
+
+        // Start from empty object — do NOT deepClone src, or we'd inherit
+        // attachment counters, component data, and other fields from the template.
+        var x = {};
+        Object.assign(x, oLockedDet);
+
+        // Fibra is a special case: preserve it only if present on source
+        var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
+        if (fibraSrc != null && String(fibraSrc).trim() !== "") {
+          x.Fibra = fibraSrc;
+        }
+
+        x.Guid = sGuidNew;
+        x.GUID = sGuidNew;
+        x.guidKey = sGuidNew;
+
+        x.Fornitore = normalizeVendor10(sVendorId);
+        x.Materiale = String(sMaterial || "").trim();
+        x.CatMateriale = tpl0.CatMateriale || sCat || "";
+
+        x.CodAgg = "I";
+        x.Stato = "ST";
+        x.__status = "ST";
+        x.__readOnly = false;
+        x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        x.__isNew = true;
+
+        x.Approved = 0;
+        x.Rejected = 0;
+        x.ToApprove = 1;
+
+        // Initialize multi-value fields as empty arrays
+        (aCfg02 || []).forEach(function (f) {
+          if (!f || !f.ui) return;
+          var k = String(f.ui).trim();
+          if (!k) return;
+          if (k.toUpperCase() === "STATO") return;
+          if (x[k] === undefined) {
+            x[k] = f.multiple ? [] : "";
+          }
+          if (f.multiple && !Array.isArray(x[k])) {
+            x[k] = toArrayMulti(x[k]);
+          }
+        });
+
+        return x;
+      });
+    },
     /**
      * Verifica se le righe selezionate possono essere eliminate
      */
     canDeleteSelectedRows: function (aSel) {
       var aForbidden = (aSel || []).filter(function (r) {
         var st = String((r && (r.__status || r.Stato)) || "").trim().toUpperCase();
-        return st === "AP" || st === "RJ" || st === "CH";
+        return st === "AP" /* || st === "RJ" || st === "CH"; */;
       });
 
       return {

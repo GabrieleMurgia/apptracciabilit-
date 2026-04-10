@@ -226,6 +226,7 @@ sap.ui.define([
       FileName: opts.fileName || "",
       MimeType: opts.mimeType || "application/octet-stream",
       FileContent: opts.fileContent || "",
+      Stato: opts.stato || "",
       Note: opts.note || ""
     };
 
@@ -373,6 +374,8 @@ sap.ui.define([
 
     var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null;
     var fnStatusChange = typeof opts.onStatusChange === "function" ? opts.onStatusChange : null;
+    var sCurrentStato = String(opts.currentStato || "").trim();
+
 
     if (!sGuid) {
       MessageToast.show("GUID mancante, impossibile caricare gli allegati");
@@ -532,7 +535,8 @@ sap.ui.define([
             fileName: sName,
             mimeType: sMime,
             fileContent: sBase64,
-            note: sNote
+            note: sNote,
+            stato: sCurrentStato
           }).then(function (oData) {
             console.log("[AttachmentUtil] upload success, reloading list");
             // Extract new record status from backend response and notify caller.

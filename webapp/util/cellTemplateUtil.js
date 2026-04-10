@@ -413,7 +413,10 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         var sRowGuid = sGuid;
         var oDetailModel = oCtx.getModel();
 
-AttachmentUtil.openAttachmentDialog({
+        // Read current Stato from the row to forward it to the backend
+        var sCurrentStato = String((oRow && (oRow.Stato || oRow.__status || "")) || "").trim();
+
+        AttachmentUtil.openAttachmentDialog({
           oModel: oODataModel,
           guid: sGuid,
           fieldName: sKey,
@@ -421,6 +424,7 @@ AttachmentUtil.openAttachmentDialog({
           oView: oView,
           mock: bMock,
           readOnly: bReadOnly,
+          currentStato: sCurrentStato,
           // When uploading an attachment on a rejected record, the backend
           // automatically changes its status (RJ → U). Propagate the new
           // status to all records arrays and snapshots so the UI reflects it.

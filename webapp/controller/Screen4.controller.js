@@ -750,7 +750,7 @@ sap.ui.define([
       }
 
       // ── Guid normalisation ──
-var sGuidFromDetail = N.toStableString(oD.getProperty("/guidKey"));
+/* var sGuidFromDetail = N.toStableString(oD.getProperty("/guidKey"));
 aRecordsAll = N.deepClone(aRecordsAll);
 aRecordsAll.forEach(function (rec) {
   if (!rec) return;
@@ -772,7 +772,65 @@ aDetailRows.forEach(function (row) {
     row.GUID = row.Guid;
     row.guidKey = row.Guid;
   }
+}); */
+
+// ── Stable Guid assignment (persisted in cache) ──
+// If the current record still has a local-only Guid (-new, NEW_, SYNTH_),
+// replace it with a stable UUID v4 and write it back to the VM cache IN PLACE.
+// Critical: without persisting, each subsequent save would regenerate a
+// different random Guid → backend rejects with "Key exists with other guid".
+function _isLocalGuid(g) {
+  var s = String(g || "");
+  return !s || s.indexOf("NEW_") >= 0 || s.indexOf("SYNTH_") >= 0 || s.indexOf("-new") >= 0;
+}
+
+var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
+var sStableGuid = _isLocalGuid(sOldGuid) ? N.uuidv4() : sOldGuid;
+
+// Update detail model
+oD.setProperty("/guidKey", sStableGuid);
+
+// Update records cache IN PLACE — match rows belonging to the current parent
+var aRecordsCache = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+aRecordsCache.forEach(function (rec) {
+  if (!rec) return;
+  var g = N.toStableString(rec.guidKey || rec.Guid || rec.GUID || "");
+  if (g === sOldGuid) {
+    rec.Guid = sStableGuid;
+    rec.GUID = sStableGuid;
+    rec.guidKey = sStableGuid;
+  }
 });
+oVm.setProperty("/cache/recordsByKey/" + sCK, aRecordsCache);
+
+// Update detail rows cache IN PLACE
+var aDetailRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
+aDetailRowsCache.forEach(function (row) {
+  if (!row) return;
+  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
+  if (rg === sOldGuid) {
+    row.Guid = sStableGuid;
+    row.GUID = sStableGuid;
+    row.guidKey = sStableGuid;
+  }
+});
+oVm.setProperty("/cache/dataRowsByKey/" + sCK, aDetailRowsCache);
+
+// Update current view's RowsAll so the UI stays consistent after save
+var aCurrentRows = oD.getProperty("/RowsAll") || [];
+aCurrentRows.forEach(function (row) {
+  if (!row) return;
+  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
+  if (rg === sOldGuid) {
+    row.Guid = sStableGuid;
+    row.GUID = sStableGuid;
+    row.guidKey = sStableGuid;
+  }
+});
+oD.setProperty("/RowsAll", aCurrentRows);
+
+// Use the now-normalized cache for the payload
+aRecordsAll = aRecordsCache;
 
       var sCat = String(oD.getProperty("/_mmct/cat") || "").trim();
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];

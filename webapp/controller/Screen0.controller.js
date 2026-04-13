@@ -307,7 +307,7 @@ sap.ui.define([
             },
             success: function (oData) {
               BusyIndicator.hide();
-
+              debugger
               if (!oData) {
                 console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);
                 return;

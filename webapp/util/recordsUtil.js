@@ -1,12 +1,12 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/statusUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil"  
-], function (N, StatusUtil, PostUtil) {  
+  "apptracciabilita/apptracciabilita/util/statusUtil"
+], function (N, StatusUtil) {  
   "use strict";
 
   var toStableString = N.toStableString;
   var valToText = N.valToText;
+  var deepClone = N.deepClone;
 
   return {
 
@@ -282,15 +282,7 @@ sap.ui.define([
     return JSON.stringify(rCurr) !== JSON.stringify(rSnap);
   });
 },
-    // =========================
-    // TO ARRAY MULTI
-    // =========================
-    toArrayMulti: function (v) {
-      if (Array.isArray(v)) return v.slice();
-      var s = String(v || "").trim();
-      if (!s) return [];
-      return s.split(/[;|]+/).map(function (x) { return x.trim(); }).filter(Boolean);
-    },
+    toArrayMulti: N.toArrayMulti,
 
       _bindRecords: async function (aRecords) {
       var oDetail = this._getODetail();

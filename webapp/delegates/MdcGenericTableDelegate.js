@@ -111,17 +111,6 @@ sap.ui.define([
     });
   }
 
-  // Dice alla tabella da dove leggere i record (path + modelName)
-/*   Delegate.updateBindingInfo = function (oTable, oBindingInfo) {
-    const oCfg = _getCfg(oTable);
-
-    const sPath = (oCfg && oCfg.collectionPath) ? oCfg.collectionPath : "/items";
-    const sModelName = (oCfg && oCfg.modelName) ? oCfg.modelName : undefined;
-
-    oBindingInfo.path = sPath;
-    if (sModelName) oBindingInfo.model = sModelName;
-  }; */
-
   Delegate.updateBindingInfo = function (oTable, oBindingInfo) {
   const p = _getPayload(oTable);
   const oCfg = _getCfg(oTable);

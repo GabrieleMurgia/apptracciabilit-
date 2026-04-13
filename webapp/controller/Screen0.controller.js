@@ -123,8 +123,6 @@ sap.ui.define([
     },
 
     onInit: function () {
-/*       console.log("[Screen0] " + ts() + " onInit START");
- */
       var oComponent = this.getOwnerComponent();
 
       // 1) Intercetta subito errori $metadata / requestFailed
@@ -363,9 +361,6 @@ sap.ui.define([
                     domainsByName = (r && (r.domainsByName || r.domainsByNamePatched || r.domains)) || domainsByName;
                     aAllFields = (r && (r.fields || r.fieldsPatched)) || aAllFields;
 
-                    if (r && r.logs && Array.isArray(r.logs) && r.logs.length) {
-/*                       console.log("[Screen0][DomainFallback] ON - logs:", r.logs);
- */                    }
                     return;
                   }
                 } catch (e1) {
@@ -428,8 +423,6 @@ sap.ui.define([
                 cache: oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} }
               }, true);
 
-/*               console.log("[Screen0] userType:", sUserType, "auth:", oVm.getProperty("/auth"), "mock:", oVm.getProperty("/mock"));
- */
             }.bind(this),
             error: function (oError) {
               BusyIndicator.hide();

@@ -362,8 +362,6 @@ sap.ui.define([
     },
 
     _refreshAfterPost: function (oPostData) {
-      console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
-
       return new Promise(function (resolve) {
         this._reloadDataFromBackend(function (aResults) {
           this._hydrateMmctFromRows(aResults);
@@ -383,7 +381,6 @@ sap.ui.define([
           Promise.resolve(this._bindRecords(aRecordsBuilt)).then(function () {
             this._snapshotRecords = deepClone(aRecordsBuilt);
 
-            console.log("[S3] REFRESH DONE (rows from backend):", aResults.length);
             resolve(aResults);
           }.bind(this));
         }.bind(this));

@@ -554,7 +554,6 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       var sSelectedCat = (oVm && oVm.getProperty("/__selectedCatMateriale")) || "";
       if (sSelectedCat) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
-        console.log("[Screen2] Filtering by CatMateriale from Screen1:", sSelectedCat);
       }
 
       oODataModel.read("/MaterialDataSet", {

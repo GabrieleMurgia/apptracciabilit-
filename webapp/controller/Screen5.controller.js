@@ -90,12 +90,7 @@ sap.ui.define([
           });
         }
 
-/*        var aCatList = aCatKeys.map(function (k) {
-        
-          return { key: k, text: k };
-        }).sort(function (a, b) { return a.text.localeCompare(b.text); });  */
-
-                var aCatList = aCatKeys.map(function (k) {
+        var aCatList = aCatKeys.map(function (k) {
           // Try to find description from MMCT data
           var sDesc = "";
           try {

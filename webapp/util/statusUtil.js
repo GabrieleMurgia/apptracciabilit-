@@ -36,15 +36,7 @@ sap.ui.define([], function () {
     return (rankStato(b) > rankStato(a)) ? b : a;
   }
 
-/*   function canEdit(role, status) {
-    role = String(role || "").trim().toUpperCase();
-    status = String(status || "").trim().toUpperCase();
-    if (role === "S") return false;
-    if (role === "I") return false;
-    if (role === "E") return status !== "AP";
-    return false;
-  } */
- function canEdit(role, status) {
+  function canEdit(role, status) {
     status = String(status || "").trim().toUpperCase();
     if (status === "AP") return false;   // nessuno modifica se approvato
     role = String(role || "").trim().toUpperCase();

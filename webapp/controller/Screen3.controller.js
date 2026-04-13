@@ -62,9 +62,7 @@ sap.ui.define([
         RecordsAll: [], Records: [], RecordsCount: 0,
         _mmct: { cat: "", s01: [], s02: [] }, OpenOda: "",
         __q: "", __statusFilter: "",
-/*         __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false,
- */        
-__canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false,
+        __canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false,
 __noMatListMode: false 
       }), "detail");
 
@@ -422,16 +420,9 @@ var oVm = self.getOwnerComponent().getModel("vm");
       oDetail.setProperty("/__role", sRole);
 
       // ── NoMatList: disabilita add/copy/delete ──
-/*       if (this._bNoMatListMode) {
-        oDetail.setProperty("/__canAddRow", false);
-        oDetail.setProperty("/__noMatListMode", true);
-      } */
-
       if (this._bNoMatListMode) {
         oDetail.setProperty("/__canAddRow", false);
         oDetail.setProperty("/__noMatListMode", true);
-/*         oDetail.setProperty("/__canCopyRow", StatusUtil.canEdit(sRole, sAgg));
-        oDetail.setProperty("/__canDeleteRow", StatusUtil.canEdit(sRole, sAgg)); */
         oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
         oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
       } else {
@@ -440,8 +431,6 @@ var oVm = self.getOwnerComponent().getModel("vm");
       }
 
       var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
-      /* oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable); */
       oDetail.setProperty("/__canApprove", sRole === "I");
       oDetail.setProperty("/__canReject", sRole === "I");
 
@@ -622,8 +611,6 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
     onCopyRow: function () {
       var oDetail = this._getODetail();
       if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-/*       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per copiare righe");
- */
       if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show("Non hai permessi per copiare righe");
       var aSel = this._getSelectedParentObjectsFromMdc();
       if (!aSel.length) return MessageToast.show("Seleziona un record da copiare");
@@ -768,8 +755,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
     _invalidateScreen3Cache: function () { var k = this._getExportCacheKey(), v = this._getOVm(); v.setProperty("/cache/dataRowsByKey/" + k, []); v.setProperty("/cache/recordsByKey/" + k, []); },
 
     _refreshAfterPost: function (oPostData) {
-/*       console.log("[S3] POST RESULT (oData):", JSON.parse(JSON.stringify(oPostData || {})));
- */      var self = this;
+      var self = this;
       return new Promise(function (resolve) {
         self._reloadDataFromBackend(function (aResults) {
           self._hydrateAndFormat(aResults);
@@ -780,7 +766,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
           var oVm = self._getOVm(), sKey = self._getExportCacheKey();
           oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
           oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
-          Promise.resolve(self._bindRecords(aRecordsBuilt)).then(function () { self._snapshotRecords = deepClone(aRecordsBuilt); self._clearSelectionMdc(); console.log("[S3] REFRESH DONE (rows from backend):", aResults.length); resolve(aResults); });
+          Promise.resolve(self._bindRecords(aRecordsBuilt)).then(function () { self._snapshotRecords = deepClone(aRecordsBuilt); self._clearSelectionMdc(); resolve(aResults); });
         });
       });
     },

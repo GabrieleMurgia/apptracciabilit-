@@ -239,12 +239,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
 
       function norm(v) { return String(v == null ? "" : v).trim(); }
 
-      function isEmpty(v) {
-        if (v == null) return true;
-        if (Array.isArray(v)) return v.length === 0;
-        if (typeof v === "string") return v.trim() === "";
-        return false;
-      }
+      var isEmpty = N.isEmpty;
 
       function guidOf(x) {
         return norm(x && (
@@ -464,8 +459,6 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
       var onSuccess = opts.onSuccess;
       var onPartialError = opts.onPartialError;
       var onFullError = opts.onFullError;
-
-      console.log("[SaveUtil] Payload /PostDataSet (UNIFIED)", JSON.parse(JSON.stringify(oPayload)));
 
       if (!oPayload.PostDataCollection || !oPayload.PostDataCollection.length) {
         MessageToast.show("Nessuna riga da salvare");

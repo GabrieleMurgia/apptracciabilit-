@@ -536,7 +536,6 @@ sap.ui.define([
 
 
         }).catch(function () {
-          console.log("[AttachmentUtil] description prompt cancelled");
         });
       };
       reader.onerror = function () {

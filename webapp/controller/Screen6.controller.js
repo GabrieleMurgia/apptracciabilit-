@@ -160,12 +160,6 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] GetFieldFileSet error", oError);
-/*           var sMsg = "Errore nel recupero del template";
-          try {
-            var oBody = JSON.parse(oError.responseText);
-            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-          } catch (e) {}
-          MessageBox.error(sMsg); */
           MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });
@@ -219,26 +213,6 @@ sap.ui.define([
           }, function (err) { rej(err); });
         });
 
-        // Define columns based on the fields in the response
-/*         var aCols = [
-          { label: "Categoria Materiale", property: "CatMateriale" },
-          { label: "Desc. Categoria", property: "MatCatDesc" },
-          { label: "Fornitore", property: "Fornitore" },
-          { label: "Materiale", property: "Materiale" },
-          { label: "Descrizione Materiale", property: "DescMat" },
-          { label: "Stagione", property: "Stagione" },
-          { label: "Collezione", property: "Collezione" },
-          { label: "Linea", property: "Linea" },
-          { label: "Uscita", property: "Uscita" },
-          { label: "Fibra", property: "Fibra" },
-          { label: "Qtà Fibra", property: "QtaFibra" },
-          { label: "Unità Misura Fibra", property: "UmFibra" },
-          { label: "UdM", property: "UdM" },
-          { label: "Plant", property: "Plant" },
-          { label: "Dest. Uso", property: "DestUso" },
-          { label: "Famiglia", property: "Famiglia" }
-        ]; */
-
         // Build columns dynamically from MMCT config using the SortExcel field:
         //   - SortExcel = 0  → column excluded from export
         //   - SortExcel > 0  → column included, sorted by ascending value
@@ -265,10 +239,8 @@ sap.ui.define([
             var sLabel = String(f.UiFieldLabel || f.Descrizione || sProp).trim();
             return { label: sLabel, property: sProp };
           }).filter(function (c) { return !!c.property; });
-          console.log("[S6] Export columns from SortExcel config:", aCols.length, "columns");
         } else {
           // Fallback: hardcoded legacy list
-          console.log("[S6] No SortExcel config found for category", sCat, "— using legacy column list");
           aCols = [
             { label: "Categoria Materiale", property: "CatMateriale" },
             { label: "Desc. Categoria", property: "MatCatDesc" },
@@ -403,7 +375,6 @@ sap.ui.define([
             return;
           }
 
-          console.log("[S6] Parsed Excel:", aJsonRows.length, "rows. Headers:", Object.keys(aJsonRows[0]));
           self._log("Parsed Excel", { rows: aJsonRows.length, headers: Object.keys(aJsonRows[0]) });
 
           // Map Excel headers to MMCT field names
@@ -499,8 +470,6 @@ sap.ui.define([
         }
       });
 
-      console.log("[S6] Column mapping:", mColMap);
-
       // ── Detect multi-value columns (e.g. Nazione1, Nazione2, Nazione3 → Nazione) ──
       // Build set of multi-value field names from MMCT
       // Map both UiFieldname AND labels to target field
@@ -551,12 +520,6 @@ sap.ui.define([
           return nA - nB;
         });
       });
-
-      if (Object.keys(mMergeGroups).length) {
-        console.log("[S6] Multi-field merge groups:", mMergeGroups);
-      } else {
-        console.log("[S6] No merge groups detected. Multi-field labels map has", Object.keys(mMultiFields).length, "entries");
-      }
 
       // Map each row
       return aJsonRows.map(function (row) {
@@ -633,11 +596,6 @@ sap.ui.define([
         mDomainReverse[sDom] = mReverse;
       });
 
-      var iDomainCount = Object.keys(mFieldDomain).length;
-      if (iDomainCount) {
-        console.log("[S6] Domain fields:", iDomainCount, "| Domains with reverse map:", Object.keys(mDomainReverse).length);
-      }
-
       // Detect numeric fields
       var aNumFields = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
                         "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
@@ -649,8 +607,6 @@ sap.ui.define([
        "PartitaFornitore", "Famiglia", "Stato", "Note", "UdM",
        "DescMat", "MatCatDesc", "DestUso", "QtaFibra", "UmFibra"
       ].forEach(function (k) { mAllowed[k] = true; });
-
-      console.log("[S6] Allowed payload fields:", Object.keys(mAllowed).length);
 
       // Helper: resolve a single value against a domain reverse map
       function resolveValue(sVal, mReverse) {
@@ -726,21 +682,12 @@ sap.ui.define([
         PostDataCollection: aLines
       };
 
-      console.log("[S6] CHECK payload /CheckDataSet", JSON.parse(JSON.stringify(oPayload)));
-
       oODataModel.setHeaders({ "sap-language": "IT" });
       oODataModel.create("/CheckDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
-          console.log("[S6] CHECK success", oData);
-
           self._processCheckResponse(aRows, oData);
-
-          var oDetail2 = self.getView().getModel("detail");
-          var iErrCount = oDetail2.getProperty("/checkErrorCount") || 0;
-          console.log("[S6] CHECK processed: errors=" + iErrCount + ", rows with __checkHasError:", aRows.filter(function(r){return r.__checkHasError;}).length);
-
           self._populatePreviewTable(aRows, sCat);
 
           // Highlight error rows after table renders
@@ -772,12 +719,6 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] CHECK error", oError);
-/*           var sMsg = "Errore nella verifica dei dati";
-          try {
-            var oBody = JSON.parse(oError.responseText);
-            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-          } catch (e) {}
-          MessageBox.error(sMsg); */
           MessageBox.error(N.getBackendErrorMessage(oError));
 
           // Still populate preview even if check fails
@@ -802,8 +743,6 @@ sap.ui.define([
       } else if (oData && oData.PostDataCollection && Array.isArray(oData.PostDataCollection)) {
         aRespLines = oData.PostDataCollection;
       }
-
-      console.log("[S6] Check response lines:", aRespLines.length);
 
       var iErrors = 0;
 
@@ -847,8 +786,6 @@ sap.ui.define([
       var oInner = MdcTableUtil.getInnerTableFromMdc(oMdcTbl);
       if (!oInner) { console.log("[S6] ROW-STYLE: inner table not found"); return; }
 
-      console.log("[S6] ROW-STYLE: inner table type =", oInner.getMetadata().getName());
-
       // GridTable (sap.ui.table.Table)
       if (oInner.isA && oInner.isA("sap.ui.table.Table")) {
         var aRows = (oInner.getRows && oInner.getRows()) || [];
@@ -864,8 +801,6 @@ sap.ui.define([
             oRowCtrl.removeStyleClass("s3PostErrorRow");
           }
         });
-        console.log("[S6] ROW-STYLE: GridTable rows=" + aRows.length + ", marked red=" + iMarked);
-
         // Re-apply on scroll
         var self = this;
         if (!this._s6ErrorScrollHooked) {
@@ -892,7 +827,6 @@ sap.ui.define([
             it.removeStyleClass("s3PostErrorRow");
           }
         });
-        console.log("[S6] ROW-STYLE: ResponsiveTable items=" + aItems.length + ", marked red=" + iMarked2);
       }
     },
 
@@ -1197,8 +1131,6 @@ sap.ui.define([
         PostDataCollection: aLines
       };
 
-      console.log("[S6] POST payload /PostDataSet", JSON.parse(JSON.stringify(oPayload)));
-
       BusyIndicator.show(0);
       var self = this;
 
@@ -1207,19 +1139,12 @@ sap.ui.define([
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
-          console.log("[S6] POST success", oData);
           MessageBox.success("Dati inviati con successo (" + aLines.length + " righe)");
           self.onClearUpload();
         },
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] POST error", oError);
-/*           var sMsg = "Errore nell'invio dei dati";
-          try {
-            var oBody = JSON.parse(oError.responseText);
-            sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-          } catch (e) {}
-          MessageBox.error(sMsg); */
           MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });

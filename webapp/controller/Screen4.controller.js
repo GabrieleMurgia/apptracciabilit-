@@ -131,11 +131,7 @@ sap.ui.define([
     _cfgForScreen: function (sCat, s) { return MmctUtil.cfgForScreen(this.getOwnerComponent().getModel("vm"), sCat, s); },
     _domainHasValues: function (d) { return Domains.domainHasValues(this.getOwnerComponent(), d); },
 
-    _toArrayMulti: function (v) {
-      if (Array.isArray(v)) { var s1 = {}; return v.map(function (x) { return String(x || "").trim(); }).filter(function (x) { return !!x; }).filter(function (x) { if (s1[x]) return false; s1[x] = true; return true; }); }
-      var str = String(v || "").trim(); if (!str) return [];
-      var s2 = {}; return str.split(/[;|]+/).map(function (x) { return String(x || "").trim(); }).filter(function (x) { return !!x; }).filter(function (x) { if (s2[x]) return false; s2[x] = true; return true; });
-    },
+    _toArrayMulti: N.toArrayMulti,
 
     // ==================== DIRTY / CODAGG ====================
 
@@ -161,54 +157,7 @@ sap.ui.define([
      * When an attachment counter changes on one row, propagate the MAX value to ALL rows
      * for each attachment column. This ensures all rows show the same counter.
      */
-/*     _syncAttachmentCounters: function () {
-      if (this._bSyncingAttach) return; // prevent re-entry from propertyChange
-      var oD = this.getView().getModel("detail"); if (!oD) return;
-      var aRows = oD.getProperty("/RowsAll") || [];
-      if (aRows.length <= 1) return;
-
-      // Collect all attachment field names from MMCT s02 config
-      var aAttFields = [];
-      (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-        if (f && f.attachment && f.ui) aAttFields.push(String(f.ui).trim());
-      });
-      // Also check s01 (some attachment fields may be from Screen3 level)
-      (oD.getProperty("/_mmct/s00") || []).forEach(function (f) {
-        if (f && f.attachment && f.ui) {
-          var sUi = String(f.ui).trim();
-          if (aAttFields.indexOf(sUi) < 0) aAttFields.push(sUi);
-        }
-      });
-
-      if (!aAttFields.length) return;
-
-      var bChanged = false;
-      aAttFields.forEach(function (sField) {
-        // Find the max counter value across all rows for this field
-        var iMax = 0;
-        aRows.forEach(function (r) {
-          var v = parseInt(String(r[sField] || "0"), 10);
-          if (!isNaN(v) && v > iMax) iMax = v;
-        });
-        // Set all rows to the max value
-        aRows.forEach(function (r) {
-          var vCur = parseInt(String(r[sField] || "0"), 10);
-          if (vCur !== iMax) {
-            r[sField] = String(iMax);
-            bChanged = true;
-          }
-        });
-      });
-
-      if (bChanged) {
-        this._bSyncingAttach = true;
-        oD.setProperty("/RowsAll", aRows);
-        oD.refresh(true);
-        this._bSyncingAttach = false;
-      }
-    },
- */
-   _syncAttachmentCounters: function () {
+    _syncAttachmentCounters: function () {
   if (this._bSyncingAttach) return;
   var oD = this.getView().getModel("detail"); if (!oD) return;
   var aRows = oD.getProperty("/RowsAll") || [];
@@ -749,32 +698,7 @@ sap.ui.define([
         return;
       }
 
-      // ── Guid normalisation ──
-/* var sGuidFromDetail = N.toStableString(oD.getProperty("/guidKey"));
-aRecordsAll = N.deepClone(aRecordsAll);
-aRecordsAll.forEach(function (rec) {
-  if (!rec) return;
-  var g = N.toStableString(rec.guidKey || rec.Guid || rec.GUID || "");
-  if (!g || g.indexOf("NEW_") >= 0 || g.indexOf("SYNTH_") >= 0 || g.indexOf("-new") >= 0) {
-    g = sGuidFromDetail || N.uuidv4();
-  }
-  rec.Guid = g;
-  rec.GUID = g;
-  rec.guidKey = g;
-});
-
-var aDetailRows = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
-aDetailRows.forEach(function (row) {
-  if (!row) return;
-  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
-  if (!rg || rg.indexOf("NEW_") >= 0 || rg.indexOf("SYNTH_") >= 0 || rg.indexOf("-new") >= 0) {
-    row.Guid = sGuidFromDetail || N.uuidv4();
-    row.GUID = row.Guid;
-    row.guidKey = row.Guid;
-  }
-}); */
-
-// ── Stable Guid assignment (persisted in cache) ──
+      // ── Stable Guid assignment (persisted in cache) ──
 // If the current record still has a local-only Guid (-new, NEW_, SYNTH_),
 // replace it with a stable UUID v4 and write it back to the VM cache IN PLACE.
 // Critical: without persisting, each subsequent save would regenerate a
@@ -904,25 +828,6 @@ aRecordsAll = aRecordsCache;
 
       this._log("onSaveToBackend payload", { lines: oPayload.PostDataCollection ? oPayload.PostDataCollection.length : 0 });
 
-/*       var self = this;
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      SaveUtil.executePost({
-        oModel: this.getOwnerComponent().getModel(),
-        payload: oPayload,
-        mock: !!mock.mockS4,
-        onSuccess: function (oData) {
-          oProxyDetail.destroy();
-          if (self._attachSyncInterval) { clearInterval(self._attachSyncInterval); self._attachSyncInterval = null; }
-          oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-          oVm.setProperty("/__skipS3BackendOnce", false);
-          MessageToast.show("Dati salvati con successo");
-          // Navigate back to Screen3 forcing a backend reload (data just saved)
-          self.getOwnerComponent().getRouter().navTo("Screen3", {
-            vendorId: encodeURIComponent(self._sVendorId),
-            material: encodeURIComponent(self._sMaterial),
-            mode: self._sMode || "A"
-          }, true);
-        }, */
         var self = this;
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       // Capture the old (local) Guid BEFORE the save so we can replace it
@@ -936,8 +841,6 @@ aRecordsAll = aRecordsCache;
         onSuccess: function (oData) {
           oProxyDetail.destroy();
           oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-
-          console.log("[S4] Save OK — forcing full backend reload for cache consistency");
 
           // ─────────────────────────────────────────────────────────────
           // BRUTE-FORCE CACHE RESYNC

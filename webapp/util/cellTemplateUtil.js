@@ -428,52 +428,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           // When uploading an attachment on a rejected record, the backend
           // automatically changes its status (RJ → U). Propagate the new
           // status to all records arrays and snapshots so the UI reflects it.
-/*           onStatusChange: function (sNewStato, oData) {
-            try {
-              if (!oDetailModel || !sNewStato) return;
-              var sStUpper = String(sNewStato).trim().toUpperCase();
-              ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
-                var aArr = oDetailModel.getProperty(sArrPath) || [];
-                for (var i = 0; i < aArr.length; i++) {
-                  var r = aArr[i];
-                  if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                    r.Stato = sStUpper;
-                    r.__status = sStUpper;
-                    // Reset readOnly so user can keep editing the (now modified) record
-                    if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
-                      r.__readOnly = false;
-                    }
-                    oDetailModel.setProperty(sArrPath + "/" + i + "/Stato", sStUpper);
-                    oDetailModel.setProperty(sArrPath + "/" + i + "/__status", sStUpper);
-                    break;
-                  }
-                }
-              });
-              oDetailModel.refresh(true);
-            } catch (e) {
-              console.warn("[cellTemplateUtil] onStatusChange model update error", e);
-            }
-            // Sync snapshots so status change is not detected as unsaved change
-            try {
-              var oController = oView && oView.getController && oView.getController();
-              if (oController && sRowGuid) {
-                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
-                  if (!Array.isArray(aSnap)) return;
-                  for (var i = 0; i < aSnap.length; i++) {
-                    var r = aSnap[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r.Stato = String(sNewStato).trim().toUpperCase();
-                      r.__status = String(sNewStato).trim().toUpperCase();
-                      break;
-                    }
-                  }
-                });
-              }
-            } catch (e2) {
-              console.warn("[cellTemplateUtil] onStatusChange snapshot sync error", e2);
-            }
-          }, */
-          
           onStatusChange: function (sNewStato, oData) {
             var sStUpper = String(sNewStato || "").trim().toUpperCase();
             if (!sStUpper) return;
@@ -578,8 +532,7 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           },
           onCountChange: function (iNewCount) {
             var sVal = String(iNewCount);
-/*             console.log("[cellTemplateUtil] onCountChange fired", sKey, "=", sVal, "guid=", sRowGuid);
- */            try {
+            try {
               if (!oDetailModel) return;
               // Update the record directly in RecordsAll and Records by GUID
               /* ["/RecordsAll", "/Records"].forEach(function (sArrPath) { */
@@ -807,13 +760,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
     var bNumeric = !!(oMeta && oMeta.numeric);
-/*     console.log("[cellTemplate]", sKey, "numeric=", bNumeric);
- */
-    /*var oText = new Text({
-      width: "100%",
-      text: { path: "detail>" + sKey, formatter: _formatCellValue },
-      visible: "{= " + sReadOnlyExpr + " }" 
-    }); */
     var oText;
     if (bUseCombo && sDomain) {
       var _sDomCapture = sDomain;

@@ -53,7 +53,6 @@ sap.ui.define([
         success: function (oData) {
           BusyIndicator.hide();
           var aVend = (oData && oData.results) || [];
-          console.log("[Screen1] VendorDataSet reloaded:", aVend.length, "vendors");
           oVm.setProperty("/userVendors", aVend);
           oVm.setProperty("/UserInfosVend", aVend);
 
@@ -118,7 +117,6 @@ sap.ui.define([
       aCatList.unshift({ key: "", text: "Tutte le categorie" });
 
       oVm.setProperty("/userCategoriesList", aCatList);
-      console.log("[Screen1] Categories built:", aCatList.length);
     },
 
     onVendorPress: function (oEvent) {
@@ -141,7 +139,6 @@ sap.ui.define([
       var oVm = this.getOwnerComponent().getModel("vm");
       if (oVm) {
         oVm.setProperty("/__selectedCatMateriale", sCatFromRow);
-        console.log("[Screen1] Passing CatMateriale to Screen2:", sCatFromRow);
       }
 
       var oRouter = this.getOwnerComponent().getRouter();

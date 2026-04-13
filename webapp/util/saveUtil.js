@@ -2,12 +2,12 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/postUtil"
-], function (BusyIndicator, MessageToast, MessageBox, Common, PostUtil) {
+], function (BusyIndicator, MessageToast, MessageBox, N, PostUtil) {
   "use strict";
 
-  var deepClone = Common.deepClone;
+  var deepClone = N.deepClone;
 
   return {
 
@@ -42,7 +42,7 @@ sap.ui.define([
       var req01 = maps.req01 || {};
       var req02 = maps.req02 || {};
 
-      var isEmpty = Common.isEmpty;
+      var isEmpty = N.isEmpty;
 
       function toStr(v) { return String(v == null ? "" : v).trim(); }
 
@@ -502,7 +502,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
 
         error: function (oError) {
           BusyIndicator.hide();
-          var msg = Common.readODataError(oError) || "Errore in salvataggio (vedi Console)";
+          var msg = N.readODataError(oError) || "Errore in salvataggio (vedi Console)";
           console.error("[SaveUtil] POST ERROR", oError);
           MessageToast.show(msg);
           if (onFullError) onFullError(oError);

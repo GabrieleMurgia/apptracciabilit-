@@ -1,12 +1,12 @@
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/common",
+  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/postUtil"  
-], function (Common, StatusUtil, PostUtil) {  
+], function (N, StatusUtil, PostUtil) {  
   "use strict";
 
-  var toStableString = Common.toStableString;
-  var valToText = Common.valToText;
+  var toStableString = N.toStableString;
+  var valToText = N.valToText;
 
   return {
 
@@ -69,7 +69,7 @@ sap.ui.define([
       var a = [];
 
       (aAllRows || []).forEach(function (r) {
-       if (!opts.includeTemplates && Common.isTemplateRow(r)) return;
+       if (!opts.includeTemplates && N.isTemplateRow(r)) return;
 
 
         var sGuidKey = rowGuidKeyFn(r);

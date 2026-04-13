@@ -122,7 +122,7 @@ sap.ui.define([
 
       var pVendorBatch = new Promise(function (resolve, reject) {
         oODataModel.read("/VendorBatchSet", {
-          filters: aFiltersVB,                               // ← NoMatList fix: usa filtri senza CatMateriale
+          filters: aFiltersVB,                              
           urlParameters: { "$format": "json", "sap-language": "IT" },
 
           success: function (oData) {

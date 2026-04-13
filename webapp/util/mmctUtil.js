@@ -82,7 +82,7 @@ function getSettingFlags(c) {
           required: !!flags.required,
           locked: !!flags.locked,
           attachment: !!flags.attachment,
-          download: !!flags.download,     // ← NEW: questionario/download
+          download: !!flags.download,     
           multiple: isMultipleField(c),
           order: parseOrder(c),
           testata1: isX(c.Testata1 ?? c.TESTATA1),
@@ -110,9 +110,9 @@ function getSettingFlags(c) {
     return out;
   }
 
-  // =========================
+
   // NEW: hydrate MMCT runtime
-  // =========================
+
   function pickRaw0FromRows(aRows, getCodAggFn) {
     if (!Array.isArray(aRows) || !aRows.length) return {};
     var fn = (typeof getCodAggFn === "function") ? getCodAggFn : function (r) {
@@ -147,9 +147,9 @@ function getSettingFlags(c) {
     };
   }
 
-  // =========================
+
   // NEW: header fields
-  // =========================
+
   function buildHeaderFields(mmct, valToTextFn) {
     mmct = mmct || {};
     var aHdr = mmct.hdr3 || [];
@@ -169,9 +169,9 @@ function getSettingFlags(c) {
     return a;
   }
 
-  // =========================
+
   // NEW: required map (S01/S02)
-  // =========================
+
   function getRequiredMap(mmct) {
     mmct = mmct || {};
     var a01 = mmct.s01 || [];
@@ -190,9 +190,9 @@ function getSettingFlags(c) {
     return { req01: req01, req02: req02 };
   }
 
-  // =========================
+
   // NEW: multi fields + normalizzazione separatori
-  // =========================
+
   function getMultiFieldsMap(mmct) {
     mmct = mmct || {};
     var a01 = mmct.s01 || [];

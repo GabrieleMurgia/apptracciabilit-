@@ -576,8 +576,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
       if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per aggiungere righe");
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
-/*       var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: this._getSelectedParentObjectsFromMdc(), oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
- */      
+     
 var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: [], oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
 var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
 
@@ -587,14 +586,11 @@ var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cach
       }
 
       var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: N.genGuidNew });
-/*       var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
- */
-      // Aggiungi cfgStruct: oDetail.getProperty("/_mmct/s00") || []
-// all'oggetto opts della chiamata esistente
+
 var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
   template: aTplRows[0] || {},
   cfg02: oDetail.getProperty("/_mmct/s02") || [],
-  cfgStruct: oDetail.getProperty("/_mmct/s00") || [],  // ← AGGIUNTA
+  cfgStruct: oDetail.getProperty("/_mmct/s00") || [],  // ← Prendiamo gli strutturali dinamicamente
   guid: result.guid,
   vendorId: this._sVendorId,
   material: this._sMaterial,
@@ -809,8 +805,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
     return st === "ST" || st === "CH" || st === "AP";
 });
 
-/*       oDetail.setProperty("/__canApprove", sRole === "I" && bHasApprovable);
-      oDetail.setProperty("/__canReject", sRole === "I" && bHasApprovable); */
+
 
       oDetail.setProperty("/__canApprove", sRole === "I");
 oDetail.setProperty("/__canReject", sRole === "I");

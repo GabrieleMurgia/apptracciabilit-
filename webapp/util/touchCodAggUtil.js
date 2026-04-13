@@ -52,7 +52,7 @@ sap.ui.define([
 var newCa = ca;
 if (isNew) {
   newCa = "I";
-} else if (ca === "" || ca === "N" || ca === "I") {  // ← N → U
+} else if (ca === "" || ca === "N" || ca === "I") {  
   newCa = "U";
 }
 
@@ -111,7 +111,6 @@ if (isNew) {
         var rc = N.getCodAgg(r);
         var rIsNew = N.isNewRow(r);
 
-        /* if (rc === "N" || rc === "D") { */
         if (rc === "D") {  
           return;
         }
@@ -122,7 +121,7 @@ if (isNew) {
             changed = true;
           }
         } else {
-          /* if (rc === "" || rc === "I") */ if (rc === "" || rc === "N" || rc === "I"){
+           if (rc === "" || rc === "N" || rc === "I"){
             if (r.CodAgg !== "U") {
               r.CodAgg = "U";
               changed = true;

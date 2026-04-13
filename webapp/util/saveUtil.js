@@ -208,20 +208,6 @@ sap.ui.define([
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
       if (!Array.isArray(aRawAll)) aRawAll = [];
 
-/*       var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
-      var aParentKeys = (aS01 || [])
-        .map(function (f) {
-          var k = f && f.ui ? String(f.ui).trim() : "";
-          if (!k) return "";
-          if (k.toUpperCase() === "STATO") k = "Stato";
-          return k;
-        })
-        .filter(Boolean);
-
-      if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
-      aParentKeys = aParentKeys.filter(function (k) { return k !== "Fibra"; });
-      if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato"); */
-
       var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
       var aParentKeys = (aS01 || [])
         .map(function (f) {
@@ -240,9 +226,6 @@ sap.ui.define([
       // but must always be propagated from parent to detail rows on save.
       // Without this, new records would be saved with empty Plant/Stagione and
       // would disappear from Screen3 list (which filters by Plant).
-/*       ["Stagione", "Plant", "Famiglia", "DescMat", "MatCatDesc", "MaterialeFornitore"].forEach(function (k) {
-        if (aParentKeys.indexOf(k) < 0) aParentKeys.push(k);
-      }); */
 
       var aS00Struct = (oDetail && oDetail.getProperty("/_mmct/s00")) || [];
 (aS00Struct || []).forEach(function (f) {
@@ -332,8 +315,6 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
         if (!o.Materiale) o.Materiale = sMaterial;
 
         var g = guidOf(r) || guidOf(o);
-        /* if (!g || g.indexOf("-new") >= 0) g = null; */
-        /* if (!g || g.indexOf("-new") >= 0) g = uuidv4Fn(); */
         if (!g || g.indexOf("-new") >= 0) g = sForcedGuid || uuidv4Fn();
         o.Guid = g;
 
@@ -417,7 +398,6 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
           if (!r.Materiale) r.Materiale = sMaterial;
           r.UserID = sUserId;
 
-          /* aLines.push(sanitizeForPost(r)); */
           aLines.push(sanitizeForPost(r, gGroup));
         });
       });

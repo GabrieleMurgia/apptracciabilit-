@@ -69,7 +69,6 @@ sap.ui.define([
       var a = [];
 
       (aAllRows || []).forEach(function (r) {
-       /*  if (Common.isTemplateRow(r)) return; */
        if (!opts.includeTemplates && Common.isTemplateRow(r)) return;
 
 
@@ -86,7 +85,7 @@ sap.ui.define([
             idx: a.length,
             guidKey: sGuidKey,
             Fibra: sFibra,
-            CodAgg: (r && (r.CodAgg || r.CODAGG)) || "",   // ← propaga CodAgg per validazione saveUtil
+            CodAgg: (r && (r.CodAgg || r.CODAGG)) || "",  
 
             Stato: stRow,
             StatoText: statusTextFn(stRow),
@@ -203,55 +202,7 @@ sap.ui.define([
     // =========================
     // HAS UNSAVED CHANGES
     // =========================
-/*     hasUnsavedChanges: function (oDetail, snapshotRecords) {
-      var aCurrent = oDetail.getProperty("/RecordsAll") || [];
-      var aSnapshot = snapshotRecords || [];
 
-      var normalizeObject = function (obj) {
-        var cleanEntries = Object.entries(obj).map(function (entry) {
-          var key = entry[0];
-          var value = entry[1];
-          if (Array.isArray(value)) {
-            return [key, [].concat(new Set(value)).sort()];
-          }
-          return [key, value];
-        });
-        return Object.fromEntries(cleanEntries);
-      };
-
-      aSnapshot = aSnapshot.map(normalizeObject);
-      aCurrent = aCurrent.map(normalizeObject);
-
-      if (!aSnapshot || !aSnapshot.length) return false;
-      if (aCurrent.length !== aSnapshot.length) return true;
-
-      return aCurrent.some(function (rCurr, i) {
-        var rSnap = aSnapshot[i];
-        if (!rSnap) return true;
-
-        return Object.keys(rCurr).some(function (k) {
-          if (k.indexOf("__") === 0) return false;
-          if (k === "idx" || k === "guidKey" || k === "StatoText") return false;
-
-          var vCurr = rCurr[k];
-          var vSnap = rSnap[k];
-
-          if (Array.isArray(vCurr) && Array.isArray(vSnap)) {
-            if (vCurr.length !== vSnap.length) return true;
-            return vCurr.some(function (v, j) {
-              if (v !== null && typeof v === "object") {
-                return JSON.stringify(v) !== JSON.stringify(vSnap[j]);
-              }
-              return v !== vSnap[j];
-            });
-          }
-          if(vCurr !== vSnap){
-            debugger
-          }
-          return vCurr !== vSnap;
-        });
-      });
-    }, */
     hasUnsavedChanges: function (oDetail, snapshotRecords) {
   var aCurrent = oDetail.getProperty("/RecordsAll") || [];
   var aSnapshot = snapshotRecords || [];

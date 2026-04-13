@@ -370,7 +370,6 @@ sap.ui.define([
     var sLabel = opts.fieldLabel || sFieldName || "Allegati";
     var bReadOnly = !!opts.readOnly;
     var bMock = !!opts.mock;
-    /* var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null; */
 
     var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null;
     var fnStatusChange = typeof opts.onStatusChange === "function" ? opts.onStatusChange : null;
@@ -512,21 +511,6 @@ sap.ui.define([
         // Now prompt for description (file is already read)
         _promptForDescription(sName).then(function (sNote) {
           console.log("[AttachmentUtil] description entered:", sNote);
-
-/*           uploadAttachment({
-            oModel: oModel,
-            guid: sGuid,
-            fieldName: sFieldName,
-            fileName: sName,
-            mimeType: sMime,
-            fileContent: sBase64,
-            note: sNote
-          }).then(function () {
-            console.log("[AttachmentUtil] upload success, reloading list");
-            _reloadList();
-          }).catch(function (err) {
-            console.error("[AttachmentUtil] upload failed:", err);
-          }); */
 
          uploadAttachment({
             oModel: oModel,

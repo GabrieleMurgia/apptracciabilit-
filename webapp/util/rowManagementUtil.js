@@ -73,29 +73,6 @@ sap.ui.define([
     /**
      * Clona i campi locked da un template
      */
-/*     cloneLockedFields: function (src, aCfg, toArrayMulti) {
-      src = src || {};
-      toArrayMulti = toArrayMulti || N.toArrayMulti;
-      var out = {};
-
-      (aCfg || []).forEach(function (f) {
-        if (!f || !f.ui) return;
-        var k = String(f.ui).trim();
-        if (!k) return;
-        if (k.toUpperCase() === "STATO") k = "Stato";
-
-        if (f) {
-          var v = src[k];
-          if (f.multiple) out[k] = toArrayMulti(v);
-          else out[k] = (v == null ? "" : v);
-        } else {
-          out[k] = f.multiple ? [] : "";
-        }
-      });
-
-      return out;
-    }, */
-
         cloneLockedFields: function (src, aCfg, toArrayMulti) {
       src = src || {};
       var out = {};
@@ -120,49 +97,6 @@ sap.ui.define([
       return out;
     },
 
-//V <- old
-    /**
-     * Clona i campi configurati di s01 per una nuova riga parent.
-     * Copia tutti i valori dal template TRANNE:
-     *   - campi attachment (resettati a "0")
-     *   - campi esclusi (PartitaFornitore, ...) che restano vuoti
-     *
-     * Usare questa funzione invece di cloneLockedFields quando si crea un
-     * nuovo parent, per permettere l'ereditarietà dei campi dominio
-     * (es. Fibra e QtaFibra sui pellami) senza trascinarsi contatori
-     * allegati o partite fornitore della riga sorgente.
-     */
-/*     cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
-      src = src || {};
-      var out = {};
-      var aExcluded = ["PartitaFornitore"];
-
-      (aCfg || []).forEach(function (f) {
-        if (!f || !f.ui) return;
-        var k = String(f.ui).trim();
-        if (!k) return;
-        if (k.toUpperCase() === "STATO") k = "Stato";
-
-        // Attachment fields: reset counter to "0"
-        if (f.attachment) {
-          out[k] = "0";
-          return;
-        }
-
-        // Excluded fields: always empty on new row
-        if (aExcluded.indexOf(k) >= 0) {
-          out[k] = f.multiple ? [] : "";
-          return;
-        }
-
-        // Otherwise: inherit from template
-        var v = src[k];
-        if (f.multiple) out[k] = toArrayMulti(v);
-        else out[k] = (v == null ? "" : v);
-      });
-
-      return out;
-    }, */
     /**
      * Clona i campi configurati di s01 per una nuova riga parent.
      *
@@ -177,7 +111,7 @@ sap.ui.define([
      * NOTA: i campi strutturali identificativi del materiale (Stagione, Plant,
      * Famiglia, DescMat, Fibra, QtaFibra, ecc.) vengono copiati separatamente
      * da createNewParentRow tramite override esplicito, perché non sempre
-     * sono presenti in aCfg01.
+     * sono presenti in aCfg01. <- NOTA VECCHIA
      */
     cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
       src = src || {};
@@ -213,9 +147,6 @@ sap.ui.define([
     
     
     /**
-     * Crea una nuova riga parent
-     */
-/**
      * Crea una nuova riga parent
      */
     createNewParentRow: function (opts) {
@@ -298,60 +229,6 @@ sap.ui.define([
   return { row: oNewRow, idx: iNewIdx, guid: sGuidNew };
 },
 
-    /**
-     * Crea le righe dettaglio per un nuovo parent
-     */
-/*     createNewDetailRows: function (aTplRows, opts) {
-      var tpl0 = opts.template;
-      var aCfg02 = opts.cfg02;
-      var sGuidNew = opts.guid;
-      var sVendorId = opts.vendorId;
-      var sMaterial = opts.material;
-      var sCat = opts.cat;
-      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
-      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
-
-      var self = this;
-
-      return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
-        var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
-
-        var x = N.deepClone(src);
-        Object.assign(x, oLockedDet);
-
-        var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
-        if (fibraSrc != null && String(fibraSrc).trim() !== "") {
-          x.Fibra = fibraSrc;
-        }
-
-        x.Guid = sGuidNew;
-        x.GUID = sGuidNew;
-        x.guidKey = sGuidNew;
-
-        x.Fornitore = x.Fornitore || normalizeVendor10(sVendorId);
-        x.Materiale = x.Materiale || String(sMaterial || "").trim();
-        x.CatMateriale = x.CatMateriale || tpl0.CatMateriale || sCat || "";
-
-        x.CodAgg = "I";
-        x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-        x.__isNew = true;
-
-        x.Approved = 0;
-        x.Rejected = 0;
-        x.ToApprove = 1;
-
-        (aCfg02 || []).forEach(function (f) {
-          if (!f || !f.ui || !f.multiple) return;
-          var k = String(f.ui).trim();
-          if (!k) return;
-          x[k] = toArrayMulti(x[k]);
-        });
-
-        return x;
-      });
-    },
- */
-    
 /**
      * Crea le righe dettaglio per un nuovo parent
      */

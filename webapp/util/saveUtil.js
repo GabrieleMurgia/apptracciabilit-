@@ -240,9 +240,19 @@ sap.ui.define([
       // but must always be propagated from parent to detail rows on save.
       // Without this, new records would be saved with empty Plant/Stagione and
       // would disappear from Screen3 list (which filters by Plant).
-      ["Stagione", "Plant", "Famiglia", "DescMat", "MatCatDesc", "MaterialeFornitore"].forEach(function (k) {
+/*       ["Stagione", "Plant", "Famiglia", "DescMat", "MatCatDesc", "MaterialeFornitore"].forEach(function (k) {
         if (aParentKeys.indexOf(k) < 0) aParentKeys.push(k);
-      });
+      }); */
+
+      var aS00Struct = (oDetail && oDetail.getProperty("/_mmct/s00")) || [];
+(aS00Struct || []).forEach(function (f) {
+  if (!f || !f.ui || !f.locked) return;
+  var k = String(f.ui).trim();
+  if (!k) return;
+  if (aParentKeys.indexOf(k) < 0) aParentKeys.push(k);
+});
+// MaterialeFornitore è "00"+"F" (non locked) — aggiunto esplicitamente
+if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFornitore");
 
       function norm(v) { return String(v == null ? "" : v).trim(); }
 

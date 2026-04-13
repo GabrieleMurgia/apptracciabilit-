@@ -587,7 +587,22 @@ var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cach
       }
 
       var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: N.genGuidNew });
-      var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
+/*       var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, { template: aTplRows[0] || {}, cfg02: oDetail.getProperty("/_mmct/s02") || [], guid: result.guid, vendorId: this._sVendorId, material: this._sMaterial, cat: oDetail.getProperty("/_mmct/cat") || "", normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti });
+ */
+      // Aggiungi cfgStruct: oDetail.getProperty("/_mmct/s00") || []
+// all'oggetto opts della chiamata esistente
+var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
+  template: aTplRows[0] || {},
+  cfg02: oDetail.getProperty("/_mmct/s02") || [],
+  cfgStruct: oDetail.getProperty("/_mmct/s00") || [],  // ← AGGIUNTA
+  guid: result.guid,
+  vendorId: this._sVendorId,
+  material: this._sMaterial,
+  cat: oDetail.getProperty("/_mmct/cat") || "",
+  normalizeVendor10: N.normalizeVendor10,
+  toArrayMulti: RecordsUtil.toArrayMulti
+});
+
 
       var aAll = (oDetail.getProperty("/RecordsAll") || []).slice(); aAll.push(result.row); oDetail.setProperty("/RecordsAll", aAll);
       var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(result.row); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);

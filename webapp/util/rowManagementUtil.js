@@ -219,91 +219,84 @@ sap.ui.define([
      * Crea una nuova riga parent
      */
     createNewParentRow: function (opts) {
-      var oDetail = opts.oDetail;
-      var tpl0 = opts.template;
-      var aCfg01 = opts.cfg01;
-      var sVendorId = opts.vendorId;
-      var sMaterial = opts.material;
-      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
-      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
-      var statusTextFn = opts.statusText || N.statusText;
-      var genGuidNew = opts.genGuidNew || N.genGuidNew;
+  var oDetail = opts.oDetail;
+  var tpl0 = opts.template;
+  var aCfg01 = opts.cfg01;
+  var sVendorId = opts.vendorId;
+  var sMaterial = opts.material;
+  var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
+  var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
+  var statusTextFn = opts.statusText || N.statusText;
+  var genGuidNew = opts.genGuidNew || N.genGuidNew;
 
-      var aAll = oDetail.getProperty("/RecordsAll") || [];
+  // NEW: campi strutturali da MMCT s00 invece di lista hardcoded
+  // Legge direttamente da /_mmct/s00 nel detail model
+  var aCfgStruct = oDetail.getProperty("/_mmct/s00") || [];
 
-      var iMax = -1;
-      (aAll || []).forEach(function (r) {
-        var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
-        if (!isNaN(n) && n > iMax) iMax = n;
-      });
-      var iNewIdx = iMax + 1;
+  var aAll = oDetail.getProperty("/RecordsAll") || [];
+  var iMax = -1;
+  (aAll || []).forEach(function (r) {
+    var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
+    if (!isNaN(n) && n > iMax) iMax = n;
+  });
+  var iNewIdx = iMax + 1;
+  var sGuidNew = genGuidNew();
 
-      var sGuidNew = genGuidNew();
+  var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
 
-      // Use cloneFieldsForNewParent so that locked s01 fields are inherited
-      // from the template, while attachments are reset and partita-specific
-      // data (FattEmissione, CalcCarbonFoot, etc.) are blanked.
-      var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
+  // Costruisce i campi strutturali dinamicamente dai campi locked di s00
+  // (Stagione, Plant, DescMat, MatCatDesc, Famiglia, ecc.)
+  var oStructFields = {};
+  (aCfgStruct || []).forEach(function (f) {
+    if (!f || !f.ui || !f.locked) return; // solo Impostazione="B"
+    var k = String(f.ui).trim();
+    if (!k) return;
+    oStructFields[k] = (tpl0[k] != null && tpl0[k] !== "") ? tpl0[k] : "";
+  });
+  // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
+  oStructFields.MaterialeFornitore = tpl0.MaterialeFornitore || "";
+  // Fibra non è in s00 per tutte le categorie — fallback esplicito
+  oStructFields.Fibra = tpl0.Fibra || tpl0.FIBRA || "";
+  // QtaFibra: se s00 lo copre già (locked), non sovrascrivere; altrimenti fallback
+  if (oStructFields.QtaFibra === undefined || oStructFields.QtaFibra === "") {
+    oStructFields.QtaFibra = tpl0.QtaFibra || tpl0.QTA_FIBRA || "";
+  }
 
-      var oNewRow = N.deepClone(Object.assign({}, oParentFields, {
-        idx: iNewIdx,
+  var oNewRow = N.deepClone(Object.assign({}, oParentFields, oStructFields, {
+    idx: iNewIdx,
 
-        GUID: sGuidNew,
-        Guid: sGuidNew,
-        guidKey: sGuidNew,
+    GUID: sGuidNew,
+    Guid: sGuidNew,
+    guidKey: sGuidNew,
 
-        // ── Structural identifiers always inherited from template ──
-        // These fields identify the material itself and are constant across
-        // all partite. They MUST be inherited regardless of MMCT config,
-        // otherwise the new record would be saved with empty Plant/Stagione
-        // and would disappear from Screen3 list (which filters by Plant).
-        CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
-        Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
-        Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
-        Stagione: tpl0.Stagione || tpl0.STAGIONE || "",
-        Plant: tpl0.Plant || tpl0.PLANT || tpl0.WERKS || "",
-        Famiglia: tpl0.Famiglia || tpl0.FAMIGLIA || "",
-        DescMat: tpl0.DescMat || tpl0.DESC_MAT || "",
-        MatCatDesc: tpl0.MatCatDesc || tpl0.MAT_CAT_DESC || "",
-        MaterialeFornitore: tpl0.MaterialeFornitore || "",
-        // Pellami-specific structural fields (kept here so packaging won't
-        // show them but pellami inherits them correctly)
-        Fibra: tpl0.Fibra || tpl0.FIBRA || "",
-        QtaFibra: tpl0.QtaFibra || tpl0.QTA_FIBRA || "",
-/*         UmFibra: tpl0.UmFibra || tpl0.UM_FIBRA || "",
-        UdM: tpl0.UdM || tpl0.UDM || "",
-        DestUso: tpl0.DestUso || tpl0.DEST_USO || "", */
+    // Questi tre usano sempre i valori runtime, non tpl0
+    CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
+    Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
+    Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
 
-        CodAgg: "I",
+    CodAgg: "I",
+    Stato: "ST",
+    StatoText: statusTextFn("ST"),
+    __status: "ST",
+    __canEdit: true,
+    __canApprove: false,
+    __canReject: false,
+    __readOnly: false,
+    __isNew: true,
+    __state: "NEW"
+  }));
 
-        Stato: "ST",
-        StatoText: statusTextFn("ST"),
-        __status: "ST",
+  (aCfg01 || []).forEach(function (f) {
+    if (!f || !f.ui) return;
+    var k = String(f.ui).trim();
+    if (!k) return;
+    if (k.toUpperCase() === "STATO") k = "Stato";
+    if (oNewRow[k] === undefined) oNewRow[k] = f.multiple ? [] : "";
+    if (f.multiple && !Array.isArray(oNewRow[k])) oNewRow[k] = toArrayMulti(oNewRow[k]);
+  });
 
-        __canEdit: true,
-        __canApprove: false,
-        __canReject: false,
-        __readOnly: false,
-
-        __isNew: true,
-        __state: "NEW"
-      }));
-
-      (aCfg01 || []).forEach(function (f) {
-        if (!f || !f.ui) return;
-        var k = String(f.ui).trim();
-        if (!k) return;
-        if (k.toUpperCase() === "STATO") k = "Stato";
-        if (oNewRow[k] === undefined) oNewRow[k] = f.multiple ? [] : "";
-        if (f.multiple && !Array.isArray(oNewRow[k])) oNewRow[k] = toArrayMulti(oNewRow[k]);
-      });
-
-      return {
-        row: oNewRow,
-        idx: iNewIdx,
-        guid: sGuidNew
-      };
-    },
+  return { row: oNewRow, idx: iNewIdx, guid: sGuidNew };
+},
 
     /**
      * Crea le righe dettaglio per un nuovo parent
@@ -362,91 +355,80 @@ sap.ui.define([
 /**
      * Crea le righe dettaglio per un nuovo parent
      */
-    createNewDetailRows: function (aTplRows, opts) {
-      var tpl0 = opts.template;
-      var aCfg02 = opts.cfg02;
-      var sGuidNew = opts.guid;
-      var sVendorId = opts.vendorId;
-      var sMaterial = opts.material;
-      var sCat = opts.cat;
-      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
-      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
+createNewDetailRows: function (aTplRows, opts) {
+  var tpl0 = opts.template;
+  var aCfg02 = opts.cfg02;
+  var sGuidNew = opts.guid;
+  var sVendorId = opts.vendorId;
+  var sMaterial = opts.material;
+  var sCat = opts.cat;
+  // NEW: riceve cfgStruct dal chiamante (Screen3.controller.js)
+  var aCfgStruct = opts.cfgStruct || [];
+  var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
+  var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
 
-      var self = this;
+  var self = this;
 
-      return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
-        var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
+  return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
+    var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
 
-        // Start from empty object — do NOT deepClone src, or we'd inherit
-        // attachment counters, component data, and other partita-specific
-        // fields from the template.
-        var x = {};
-        Object.assign(x, oLockedDet);
+    var x = {};
+    Object.assign(x, oLockedDet);
 
-        // Fibra: preserve only if present on source (pellami-specific)
-        var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
-        if (fibraSrc != null && String(fibraSrc).trim() !== "") {
-          x.Fibra = fibraSrc;
-        }
+    // Fibra: preserva solo se presente sulla riga sorgente (pellami)
+    var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
+    if (fibraSrc != null && String(fibraSrc).trim() !== "") {
+      x.Fibra = fibraSrc;
+    }
 
-        x.Guid = sGuidNew;
-        x.GUID = sGuidNew;
-        x.guidKey = sGuidNew;
+    x.Guid = sGuidNew;
+    x.GUID = sGuidNew;
+    x.guidKey = sGuidNew;
 
-        // ── Structural identifiers always inherited from src/template ──
-        // These fields identify the material and must NEVER be empty,
-        // otherwise the record would disappear from Screen3 list filters.
-        x.Fornitore = normalizeVendor10(sVendorId);
-        x.Materiale = String(sMaterial || "").trim();
-        x.CatMateriale = src.CatMateriale || tpl0.CatMateriale || sCat || "";
-        x.Stagione = src.Stagione || tpl0.Stagione || src.STAGIONE || tpl0.STAGIONE || "";
-        x.Plant = src.Plant || tpl0.Plant || src.WERKS || tpl0.WERKS || "";
-        x.Famiglia = src.Famiglia || tpl0.Famiglia || "";
-        x.DescMat = src.DescMat || tpl0.DescMat || "";
-        x.MatCatDesc = src.MatCatDesc || tpl0.MatCatDesc || "";
-        x.MaterialeFornitore = src.MaterialeFornitore || tpl0.MaterialeFornitore || "";
-        // Pellami-specific structural fields
-        if (src.QtaFibra || tpl0.QtaFibra) {
-          x.QtaFibra = src.QtaFibra || tpl0.QtaFibra || "";
-        }
-/*         if (src.UmFibra || tpl0.UmFibra) {
-          x.UmFibra = src.UmFibra || tpl0.UmFibra || "";
-        }
-        if (src.UdM || tpl0.UdM) {
-          x.UdM = src.UdM || tpl0.UdM || "";
-        }
-        if (src.DestUso || tpl0.DestUso) {
-          x.DestUso = src.DestUso || tpl0.DestUso || "";
-        } */
+    // Costruisce i campi strutturali dinamicamente dai campi locked di s00
+    (aCfgStruct || []).forEach(function (f) {
+      if (!f || !f.ui || !f.locked) return; // solo Impostazione="B"
+      var k = String(f.ui).trim();
+      if (!k) return;
+      var val = (src[k] != null && src[k] !== "") ? src[k] : (tpl0[k] != null ? tpl0[k] : "");
+      x[k] = val;
+    });
+    // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
+    x.MaterialeFornitore = src.MaterialeFornitore || tpl0.MaterialeFornitore || "";
+    // QtaFibra: se s00 non lo copre (non è locked), fallback esplicito
+    if (x.QtaFibra === undefined || x.QtaFibra === "") {
+      if (src.QtaFibra || tpl0.QtaFibra) {
+        x.QtaFibra = src.QtaFibra || tpl0.QtaFibra || "";
+      }
+    }
 
-        x.CodAgg = "I";
-        x.Stato = "ST";
-        x.__status = "ST";
-        x.__readOnly = false;
-        x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-        x.__isNew = true;
+    // Questi tre usano sempre valori runtime
+    x.Fornitore = normalizeVendor10(sVendorId);
+    x.Materiale = String(sMaterial || "").trim();
+    x.CatMateriale = src.CatMateriale || tpl0.CatMateriale || sCat || "";
 
-        x.Approved = 0;
-        x.Rejected = 0;
-        x.ToApprove = 1;
+    x.CodAgg = "I";
+    x.Stato = "ST";
+    x.__status = "ST";
+    x.__readOnly = false;
+    x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+    x.__isNew = true;
+    x.Approved = 0;
+    x.Rejected = 0;
+    x.ToApprove = 1;
 
-        // Initialize multi-value fields as empty arrays
-        (aCfg02 || []).forEach(function (f) {
-          if (!f || !f.ui) return;
-          var k = String(f.ui).trim();
-          if (!k) return;
-          if (k.toUpperCase() === "STATO") return;
-          if (x[k] === undefined) {
-            x[k] = f.multiple ? [] : "";
-          }
-          if (f.multiple && !Array.isArray(x[k])) {
-            x[k] = toArrayMulti(x[k]);
-          }
-        });
+    (aCfg02 || []).forEach(function (f) {
+      if (!f || !f.ui) return;
+      var k = String(f.ui).trim();
+      if (!k) return;
+      if (k.toUpperCase() === "STATO") return;
+      if (x[k] === undefined) x[k] = f.multiple ? [] : "";
+      if (f.multiple && !Array.isArray(x[k])) x[k] = toArrayMulti(x[k]);
+    });
 
-        return x;
-      });
-    },
+    return x;
+  });
+},
     /**
      * Verifica se le righe selezionate possono essere eliminate
      */

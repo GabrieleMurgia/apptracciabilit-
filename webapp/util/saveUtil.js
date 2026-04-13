@@ -478,18 +478,13 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
       }
 
       BusyIndicator.show(0);
-      debugger
       oModel.create("/PostDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
 
         success: function (oData, oResponse) {
           BusyIndicator.hide();
 
-          console.log("[SaveUtil] POST success - oResponse:", oResponse);
-          console.log("[SaveUtil] POST success - oData:", JSON.parse(JSON.stringify(oData || {})));
-
           var aResp = PostUtil.extractPostResponseLines(oData);
-          console.log("[SaveUtil] POST response lines:", aResp);
 
           var aErr = (aResp || []).filter(function (r) {
             var es = String(r && r.Esito || "").trim().toUpperCase();

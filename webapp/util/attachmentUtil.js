@@ -394,7 +394,6 @@ sap.ui.define([
 
     // Helper: reload attachment list into dialog model
     function _reloadList() {
-      console.log("[AttachmentUtil] _reloadList called, fnCountChange=", !!fnCountChange);
       oDialogModel.setProperty("/loading", true);
       listAttachments({ oModel: oModel, guid: sGuid, fieldName: sFieldName, mock: bMock })
         .then(function (aList) {
@@ -404,7 +403,6 @@ sap.ui.define([
           oDialogModel.setProperty("/loading", false);
           // Notify caller to update the cell counter
           if (fnCountChange) {
-            console.log("[AttachmentUtil] calling onCountChange with count=", iCount);
             try { fnCountChange(iCount); } catch (e) {}
           }
         })
@@ -500,17 +498,14 @@ sap.ui.define([
       if (!oFile) return;
       var sName = oFile.name;
       var sMime = oFile.type || "application/octet-stream";
-      console.log("[AttachmentUtil] file selected:", sName, sMime);
 
       // Read the file FIRST (while the reference is still valid), then prompt for description
       var reader = new FileReader();
       reader.onload = function () {
         var sBase64 = reader.result.split(",")[1] || "";
-        console.log("[AttachmentUtil] file read OK, base64 length:", sBase64.length);
 
         // Now prompt for description (file is already read)
         _promptForDescription(sName).then(function (sNote) {
-          console.log("[AttachmentUtil] description entered:", sNote);
 
          uploadAttachment({
             oModel: oModel,
@@ -522,7 +517,6 @@ sap.ui.define([
             note: sNote,
             stato: sCurrentStato
           }).then(function (oData) {
-            console.log("[AttachmentUtil] upload success, reloading list");
             // Extract new record status from backend response and notify caller.
             // Backend returns the new Stato when uploading on a rejected record.
             if (fnStatusChange && oData) {
@@ -530,7 +524,6 @@ sap.ui.define([
                 oData.Stato || oData.STATO || oData.NewStato || oData.NewStatus || ""
               ).trim();
               if (sNewStato) {
-                console.log("[AttachmentUtil] new status from backend:", sNewStato);
                 try { fnStatusChange(sNewStato, oData); } catch (e) {
                   console.warn("[AttachmentUtil] onStatusChange callback error", e);
                 }

@@ -92,7 +92,6 @@ sap.ui.define([
           var a = Array.isArray(aAll) ? aAll : [];
           if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
             a.forEach(function (r) { if (r) r.Stato = sForceStato; });
-            console.log("[MOCK] forceStato =", sForceStato);
           }
 
           done(a);
@@ -188,11 +187,6 @@ sap.ui.define([
             aVendorBatches
           );
 
-          console.log(
-            "[DataLoader] VendorBatchSet cached",
-            sVendor10,
-            aVendorBatches.length
-          );
         })
         .catch(function (oError) {
           BusyIndicator.hide();

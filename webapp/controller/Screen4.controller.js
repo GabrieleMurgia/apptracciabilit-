@@ -904,7 +904,7 @@ aRecordsAll = aRecordsCache;
 
       this._log("onSaveToBackend payload", { lines: oPayload.PostDataCollection ? oPayload.PostDataCollection.length : 0 });
 
-      var self = this;
+/*       var self = this;
       var mock = (oVm && oVm.getProperty("/mock")) || {};
       SaveUtil.executePost({
         oModel: this.getOwnerComponent().getModel(),
@@ -914,8 +914,6 @@ aRecordsAll = aRecordsCache;
           oProxyDetail.destroy();
           if (self._attachSyncInterval) { clearInterval(self._attachSyncInterval); self._attachSyncInterval = null; }
           oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-          /* oVm.setProperty("/cache/dataRowsByKey/" + sCK, []);
-          oVm.setProperty("/cache/recordsByKey/" + sCK, []); */
           oVm.setProperty("/__skipS3BackendOnce", false);
           MessageToast.show("Dati salvati con successo");
           // Navigate back to Screen3 forcing a backend reload (data just saved)
@@ -924,6 +922,84 @@ aRecordsAll = aRecordsCache;
             material: encodeURIComponent(self._sMaterial),
             mode: self._sMode || "A"
           }, true);
+        }, */
+        var self = this;
+      var mock = (oVm && oVm.getProperty("/mock")) || {};
+      // Capture the old (local) Guid BEFORE the save so we can replace it
+      // in cache with the backend-generated Guid from the response.
+      var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
+
+      SaveUtil.executePost({
+        oModel: this.getOwnerComponent().getModel(),
+        payload: oPayload,
+        mock: !!mock.mockS4,
+        onSuccess: function (oData) {
+          oProxyDetail.destroy();
+          oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
+
+          console.log("[S4] Save OK — forcing full backend reload for cache consistency");
+
+          // ─────────────────────────────────────────────────────────────
+          // BRUTE-FORCE CACHE RESYNC
+          // After save, we reload the entire dataset from the backend.
+          // This is the only safe way to guarantee that Screen3 and Screen4
+          // see the persisted records with real Guids — any in-place cache
+          // update is fragile because of multiple references scattered
+          // across recordsByKey, dataRowsByKey, selectedScreen3Record,
+          // synthetic rows, and snapshots.
+          // ─────────────────────────────────────────────────────────────
+
+          S4Loader.reloadDataFromBackend({
+            oVm: oVm,
+            oDataModel: self.getOwnerComponent().getModel(),
+            vendorId: self._sVendorId,
+            material: self._sMaterial,
+            logFn: self._log.bind(self)
+          }, function (aFreshRows) {
+            aFreshRows = aFreshRows || [];
+
+            // Rebuild records cache from fresh rows
+            var sCat2 = S4Loader.pickCat(aFreshRows[0] || {});
+            var aFreshRecords = S4Loader.buildRecords01ForCache(
+              aFreshRows,
+              sCat2 ? self._cfgForScreen(sCat2, "01") : [],
+              oVm
+            );
+
+            // Replace cache ENTIRELY (not in-place) so no stale references survive
+            oVm.setProperty("/cache/dataRowsByKey/" + sCK, aFreshRows);
+            oVm.setProperty("/cache/recordsByKey/" + sCK, aFreshRecords);
+
+            // Clear selected record — Screen3 will repopulate on bind
+            oVm.setProperty("/selectedScreen3Record", null);
+
+            // Tell Screen3 to USE the cache we just rebuilt (skip re-fetch)
+            oVm.setProperty("/__skipS3BackendOnce", true);
+
+             // IMPORTANT: also tell Screen3 to IGNORE its saved snapshot.
+            // Without this flag, Screen3 would bind aSavedSnapshot (taken
+            // when navigating away, containing the OLD local Guid) instead
+            // of reading the freshly-reloaded cache we just built.
+            oVm.setProperty("/__forceS3CacheReload", true);
+
+            // Clean up interval
+            if (self._attachSyncInterval) {
+              clearInterval(self._attachSyncInterval);
+              self._attachSyncInterval = null;
+            }
+
+            // Mark detail model as clean so no dirty warning on nav back
+            oD.setProperty("/__dirty", false);
+
+            MessageToast.show("Dati salvati con successo");
+
+            // Navigate back to Screen3 which will read the fresh cache
+            self.getOwnerComponent().getRouter().navTo("Screen3", {
+              vendorId: encodeURIComponent(self._sVendorId),
+              material: encodeURIComponent(self._sMaterial),
+              mode: self._sMode || "A"
+            }, true);
+          });
         },
         onPartialError: function (aErr) {
           oProxyDetail.destroy();

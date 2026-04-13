@@ -95,13 +95,25 @@ __noMatListMode: false
       this._ensureUserInfosLoaded().then(function () {
         self._log("_onRouteMatched args", oArgs);
 
-        var oVm = self.getOwnerComponent().getModel("vm");
+var oVm = self.getOwnerComponent().getModel("vm");
         var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
-        var aSavedSnapshot = (bReturningFromS4 && self._snapshotRecords) ? self._snapshotRecords : null;
+        var bForceCacheReload = !!oVm.getProperty("/__forceS3CacheReload");
 
-        self._snapshotRecords = null;
-        if (!bReturningFromS4) {
+        // If Screen4 just saved, the snapshot contains stale data with old
+        // local Guids. Ignore it and use the fresh VM cache instead.
+        var aSavedSnapshot = (bReturningFromS4 && self._snapshotRecords && !bForceCacheReload)
+          ? self._snapshotRecords
+          : null;
+
+        if (bForceCacheReload) {
+          self._snapshotRecords = null;
           self._originalSnapshot = null;
+          oVm.setProperty("/__forceS3CacheReload", false);
+        } else {
+          self._snapshotRecords = null;
+          if (!bReturningFromS4) {
+            self._originalSnapshot = null;
+          }
         }
 
         var oUi = self.getView().getModel("ui");

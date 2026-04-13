@@ -79,7 +79,7 @@
 .sapMPage > section {
   display: flex !important;
   flex-direction: column !important;
-  height: 100% !important;
+ /*  height: 100% !important; */
 }
 .sapMPage > section > .sapMContent {
   display: flex !important;

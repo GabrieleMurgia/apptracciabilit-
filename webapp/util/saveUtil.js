@@ -208,6 +208,20 @@ sap.ui.define([
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
       if (!Array.isArray(aRawAll)) aRawAll = [];
 
+/*       var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
+      var aParentKeys = (aS01 || [])
+        .map(function (f) {
+          var k = f && f.ui ? String(f.ui).trim() : "";
+          if (!k) return "";
+          if (k.toUpperCase() === "STATO") k = "Stato";
+          return k;
+        })
+        .filter(Boolean);
+
+      if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
+      aParentKeys = aParentKeys.filter(function (k) { return k !== "Fibra"; });
+      if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato"); */
+
       var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];
       var aParentKeys = (aS01 || [])
         .map(function (f) {
@@ -221,6 +235,14 @@ sap.ui.define([
       if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
       aParentKeys = aParentKeys.filter(function (k) { return k !== "Fibra"; });
       if (aParentKeys.indexOf("Stato") < 0) aParentKeys.push("Stato");
+
+      // Force-include structural identifiers that may not be in MMCT s01 config
+      // but must always be propagated from parent to detail rows on save.
+      // Without this, new records would be saved with empty Plant/Stagione and
+      // would disappear from Screen3 list (which filters by Plant).
+      ["Stagione", "Plant", "Famiglia", "DescMat", "MatCatDesc", "MaterialeFornitore"].forEach(function (k) {
+        if (aParentKeys.indexOf(k) < 0) aParentKeys.push(k);
+      });
 
       function norm(v) { return String(v == null ? "" : v).trim(); }
 

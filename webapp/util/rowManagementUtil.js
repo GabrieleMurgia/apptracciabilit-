@@ -120,7 +120,7 @@ sap.ui.define([
       return out;
     },
 
-
+//V <- old
     /**
      * Clona i campi configurati di s01 per una nuova riga parent.
      * Copia tutti i valori dal template TRANNE:
@@ -132,7 +132,7 @@ sap.ui.define([
      * (es. Fibra e QtaFibra sui pellami) senza trascinarsi contatori
      * allegati o partite fornitore della riga sorgente.
      */
-    cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
+/*     cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
       src = src || {};
       var out = {};
       var aExcluded = ["PartitaFornitore"];
@@ -162,8 +162,60 @@ sap.ui.define([
       });
 
       return out;
-    },
+    }, */
     /**
+     * Clona i campi configurati di s01 per una nuova riga parent.
+     *
+     * Comportamento:
+     *   - Attachment fields  → "0" (contatori azzerati)
+     *   - Locked fields (B)  → ereditati dal template
+     *   - Tutti gli altri    → vuoti (sono dati specifici della partita,
+     *                          NON vanno ereditati: PartitaFornitore,
+     *                          FattEmissione, CalcCarbonFoot, certificazioni,
+     *                          note, percentuali, ecc.)
+     *
+     * NOTA: i campi strutturali identificativi del materiale (Stagione, Plant,
+     * Famiglia, DescMat, Fibra, QtaFibra, ecc.) vengono copiati separatamente
+     * da createNewParentRow tramite override esplicito, perché non sempre
+     * sono presenti in aCfg01.
+     */
+    cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
+      src = src || {};
+      toArrayMulti = toArrayMulti || N.toArrayMulti;
+      var out = {};
+
+      (aCfg || []).forEach(function (f) {
+        if (!f || !f.ui) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        if (k.toUpperCase() === "STATO") k = "Stato";
+
+        // Attachment fields: reset counter to "0"
+        if (f.attachment) {
+          out[k] = "0";
+          return;
+        }
+
+        // Locked fields (Impostazione = "B"): inherit from template
+        if (f.locked) {
+          var v = src[k];
+          if (f.multiple) out[k] = toArrayMulti(v);
+          else out[k] = (v == null ? "" : v);
+          return;
+        }
+
+        // All other fields: empty (data specific to the partita)
+        out[k] = f.multiple ? [] : "";
+      });
+
+      return out;
+    },
+    
+    
+    /**
+     * Crea una nuova riga parent
+     */
+/**
      * Crea una nuova riga parent
      */
     createNewParentRow: function (opts) {
@@ -188,61 +240,44 @@ sap.ui.define([
 
       var sGuidNew = genGuidNew();
 
-/*       var oLockedParent = this.cloneLockedFields(tpl0, aCfg01, toArrayMulti);
+      // Use cloneFieldsForNewParent so that locked s01 fields are inherited
+      // from the template, while attachments are reset and partita-specific
+      // data (FattEmissione, CalcCarbonFoot, etc.) are blanked.
+      var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
 
-      var oNewRow = N.deepClone(Object.assign({}, oLockedParent, {
+      var oNewRow = N.deepClone(Object.assign({}, oParentFields, {
         idx: iNewIdx,
 
         GUID: sGuidNew,
         Guid: sGuidNew,
         guidKey: sGuidNew,
 
+        // ── Structural identifiers always inherited from template ──
+        // These fields identify the material itself and are constant across
+        // all partite. They MUST be inherited regardless of MMCT config,
+        // otherwise the new record would be saved with empty Plant/Stagione
+        // and would disappear from Screen3 list (which filters by Plant).
         CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
         Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
         Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
-
-        Fibra: "",
+        Stagione: tpl0.Stagione || tpl0.STAGIONE || "",
+        Plant: tpl0.Plant || tpl0.PLANT || tpl0.WERKS || "",
+        Famiglia: tpl0.Famiglia || tpl0.FAMIGLIA || "",
+        DescMat: tpl0.DescMat || tpl0.DESC_MAT || "",
+        MatCatDesc: tpl0.MatCatDesc || tpl0.MAT_CAT_DESC || "",
+        MaterialeFornitore: tpl0.MaterialeFornitore || "",
+        // Pellami-specific structural fields (kept here so packaging won't
+        // show them but pellami inherits them correctly)
+        Fibra: tpl0.Fibra || tpl0.FIBRA || "",
+        QtaFibra: tpl0.QtaFibra || tpl0.QTA_FIBRA || "",
+/*         UmFibra: tpl0.UmFibra || tpl0.UM_FIBRA || "",
+        UdM: tpl0.UdM || tpl0.UDM || "",
+        DestUso: tpl0.DestUso || tpl0.DEST_USO || "", */
 
         CodAgg: "I",
 
         Stato: "ST",
         StatoText: statusTextFn("ST"),
-        __status: "ST",
-
-        __canEdit: true,
-        __canApprove: false,
-        __canReject: false,
-        __readOnly: false,
-
-        __isNew: true,
-        __state: "NEW"
-      })); */
-
-      // Use cloneFieldsForNewParent (not cloneLockedFields) so that configured
-      // s01 fields like Fibra and QtaFibra (used on pellami) are inherited
-      // from the template, while attachment counters and PartitaFornitore
-      // are correctly reset.
-      var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
-
-      var oNewRow = deepClone(Object.assign({}, oParentFields, {
-        idx: iNewIdx,
-
-        GUID: sGuidNew,
-        Guid: sGuidNew,
-        guidKey: sGuidNew,
-
-        CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
-        Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
-        Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
-
-        // NOTE: no explicit Fibra: "" — cloneFieldsForNewParent handles it:
-        // for pellami Fibra is in aCfg01 and gets inherited, for other
-        // categories Fibra is on s02 and not in aCfg01 so stays unset.
-
-        CodAgg: "I",
-
-        Stato: "ST",
-        StatoText: statusText("ST"),
         __status: "ST",
 
         __canEdit: true,
@@ -324,15 +359,18 @@ sap.ui.define([
     },
  */
     
-        createNewDetailRows: function (aTplRows, opts) {
+/**
+     * Crea le righe dettaglio per un nuovo parent
+     */
+    createNewDetailRows: function (aTplRows, opts) {
       var tpl0 = opts.template;
       var aCfg02 = opts.cfg02;
       var sGuidNew = opts.guid;
       var sVendorId = opts.vendorId;
       var sMaterial = opts.material;
       var sCat = opts.cat;
-      var normalizeVendor10 = opts.normalizeVendor10;
-      var toArrayMulti = opts.toArrayMulti;
+      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
+      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
 
       var self = this;
 
@@ -340,11 +378,12 @@ sap.ui.define([
         var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
 
         // Start from empty object — do NOT deepClone src, or we'd inherit
-        // attachment counters, component data, and other fields from the template.
+        // attachment counters, component data, and other partita-specific
+        // fields from the template.
         var x = {};
         Object.assign(x, oLockedDet);
 
-        // Fibra is a special case: preserve it only if present on source
+        // Fibra: preserve only if present on source (pellami-specific)
         var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
         if (fibraSrc != null && String(fibraSrc).trim() !== "") {
           x.Fibra = fibraSrc;
@@ -354,9 +393,31 @@ sap.ui.define([
         x.GUID = sGuidNew;
         x.guidKey = sGuidNew;
 
+        // ── Structural identifiers always inherited from src/template ──
+        // These fields identify the material and must NEVER be empty,
+        // otherwise the record would disappear from Screen3 list filters.
         x.Fornitore = normalizeVendor10(sVendorId);
         x.Materiale = String(sMaterial || "").trim();
-        x.CatMateriale = tpl0.CatMateriale || sCat || "";
+        x.CatMateriale = src.CatMateriale || tpl0.CatMateriale || sCat || "";
+        x.Stagione = src.Stagione || tpl0.Stagione || src.STAGIONE || tpl0.STAGIONE || "";
+        x.Plant = src.Plant || tpl0.Plant || src.WERKS || tpl0.WERKS || "";
+        x.Famiglia = src.Famiglia || tpl0.Famiglia || "";
+        x.DescMat = src.DescMat || tpl0.DescMat || "";
+        x.MatCatDesc = src.MatCatDesc || tpl0.MatCatDesc || "";
+        x.MaterialeFornitore = src.MaterialeFornitore || tpl0.MaterialeFornitore || "";
+        // Pellami-specific structural fields
+        if (src.QtaFibra || tpl0.QtaFibra) {
+          x.QtaFibra = src.QtaFibra || tpl0.QtaFibra || "";
+        }
+/*         if (src.UmFibra || tpl0.UmFibra) {
+          x.UmFibra = src.UmFibra || tpl0.UmFibra || "";
+        }
+        if (src.UdM || tpl0.UdM) {
+          x.UdM = src.UdM || tpl0.UdM || "";
+        }
+        if (src.DestUso || tpl0.DestUso) {
+          x.DestUso = src.DestUso || tpl0.DestUso || "";
+        } */
 
         x.CodAgg = "I";
         x.Stato = "ST";

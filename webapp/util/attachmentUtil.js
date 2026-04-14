@@ -25,13 +25,12 @@ sap.ui.define([
   "sap/m/TextArea",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
-  "sap/m/BusyIndicator",
-  "sap/ui/core/BusyIndicator",/*  */
+  "sap/ui/core/BusyIndicator",
   "sap/ui/model/json/JSONModel"
 ], function (
   Dialog, Button, List, CustomListItem,
   HBox, VBox, Text, Link, Label, TextArea,
-  MessageToast, MessageBox, MBusyIndicator, BusyIndicator, JSONModel
+  MessageToast, MessageBox, BusyIndicator, JSONModel
 ) {
   "use strict";
 
@@ -149,12 +148,12 @@ sap.ui.define([
       return;
     }
 
-    sap.ui.core.BusyIndicator.show(0);
+    BusyIndicator.show(0);
     
     oModel.read(sPath, {
       urlParameters: { "$format": "json" },
       success: function (oData) {
-        sap.ui.core.BusyIndicator.hide();
+        BusyIndicator.hide();
         if (!oData) {
           MessageToast.show("Nessun dato ricevuto per l'allegato");
           return;
@@ -195,7 +194,7 @@ sap.ui.define([
         }
       },
       error: function (oError) {
-        sap.ui.core.BusyIndicator.hide();
+        BusyIndicator.hide();
         console.error("[AttachmentUtil] downloadAttachment error", oError);
         MessageToast.show("Errore durante il download dell'allegato");
       }

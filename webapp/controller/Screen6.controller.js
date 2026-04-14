@@ -21,14 +21,15 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/mmctUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/postUtil",
-  "apptracciabilita/apptracciabilita/util/recordsUtil"
+  "apptracciabilita/apptracciabilita/util/recordsUtil",
+  "apptracciabilita/apptracciabilita/util/s6ExcelUtil"
 
 ], function (
   BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
   Filter, FilterOperator, MdcColumn, HBox, Text, StateUtil,
   N, Domains, MdcTableUtil, P13nUtil,
   CellTemplateUtil, FilterSortUtil, MmctUtil, TableColumnAutoSize,
-  PostUtil, RecordsUtil
+  PostUtil, RecordsUtil, S6Excel
 ) {
   "use strict";
 
@@ -412,260 +413,20 @@ sap.ui.define([
     _mapExcelToMmctFields: function (aJsonRows, sCat) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-
-      // Build reverse map: label (IT or EN) → UiFieldname
-      var mLabelToField = {};
-      (aRawFields || []).forEach(function (f) {
-        var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-        if (!sUi) return;
-        var sLabelIT = String(f.UiFieldLabel || "").trim();
-        var sLabelEN = String(f.Descrizione || "").trim();
-        var sFieldname = String(f.Fieldname || "").trim();
-        if (sLabelIT) mLabelToField[sLabelIT.toUpperCase()] = sUi;
-        if (sLabelEN) mLabelToField[sLabelEN.toUpperCase()] = sUi;
-        if (sFieldname) mLabelToField[sFieldname.toUpperCase()] = sUi;
-        // Also map UiFieldname itself
-        mLabelToField[sUi.toUpperCase()] = sUi;
-      });
-
-      // Also add common structural fields
-      var mStructural = {
-        "FORNITORE": "Fornitore", "VENDOR": "Fornitore", "LIFNR": "Fornitore",
-        "MATERIALE": "Materiale", "MATERIAL": "Materiale", "MATNR": "Materiale",
-        "STAGIONE": "Stagione", "SEASON": "Stagione",
-        "CATMATERIALE": "CatMateriale", "CAT. MATERIALE": "CatMateriale", "CATEGORIA MATERIALE": "CatMateriale",
-        "FIBRA": "Fibra", "FIBER": "Fibra",
-        "COLLEZIONE": "Collezione", "COLLECTION": "Collezione",
-        "USCITA": "Uscita",
-        "LINEA": "Linea", "LINE": "Linea",
-        "PLANT": "Plant", "STABILIMENTO": "Plant",
-        "LOTTO FORNITORE": "PartitaFornitore", "VENDOR BATCH": "PartitaFornitore", "PARTITA FORNITORE": "PartitaFornitore",
-        "LOTTO FORNITORE / COMMESSA": "PartitaFornitore"
-      };
-
-      Object.keys(mStructural).forEach(function (k) {
-        if (!mLabelToField[k]) mLabelToField[k] = mStructural[k];
-      });
-
-      this._log("Label→Field map built", { entries: Object.keys(mLabelToField).length });
-
-      // Get Excel headers from first row
-      var aExcelHeaders = Object.keys(aJsonRows[0] || {});
-      var mColMap = {}; // excelHeader → fieldName
-      aExcelHeaders.forEach(function (h) {
-        var sUpper = String(h || "").trim().toUpperCase();
-        if (mLabelToField[sUpper]) {
-          mColMap[h] = mLabelToField[sUpper];
-        } else {
-          // Try partial match
-          var sMatch = Object.keys(mLabelToField).find(function (k) {
-            return k.indexOf(sUpper) >= 0 || sUpper.indexOf(k) >= 0;
-          });
-          if (sMatch) {
-            mColMap[h] = mLabelToField[sMatch];
-          } else {
-            // Keep original header as field name (best effort)
-            mColMap[h] = h;
-          }
-        }
-      });
-
-      // ── Detect multi-value columns (e.g. Nazione1, Nazione2, Nazione3 → Nazione) ──
-      // Build set of multi-value field names from MMCT
-      // Map both UiFieldname AND labels to target field
-      var mMultiFields = {}; // uppercase key → UiFieldname target
-      (aRawFields || []).forEach(function (f) {
-        var sMulti = String(f.MultipleVal || "").trim().toUpperCase();
-        if (sMulti === "X") {
-          var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-          if (!sUi) return;
-          // Map by UiFieldname
-          mMultiFields[sUi.toUpperCase()] = sUi;
-          // Map by label (IT)
-          var sLabelIT = String(f.UiFieldLabel || "").trim();
-          if (sLabelIT) mMultiFields[sLabelIT.toUpperCase()] = sUi;
-          // Map by label (EN / Descrizione)
-          var sLabelEN = String(f.Descrizione || "").trim();
-          if (sLabelEN) mMultiFields[sLabelEN.toUpperCase()] = sUi;
-          // Map by Fieldname
-          var sFn = String(f.Fieldname || "").trim();
-          if (sFn) mMultiFields[sFn.toUpperCase()] = sUi;
-        }
-      });
-
-      // Detect pattern: Excel header ends with digits, base name is a multi-field
-      // e.g. "Paese Cucitura1" → base "Paese Cucitura" → matches label → target "PaesePrAgg"
-      // Also handle "Paese Cucitura 1" (space before digit)
-      var mMergeGroups = {}; // targetField → [excelHeader1, excelHeader2, ...]
-      aExcelHeaders.forEach(function (h) {
-        var sTrimmed = String(h || "").trim();
-        // Match trailing digits, optionally preceded by a space
-        var match = sTrimmed.match(/^(.+?)\s*(\d+)$/);
-        if (!match) return;
-        var sBase = match[1].trim();
-        var sBaseUpper = sBase.toUpperCase();
-        // Check if base name matches any multi-value field (by UiFieldname or label)
-        if (mMultiFields[sBaseUpper]) {
-          var sTargetField = mMultiFields[sBaseUpper];
-          if (!mMergeGroups[sTargetField]) mMergeGroups[sTargetField] = [];
-          mMergeGroups[sTargetField].push(h);
-        }
-      });
-
-      // Sort each group by trailing number
-      Object.keys(mMergeGroups).forEach(function (field) {
-        mMergeGroups[field].sort(function (a, b) {
-          var nA = parseInt(a.match(/(\d+)$/)[1], 10);
-          var nB = parseInt(b.match(/(\d+)$/)[1], 10);
-          return nA - nB;
-        });
-      });
-
-      // Map each row
-      return aJsonRows.map(function (row) {
-        var oMapped = {};
-        Object.keys(row).forEach(function (h) {
-          var sField = mColMap[h] || h;
-          oMapped[sField] = row[h];
-        });
-
-        // Merge multi-value columns with pipe
-        Object.keys(mMergeGroups).forEach(function (sTargetField) {
-          var aHeaders = mMergeGroups[sTargetField];
-          var aValues = [];
-          aHeaders.forEach(function (h) {
-            var v = String(row[h] != null ? row[h] : "").trim();
-            if (v) aValues.push(v);
-          });
-          if (aValues.length) {
-            oMapped[sTargetField] = aValues.join("|");
-          }
-          // Remove individual numbered columns from mapped row
-          aHeaders.forEach(function (h) {
-            var sMappedKey = mColMap[h] || h;
-            if (sMappedKey !== sTargetField) {
-              delete oMapped[sMappedKey];
-            }
-          });
-        });
-
-        // Ensure CatMateriale
-        if (!oMapped.CatMateriale) oMapped.CatMateriale = sCat;
-        return oMapped;
-      });
+      return S6Excel.mapExcelToMmctFields(aJsonRows, sCat, aRawFields);
     },
 
     // ==================== CHECK DATA (auto after upload) ====================
     _buildPayloadLines: function (aRows, sCat) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var oDetail = this.getView().getModel("detail");
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
-
-      // Build whitelist of allowed field names from MMCT
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var mAllowed = {};
-      var mNumeric = {};
-      var mFieldDomain = {}; // fieldName → domainName
-      (aRawFields || []).forEach(function (f) {
-        var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-        if (sUi) mAllowed[sUi] = true;
-        var sFn = String(f.Fieldname || "").trim();
-        if (sFn) mAllowed[sFn] = true;
-        // Map field → domain
-        var sDom = String(f.Dominio || "").trim();
-        if (sUi && sDom) mFieldDomain[sUi] = sDom;
-      });
-
-      // Build reverse lookup per domain: description (uppercase) → key
-      var mDomainReverse = {}; // domainName → { "ITALIA": "IT", "FRANCIA": "FR", ... }
-      Object.keys(mFieldDomain).forEach(function (field) {
-        var sDom = mFieldDomain[field];
-        if (mDomainReverse[sDom]) return; // already built
-        var aDomValues = (oVm.getProperty("/domainsByName/" + sDom)) || [];
-        var mReverse = {};
-        (aDomValues || []).forEach(function (entry) {
-          var sKey = String(entry.key || "").trim();
-          var sText = String(entry.text || "").trim();
-          if (sKey && sText) {
-            mReverse[sText.toUpperCase()] = sKey;
-            // Also map key itself (in case user entered the code)
-            mReverse[sKey.toUpperCase()] = sKey;
-          }
-        });
-        mDomainReverse[sDom] = mReverse;
-      });
-
-      // Detect numeric fields
-      var aNumFields = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
-                        "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
-      aNumFields.forEach(function (k) { mNumeric[k] = true; });
-
-      // Always allow structural fields
-      ["CodAgg", "UserID", "Guid", "CatMateriale", "Fornitore", "Materiale",
-       "Stagione", "Fibra", "Collezione", "Linea", "Uscita", "Plant",
-       "PartitaFornitore", "Famiglia", "Stato", "Note", "UdM",
-       "DescMat", "MatCatDesc", "DestUso", "QtaFibra", "UmFibra"
-      ].forEach(function (k) { mAllowed[k] = true; });
-
-      // Helper: resolve a single value against a domain reverse map
-      function resolveValue(sVal, mReverse) {
-        if (!sVal || !mReverse) return sVal;
-        var sUpper = String(sVal).trim().toUpperCase();
-        return mReverse[sUpper] !== undefined ? mReverse[sUpper] : sVal;
-      }
-
-      return aRows.map(function (r) {
-        var o = {};
-        Object.keys(r).forEach(function (k) {
-          if (!k) return;
-          if (k.indexOf("__") === 0) return;
-          if (k === "__metadata" || k === "AllData") return;
-          if (k === "idx" || k === "guidKey" || k === "StatoText") return;
-
-          // Only include fields known to MMCT/OData
-          if (!mAllowed[k]) return;
-
-          var v = r[k];
-
-          // Domain fields: resolve description → key
-          var sDomain = mFieldDomain[k];
-          var mReverse = sDomain ? mDomainReverse[sDomain] : null;
-
-          if (mMulti[k]) {
-            // Multi-value: split by pipe, resolve each, rejoin
-            var sRaw = N.normalizeMultiString ? N.normalizeMultiString(v, "|") : (Array.isArray(v) ? v.join("|") : String(v || ""));
-            if (mReverse) {
-              var aParts = String(sRaw).split("|");
-              sRaw = aParts.map(function (p) { return resolveValue(p.trim(), mReverse); }).filter(Boolean).join("|");
-            }
-            v = sRaw;
-          } else if (Array.isArray(v)) {
-            v = v.join(";");
-          } else if (mReverse) {
-            // Single value with domain: resolve
-            v = resolveValue(String(v != null ? v : ""), mReverse);
-          }
-
-          // Numeric fields: ensure valid decimal string or empty
-          if (mNumeric[k]) {
-            var sVal = String(v != null ? v : "").trim().replace(",", ".");
-            var fNum = parseFloat(sVal);
-            v = isNaN(fNum) ? "0" : String(fNum);
-          }
-
-          o[k] = (v === undefined ? "" : v);
-        });
-
-        o.CodAgg = "I";
-        o.UserID = sUserId;
-        o.Guid = "";
-        if (!o.CatMateriale) o.CatMateriale = sCat;
-
-        delete o.GUID;
-        delete o.GuidKey;
-
-        return o;
+      return S6Excel.buildPayloadLines(aRows, sCat, {
+        sUserId: (oVm && oVm.getProperty("/userId")) || "",
+        mMulti: PostUtil.getMultiFieldsMap(oDetail),
+        aRawFields: (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [],
+        getDomainValues: function (sDom) {
+          return oVm.getProperty("/domainsByName/" + sDom) || [];
+        }
       });
     },
 
@@ -1050,58 +811,13 @@ sap.ui.define([
         return;
       }
 
-      // ── Validazione campi obbligatori ──
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var aRequired = [];
-      (aRawFields || []).forEach(function (f) {
-        var imp = String(f.Impostazione || "").trim().toUpperCase();
-        if (imp === "O") {
-          var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-          var sLabel = String(f.UiFieldLabel || f.Descrizione || sUi).trim();
-          if (sUi) aRequired.push({ ui: sUi, label: sLabel });
-        }
-      });
+      if (!this._validateRequiredFieldsForRows(aRows, sCat)) return;
 
-      if (aRequired.length) {
-        var aErrors = [];
-        aRows.forEach(function (row, idx) {
-          var aMissing = [];
-          aRequired.forEach(function (req) {
-            var v = row[req.ui];
-            if (v == null || String(v).trim() === "") {
-              aMissing.push(req.label);
-            }
-          });
-          if (aMissing.length) {
-            aErrors.push("Riga " + (idx + 1) + ": " + aMissing.join(", "));
-          }
-        });
-
-        if (aErrors.length) {
-          var sMsg = "Campi obbligatori mancanti:\n\n";
-          sMsg += aErrors.slice(0, 10).join("\n");
-          if (aErrors.length > 10) {
-            sMsg += "\n\n... e altre " + (aErrors.length - 10) + " righe con errori.";
-          }
-          sMsg += "\n\nTotale righe con errori: " + aErrors.length + " su " + aRows.length;
-          MessageBox.warning(sMsg);
-          return;
-        }
-      }
-
-      // Filter out rows with check errors
-      var aRowsToSend = aRows;
-      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
-      if (iCheckErrors > 0) {
-        aRowsToSend = aRows.filter(function (r) { return !r.__checkHasError; });
-        if (!aRowsToSend.length) {
-          MessageBox.error("Tutte le righe hanno errori di verifica. Correggere e ricaricare il file.");
-          return;
-        }
-      }
+      var aRowsToSend = this._filterOutCheckErrorRows(aRows, oDetail);
+      if (!aRowsToSend) return;
 
       var self = this;
+      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
       var sConfirmMsg = "Stai per inviare " + aRowsToSend.length + " righe al sistema.";
       if (iCheckErrors > 0) {
         sConfirmMsg += "\n(" + iCheckErrors + " righe con errori saranno escluse)";
@@ -1117,6 +833,37 @@ sap.ui.define([
           }
         }
       });
+    },
+
+    _validateRequiredFieldsForRows: function (aRows, sCat) {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+      var aRequired = S6Excel.collectRequiredFields(aRawFields);
+      if (!aRequired.length) return true;
+
+      var aErrors = S6Excel.findMissingRequiredPerRow(aRows, aRequired);
+      if (!aErrors.length) return true;
+
+      var sMsg = "Campi obbligatori mancanti:\n\n";
+      sMsg += aErrors.slice(0, 10).join("\n");
+      if (aErrors.length > 10) {
+        sMsg += "\n\n... e altre " + (aErrors.length - 10) + " righe con errori.";
+      }
+      sMsg += "\n\nTotale righe con errori: " + aErrors.length + " su " + aRows.length;
+      MessageBox.warning(sMsg);
+      return false;
+    },
+
+    _filterOutCheckErrorRows: function (aRows, oDetail) {
+      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
+      if (iCheckErrors <= 0) return aRows;
+
+      var aFiltered = aRows.filter(function (r) { return !r.__checkHasError; });
+      if (!aFiltered.length) {
+        MessageBox.error("Tutte le righe hanno errori di verifica. Correggere e ricaricare il file.");
+        return null;
+      }
+      return aFiltered;
     },
 
     _executePost: function (aRows, sCat) {

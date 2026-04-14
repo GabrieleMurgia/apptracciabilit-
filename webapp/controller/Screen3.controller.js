@@ -160,93 +160,123 @@ var oVm = self.getOwnerComponent().getModel("vm");
       var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
 
       if (bHasCache) {
-        try {
-          this._hydrateAndFormat(aRows);
-          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
-          var mTplGuid = {};
-          (aRows || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuid[RecordsUtil.rowGuidKey(r)] = true; });
-
-          var oDetail = this._getODetail();
-
-          if (bSkip && aSavedSnapshot && aSavedSnapshot.length) {
-            var mRawByGuid = {};
-            (aRows || []).forEach(function (r) {
-              var g = RecordsUtil.rowGuidKey(r);
-              if (!g) return;
-              if (!mRawByGuid[g]) mRawByGuid[g] = [];
-              mRawByGuid[g].push(r);
-            });
-
-            aSavedSnapshot.forEach(function (rec) {
-              if (!rec) return;
-              var g = N.toStableString(rec.guidKey || rec.GUID || rec.Guid || "");
-              var aRaw = mRawByGuid[g] || [];
-              if (!aRaw.length) return;
-              var aRawSt = aRaw.map(function (r) { return String(r.Stato || "ST").trim().toUpperCase(); });
-              var st;
-              if (aRawSt.every(function (s) { return s === "AP"; })) st = "AP";
-              else if (aRawSt.some(function (s) { return s === "RJ"; })) st = "RJ";
-              else if (aRawSt.some(function (s) { return s === "CH"; })) st = "CH";
-              else st = "ST";
-              rec.__status = st;
-              rec.Stato = st;
-              var rNote = aRaw.find(function (r) { return r.Note && String(r.Note).trim(); });
-              if (rNote) rec.Note = rNote.Note;
-            });
-
-            // ── NoMatList: non filtrare template; normale: escludi template ──
-            if (this._bNoMatListMode) {
-              aRecs = aSavedSnapshot;
-            } else {
-              aRecs = aSavedSnapshot.filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
-            }
-          } else {
-            aRecs = RecordsUtil.buildRecords01(aRows, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm"), includeTemplates: !!this._bNoMatListMode });
-
-            // ── NoMatList: mostra TUTTI i record (inclusi template codAgg=N) ──
-            // ── Normale: escludi template ──
-            if (!this._bNoMatListMode) {
-              aRecs = (aRecs || []).filter(function (rec) { return !mTplGuid[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))]; });
-            }
-          }
-
-          oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
-          var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
-          if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
-          if (bSkip && aSavedSnapshot) { this._bKeepOriginalSnapshot = true; }
-          this._bindRecords(aRecs);
-          this._bKeepOriginalSnapshot = false;
-          if (aSavedSnapshot) {
-            this._snapshotRecords = aSavedSnapshot;
-          }
-        } catch (e) { console.warn("[S3] cache bind failed", e); }
+        this._bindFromCache(aRows, sKey, bSkip, aSavedSnapshot);
       }
 
-      if (bSkip && bHasCache) { this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey }); return; }
+      if (bSkip && bHasCache) {
+        this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey });
+        return;
+      }
 
       this._loadToken = (this._loadToken || 0) + 1;
       var iToken = this._loadToken;
       this._reloadDataFromBackend(function (aResults) {
         if (iToken !== this._loadToken) return;
-        this._hydrateAndFormat(aResults);
-        var oDetail = this._getODetail();
-        var res = RecordsUtil.computeOpenOdaFromRows(aResults);
-        if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
-        var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: this.getOwnerComponent().getModel("vm"), includeTemplates: !!this._bNoMatListMode });
+        this._bindFromBackend(aResults, sKey);
+      }.bind(this));
+    },
 
-        // ── NoMatList: mostra TUTTI i record (inclusi template); normale: escludi template ──
-        if (!this._bNoMatListMode) {
-          var mTplGuidBE = {};
-          (aResults || []).forEach(function (r) { if (N.getCodAgg(r) === "N") mTplGuidBE[RecordsUtil.rowGuidKey(r)] = true; });
-          aRecordsBuilt = (aRecordsBuilt || []).filter(function (rec) {
-            return !mTplGuidBE[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))];
+    _bindFromCache: function (aRows, sKey, bSkip, aSavedSnapshot) {
+      var oVm = this._getOVm();
+      try {
+        this._hydrateAndFormat(aRows);
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
+
+        var oDetail = this._getODetail();
+        var aRecs;
+
+        if (bSkip && aSavedSnapshot && aSavedSnapshot.length) {
+          this._applySnapshotStatusAndNotes(aSavedSnapshot, aRows);
+          aRecs = this._bNoMatListMode
+            ? aSavedSnapshot
+            : this._excludeTemplatesByRawRows(aSavedSnapshot, aRows);
+        } else {
+          aRecs = RecordsUtil.buildRecords01(aRows, {
+            oDetail: oDetail,
+            oVm: this.getOwnerComponent().getModel("vm"),
+            includeTemplates: !!this._bNoMatListMode
           });
+          if (!this._bNoMatListMode) {
+            aRecs = this._excludeTemplatesByRawRows(aRecs, aRows);
+          }
         }
 
-        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
-        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
-        this._bindRecords(aRecordsBuilt);
-      }.bind(this));
+        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
+        var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
+        if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
+
+        if (bSkip && aSavedSnapshot) this._bKeepOriginalSnapshot = true;
+        this._bindRecords(aRecs);
+        this._bKeepOriginalSnapshot = false;
+
+        if (aSavedSnapshot) this._snapshotRecords = aSavedSnapshot;
+      } catch (e) {
+        console.warn("[S3] cache bind failed", e);
+      }
+    },
+
+    _bindFromBackend: function (aResults, sKey) {
+      var oVm = this._getOVm();
+      this._hydrateAndFormat(aResults);
+
+      var oDetail = this._getODetail();
+      var res = RecordsUtil.computeOpenOdaFromRows(aResults);
+      if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
+
+      var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, {
+        oDetail: oDetail,
+        oVm: this.getOwnerComponent().getModel("vm"),
+        includeTemplates: !!this._bNoMatListMode
+      });
+      if (!this._bNoMatListMode) {
+        aRecordsBuilt = this._excludeTemplatesByRawRows(aRecordsBuilt, aResults);
+      }
+
+      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
+      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+      this._bindRecords(aRecordsBuilt);
+    },
+
+    // Snapshot salvato uscendo da Screen4 → contiene record con possibile
+    // stato "stale". Lo risincronizza leggendo Stato/Note dalle righe grezze
+    // appena rehidratate, calcolando lo stato di gruppo (AP/RJ/CH/ST).
+    _applySnapshotStatusAndNotes: function (aSavedSnapshot, aRows) {
+      var mRawByGuid = {};
+      (aRows || []).forEach(function (r) {
+        var g = RecordsUtil.rowGuidKey(r);
+        if (!g) return;
+        if (!mRawByGuid[g]) mRawByGuid[g] = [];
+        mRawByGuid[g].push(r);
+      });
+
+      aSavedSnapshot.forEach(function (rec) {
+        if (!rec) return;
+        var g = N.toStableString(rec.guidKey || rec.GUID || rec.Guid || "");
+        var aRaw = mRawByGuid[g] || [];
+        if (!aRaw.length) return;
+
+        var aRawSt = aRaw.map(function (r) { return String(r.Stato || "ST").trim().toUpperCase(); });
+        var st;
+        if (aRawSt.every(function (s) { return s === "AP"; })) st = "AP";
+        else if (aRawSt.some(function (s) { return s === "RJ"; })) st = "RJ";
+        else if (aRawSt.some(function (s) { return s === "CH"; })) st = "CH";
+        else st = "ST";
+        rec.__status = st;
+        rec.Stato = st;
+
+        var rNote = aRaw.find(function (r) { return r.Note && String(r.Note).trim(); });
+        if (rNote) rec.Note = rNote.Note;
+      });
+    },
+
+    _excludeTemplatesByRawRows: function (aRecs, aRows) {
+      var mTpl = {};
+      (aRows || []).forEach(function (r) {
+        if (N.getCodAgg(r) === "N") mTpl[RecordsUtil.rowGuidKey(r)] = true;
+      });
+      return (aRecs || []).filter(function (rec) {
+        return !mTpl[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))];
+      });
     },
 
     _reloadDataFromBackend: function (fnDone) {
@@ -612,6 +642,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var oDetail = this._getODetail();
       if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
       if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show("Non hai permessi per copiare righe");
+
       var aSel = this._getSelectedParentObjectsFromMdc();
       if (!aSel.length) return MessageToast.show("Seleziona un record da copiare");
       if (aSel.length > 1) return MessageToast.show("Seleziona un solo record da copiare");
@@ -620,7 +651,8 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var sSourceGuid = N.toStableString(oSource.guidKey || oSource.Guid || oSource.GUID || "");
       if (!sSourceGuid) return MessageToast.show("Record senza Guid, impossibile copiare");
 
-      var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
+      var oVm = this._getOVm();
+      var sCacheKey = this._getExportCacheKey();
 
       var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
       var aSourceRaws = aRawAll.filter(function (r) {
@@ -628,65 +660,34 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       });
       if (!aSourceRaws.length) return MessageToast.show("Nessuna riga dettaglio trovata per questo record");
 
-      var sNewGuid = N.genGuidNew();
-
       var aAll = oDetail.getProperty("/RecordsAll") || [];
       var iMax = -1;
-      aAll.forEach(function (r) { var n = parseInt(r && r.idx, 10); if (!isNaN(n) && n > iMax) iMax = n; });
-      var iNewIdx = iMax + 1;
-
-      var oNewParent = N.deepClone(oSource);
-      oNewParent.idx = iNewIdx;
-      oNewParent.GUID = sNewGuid;
-      oNewParent.Guid = sNewGuid;
-      oNewParent.guidKey = sNewGuid;
-      oNewParent.CodAgg = "I";
-      oNewParent.Stato = "ST";
-      oNewParent.StatoText = RecordsUtil.statusText("ST");
-      oNewParent.__status = "ST";
-      oNewParent.__isNew = true;
-      oNewParent.__state = "NEW";
-      oNewParent.__canEdit = true;
-      oNewParent.__canApprove = false;
-      oNewParent.__canReject = false;
-      oNewParent.__readOnly = false;
-      oNewParent.Note = "";
-
-            ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
-        (oDetail.getProperty(sPath) || []).forEach(function (f) {
-          if (f && f.ui && f.attachment) {
-            oNewParent[f.ui.trim()] = "0";
-          }
-        });
+      aAll.forEach(function (r) {
+        var n = parseInt(r && r.idx, 10);
+        if (!isNaN(n) && n > iMax) iMax = n;
       });
 
-      var aNewRaws = aSourceRaws.map(function (r) {
-        var x = N.deepClone(r);
-        x.Guid = sNewGuid;
-        x.GUID = sNewGuid;
-        x.guidKey = sNewGuid;
-        x.CodAgg = "I";
-        x.Stato = "ST";
-        x.Note = "";
-        x.__isNew = true;
-        delete x.__metadata;
-
-                ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
-          (oDetail.getProperty(sPath) || []).forEach(function (f) {
-            if (f && f.ui && f.attachment) {
-              x[f.ui.trim()] = "0";
-            }
-          });
-        });
-        return x;
+      var oClone = RowManagementUtil.cloneRecordForCopy({
+        source: oSource,
+        sourceRaws: aSourceRaws,
+        newIdx: iMax + 1,
+        newGuid: N.genGuidNew(),
+        attachmentUiKeys: RowManagementUtil.collectAttachmentUiKeys(oDetail),
+        statusText: RecordsUtil.statusText
       });
 
-      aAll = aAll.slice(); aAll.push(oNewParent); oDetail.setProperty("/RecordsAll", aAll);
-      var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(oNewParent); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
-      var aRW = (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).slice(); oVm.setProperty("/cache/dataRowsByKey/" + sCacheKey, aRW.concat(aNewRaws));
+      oDetail.setProperty("/RecordsAll", aAll.concat([oClone.parent]));
+      oVm.setProperty(
+        "/cache/recordsByKey/" + sCacheKey,
+        (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).concat([oClone.parent])
+      );
+      oVm.setProperty(
+        "/cache/dataRowsByKey/" + sCacheKey,
+        (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).concat(oClone.raws)
+      );
 
-      Screen4CacheUtil.setSelectedParentForScreen4(oNewParent, oVm, this.getOwnerComponent());
-      Screen4CacheUtil.ensureScreen4CacheForParentIdx(iNewIdx, sNewGuid, oVm, this._getCacheKeySafe());
+      Screen4CacheUtil.setSelectedParentForScreen4(oClone.parent, oVm, this.getOwnerComponent());
+      Screen4CacheUtil.ensureScreen4CacheForParentIdx(oClone.idx, oClone.guid, oVm, this._getCacheKeySafe());
       this._applyClientFilters();
 
       var oTbl = this.byId("mdcTable3");
@@ -694,7 +695,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var iNewRowIndex = aFiltered.length - 1;
       if (iNewRowIndex >= 0) MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
 
-      MessageToast.show("Record copiato (" + aNewRaws.length + " righe dettaglio)");
+      MessageToast.show("Record copiato (" + oClone.raws.length + " righe dettaglio)");
     },
 
     // ==================== DELETE ROWS ====================

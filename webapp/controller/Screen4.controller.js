@@ -296,93 +296,25 @@ sap.ui.define([
 
     // ==================== LOAD SELECTED RECORD ROWS ====================
     _loadSelectedRecordRows: function (fnDone) {
-      var oVm = this._getOVm(), sKey = this._getDataCacheKey(), self = this;
+      var oVm = this._getOVm();
+      var sKey = this._getDataCacheKey();
+      var self = this;
       var aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
       var aRecords = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
 
-      var after = function () {
-        var oD = self.getView().getModel("detail");
-        var iIdx = parseInt(self._sRecordKey, 10); if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
-        var oSel = (oVm.getData() || {}).selectedScreen3Record || null;
-        aAllRows = Array.isArray(aAllRows) ? aAllRows : [];
-        if (!Array.isArray(aRecords)) { aRecords = []; oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords); }
-        if (oSel) { aRecords[iIdx] = oSel; oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords); }
+      function apply() {
+        self._applySelectedRecordToDetail(
+          Array.isArray(aAllRows) ? aAllRows : [],
+          Array.isArray(aRecords) ? aRecords : [],
+          sKey,
+          fnDone
+        );
+      }
 
-        var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
-        if (!oRec) {
-          oD.setProperty("/RowsAll", []); oD.setProperty("/Rows", []); oD.setProperty("/RowsCount", 0);
-          oD.setProperty("/_mmct/cat", ""); oD.setProperty("/_mmct/s02", []);
-          self._applyUiPermissions(); if (typeof fnDone === "function") fnDone(); return;
-        }
-
-        var sGuid = N.toStableString(oRec.guidKey || oRec.Guid || oRec.GUID || oRec.ItmGuid || oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || "");
-        var sRecFibra = N.toStableString(oRec.Fibra || oRec.FIBRA || oRec.Fiber || oRec.FIBER || "");
-        var aByGuid = aAllRows.filter(function (r) { return N.toStableString(S4Loader.rowGuidKey(r) || (r && r.guidKey)) === N.toStableString(sGuid); });
-
-        if (!aByGuid.length) {
-          var oS = N.deepClone(oSel || oRec) || {};
-          oS.guidKey = sGuid; oS.Guid = sGuid; oS.GUID = sGuid;
-          oS.Fibra = sRecFibra || N.toStableString((oSel && (oSel.Fibra || oSel.FIBRA)) || "") || "";
-          if (oS.Approved == null) oS.Approved = 0; if (oS.ToApprove == null) oS.ToApprove = 1; if (oS.Rejected == null) oS.Rejected = 0;
-          oS.__synthetic = true; oS.__localId = oS.__localId || ("SYNTH_" + Date.now());
-          aAllRows = aAllRows.slice(); aAllRows.push(oS);
-          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aAllRows);
-          aByGuid = [oS];
-        }
-
-        var aSelected = aByGuid;
-        var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
-        var aRowSt = aSelected.map(function (r) { return StatusUtil.normStatoRow(r, oVm); });
-        var gSt;
-        if (aRowSt.length && aRowSt.every(function (s) { return s === "AP"; })) { gSt = "AP"; }
-        else if (aRowSt.some(function (s) { return s === "RJ"; })) { gSt = "RJ"; }
-        else if (aRowSt.some(function (s) { return s === "CH"; })) { gSt = "CH"; }
-        else { gSt = "ST"; }
-
-        var bEdit = StatusUtil.canEdit(sRole, gSt);
-        aSelected.forEach(function (r) { r.Stato = StatusUtil.normStatoRow(r, oVm); r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato); });
-        oD.setProperty("/__role", sRole); oD.setProperty("/__status", gSt); oD.setProperty("/__canEdit", bEdit);
-        oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-        oD.setProperty("/__canApprove", false);
-        oD.setProperty("/__canReject", false);
-
-        var r0 = aSelected[0] || {};
-        var sCat = S4Loader.pickCat(r0) || S4Loader.pickCat(oRec) || (oSel ? S4Loader.pickCat(oSel) : "") || "";
-        if (!sCat) { var f1 = aAllRows.find(function (r) { return !!S4Loader.pickCat(r); }); if (f1) sCat = S4Loader.pickCat(f1); }
-        if (!sCat) { var f2 = (aRecords || []).find(function (r) { return !!S4Loader.pickCat(r); }); if (f2) sCat = S4Loader.pickCat(f2); }
-
-        var aCfg02 = sCat ? self._cfgForScreen(sCat, "02") : [];
-        var oHdr = self._buildHeader4FromMmct00(sCat);
-        oD.setProperty("/_mmct/s00", oHdr.s00); oD.setProperty("/_mmct/hdr4", oHdr.hdr4);
-        oD.setProperty("/_mmct/rec", oRec || oSel || {});
-        if (!aCfg02.length) aCfg02 = S4Loader.buildCfgFallbackFromObject(aAllRows[0] || (aRecords || [])[0] || r0 || oRec || {});
-        if (sCat) { [r0, oRec, oSel].forEach(function (o) { if (o && !S4Loader.pickCat(o)) o.CatMateriale = sCat; }); }
-
-        aSelected.forEach(function (row) {
-          (aCfg02 || []).forEach(function (f) {
-            if (!f || !f.ui) return; var k = String(f.ui).trim();
-            if (f.multiple) row[k] = self._toArrayMulti(row[k]);
-            else if (row[k] == null) row[k] = "";
-          });
-        });
-
-        if (!aCfg02.length) {
-          aCfg02 = S4Loader.buildCfgFallbackFromObject(r0);
-          if (aCfg02.length <= 1) {
-            var m2 = {}; aCfg02.forEach(function (x) { m2[x.ui] = x; });
-            S4Loader.buildCfgFallbackFromObject(oRec).forEach(function (x) { if (!m2[x.ui]) { m2[x.ui] = x; aCfg02.push(x); } });
-          }
-        }
-
-        oD.setProperty("/_mmct/cat", sCat); oD.setProperty("/_mmct/s02", aCfg02);
-        oD.setProperty("/guidKey", sGuid); oD.setProperty("/Fibra", "");
-        oD.setProperty("/RowsAll", aSelected); oD.setProperty("/Rows", aSelected); oD.setProperty("/RowsCount", aSelected.length);
-        self._refreshHeader4Fields(); self._applyUiPermissions(); self._applyFiltersAndSort();
-        self._syncAttachmentCounters();
-        if (typeof fnDone === "function") fnDone();
-      };
-
-      if (Array.isArray(aAllRows) && Array.isArray(aRecords) && (aAllRows.length || aRecords.length)) { after(); return; }
+      if (Array.isArray(aAllRows) && Array.isArray(aRecords) && (aAllRows.length || aRecords.length)) {
+        apply();
+        return;
+      }
 
       S4Loader.reloadDataFromBackend({
         oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
@@ -393,7 +325,163 @@ sap.ui.define([
         aRecords = S4Loader.buildRecords01ForCache(aAllRows, sCat ? self._cfgForScreen(sCat, "01") : [], oVm);
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aAllRows);
         oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
-        after();
+        apply();
+      });
+    },
+
+    _applySelectedRecordToDetail: function (aAllRows, aRecords, sKey, fnDone) {
+      var oVm = this._getOVm();
+      var oD = this.getView().getModel("detail");
+
+      var iIdx = parseInt(this._sRecordKey, 10);
+      if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
+
+      var oSel = (oVm.getData() || {}).selectedScreen3Record || null;
+      if (oSel) aRecords[iIdx] = oSel;
+      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
+
+      var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
+      if (!oRec) {
+        oD.setProperty("/RowsAll", []);
+        oD.setProperty("/Rows", []);
+        oD.setProperty("/RowsCount", 0);
+        oD.setProperty("/_mmct/cat", "");
+        oD.setProperty("/_mmct/s02", []);
+        this._applyUiPermissions();
+        if (typeof fnDone === "function") fnDone();
+        return;
+      }
+
+      var sGuid = N.toStableString(
+        oRec.guidKey || oRec.Guid || oRec.GUID || oRec.ItmGuid ||
+        oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || ""
+      );
+      var aSelected = this._resolveOrSynthRowsForGuid(sGuid, oRec, oSel, aAllRows, sKey);
+      aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || aAllRows;
+
+      this._applyGroupStatusAndPerms(aSelected, oVm, oD);
+
+      var sCat = this._resolveCatForSelection(aSelected, oRec, oSel, aAllRows, aRecords);
+      var aCfg02 = this._resolveCfg02ForSelection(sCat, aSelected, oRec, oSel, aAllRows, aRecords);
+
+      this._applyCfg02NormalizationToRows(aSelected, aCfg02);
+
+      var oHdr = this._buildHeader4FromMmct00(sCat);
+      oD.setProperty("/_mmct/s00", oHdr.s00);
+      oD.setProperty("/_mmct/hdr4", oHdr.hdr4);
+      oD.setProperty("/_mmct/rec", oRec || oSel || {});
+      oD.setProperty("/_mmct/cat", sCat);
+      oD.setProperty("/_mmct/s02", aCfg02);
+      oD.setProperty("/guidKey", sGuid);
+      oD.setProperty("/Fibra", "");
+      oD.setProperty("/RowsAll", aSelected);
+      oD.setProperty("/Rows", aSelected);
+      oD.setProperty("/RowsCount", aSelected.length);
+
+      this._refreshHeader4Fields();
+      this._applyUiPermissions();
+      this._applyFiltersAndSort();
+      this._syncAttachmentCounters();
+
+      if (typeof fnDone === "function") fnDone();
+    },
+
+    // Resolve the list of rows belonging to the selected parent Guid. If none
+    // exist (pure template / new record), synthesize a placeholder row and
+    // append it to the rows cache so the table has something to bind.
+    _resolveOrSynthRowsForGuid: function (sGuid, oRec, oSel, aAllRows, sKey) {
+      var aByGuid = aAllRows.filter(function (r) {
+        return N.toStableString(S4Loader.rowGuidKey(r) || (r && r.guidKey)) === N.toStableString(sGuid);
+      });
+      if (aByGuid.length) return aByGuid;
+
+      var sRecFibra = N.toStableString(oRec.Fibra || oRec.FIBRA || oRec.Fiber || oRec.FIBER || "");
+      var oS = N.deepClone(oSel || oRec) || {};
+      oS.guidKey = sGuid;
+      oS.Guid = sGuid;
+      oS.GUID = sGuid;
+      oS.Fibra = sRecFibra || N.toStableString((oSel && (oSel.Fibra || oSel.FIBRA)) || "") || "";
+      if (oS.Approved == null) oS.Approved = 0;
+      if (oS.ToApprove == null) oS.ToApprove = 1;
+      if (oS.Rejected == null) oS.Rejected = 0;
+      oS.__synthetic = true;
+      oS.__localId = oS.__localId || ("SYNTH_" + Date.now());
+
+      var aNext = aAllRows.slice();
+      aNext.push(oS);
+      this._getOVm().setProperty("/cache/dataRowsByKey/" + sKey, aNext);
+      return [oS];
+    },
+
+    _applyGroupStatusAndPerms: function (aSelected, oVm, oD) {
+      var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
+      var aRowSt = aSelected.map(function (r) { return StatusUtil.normStatoRow(r, oVm); });
+      var gSt;
+      if (aRowSt.length && aRowSt.every(function (s) { return s === "AP"; })) gSt = "AP";
+      else if (aRowSt.some(function (s) { return s === "RJ"; })) gSt = "RJ";
+      else if (aRowSt.some(function (s) { return s === "CH"; })) gSt = "CH";
+      else gSt = "ST";
+
+      aSelected.forEach(function (r) {
+        r.Stato = StatusUtil.normStatoRow(r, oVm);
+        r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato);
+      });
+
+      oD.setProperty("/__role", sRole);
+      oD.setProperty("/__status", gSt);
+      oD.setProperty("/__canEdit", StatusUtil.canEdit(sRole, gSt));
+      oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
+      oD.setProperty("/__canApprove", false);
+      oD.setProperty("/__canReject", false);
+    },
+
+    _resolveCatForSelection: function (aSelected, oRec, oSel, aAllRows, aRecords) {
+      var r0 = aSelected[0] || {};
+      var sCat = S4Loader.pickCat(r0) || S4Loader.pickCat(oRec) || (oSel ? S4Loader.pickCat(oSel) : "") || "";
+      if (!sCat) {
+        var f1 = aAllRows.find(function (r) { return !!S4Loader.pickCat(r); });
+        if (f1) sCat = S4Loader.pickCat(f1);
+      }
+      if (!sCat) {
+        var f2 = (aRecords || []).find(function (r) { return !!S4Loader.pickCat(r); });
+        if (f2) sCat = S4Loader.pickCat(f2);
+      }
+      if (sCat) {
+        [r0, oRec, oSel].forEach(function (o) {
+          if (o && !S4Loader.pickCat(o)) o.CatMateriale = sCat;
+        });
+      }
+      return sCat;
+    },
+
+    _resolveCfg02ForSelection: function (sCat, aSelected, oRec, oSel, aAllRows, aRecords) {
+      var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
+      if (aCfg02.length) return aCfg02;
+
+      var r0 = aSelected[0] || {};
+      aCfg02 = S4Loader.buildCfgFallbackFromObject(
+        aAllRows[0] || (aRecords || [])[0] || r0 || oRec || {}
+      );
+      if (aCfg02.length > 1) return aCfg02;
+
+      aCfg02 = S4Loader.buildCfgFallbackFromObject(r0);
+      var m2 = {};
+      aCfg02.forEach(function (x) { m2[x.ui] = x; });
+      S4Loader.buildCfgFallbackFromObject(oRec).forEach(function (x) {
+        if (!m2[x.ui]) { m2[x.ui] = x; aCfg02.push(x); }
+      });
+      return aCfg02;
+    },
+
+    _applyCfg02NormalizationToRows: function (aSelected, aCfg02) {
+      var self = this;
+      aSelected.forEach(function (row) {
+        (aCfg02 || []).forEach(function (f) {
+          if (!f || !f.ui) return;
+          var k = String(f.ui).trim();
+          if (f.multiple) row[k] = self._toArrayMulti(row[k]);
+          else if (row[k] == null) row[k] = "";
+        });
       });
     },
 
@@ -698,104 +786,71 @@ sap.ui.define([
         return;
       }
 
-      // ── Stable Guid assignment (persisted in cache) ──
-// If the current record still has a local-only Guid (-new, NEW_, SYNTH_),
-// replace it with a stable UUID v4 and write it back to the VM cache IN PLACE.
-// Critical: without persisting, each subsequent save would regenerate a
-// different random Guid → backend rejects with "Key exists with other guid".
-function _isLocalGuid(g) {
-  var s = String(g || "");
-  return !s || s.indexOf("NEW_") >= 0 || s.indexOf("SYNTH_") >= 0 || s.indexOf("-new") >= 0;
-}
+      aRecordsAll = this._assignStableGuidBeforeSave(oD, oVm, sCK);
 
-var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
-var sStableGuid = _isLocalGuid(sOldGuid) ? N.uuidv4() : sOldGuid;
+      var oBuild = this._buildSavePayload(oD, oVm, sCK, aRecordsAll);
+      if (!oBuild) return;
 
-// Update detail model
-oD.setProperty("/guidKey", sStableGuid);
+      this._log("onSaveToBackend payload", {
+        lines: oBuild.payload.PostDataCollection ? oBuild.payload.PostDataCollection.length : 0
+      });
 
-// Update records cache IN PLACE — match rows belonging to the current parent
-var aRecordsCache = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
-aRecordsCache.forEach(function (rec) {
-  if (!rec) return;
-  var g = N.toStableString(rec.guidKey || rec.Guid || rec.GUID || "");
-  if (g === sOldGuid) {
-    rec.Guid = sStableGuid;
-    rec.GUID = sStableGuid;
-    rec.guidKey = sStableGuid;
-  }
-});
-oVm.setProperty("/cache/recordsByKey/" + sCK, aRecordsCache);
+      this._executePostAndReload(oD, oVm, sCK, oBuild.proxy, oBuild.payload);
+    },
 
-// Update detail rows cache IN PLACE
-var aDetailRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
-aDetailRowsCache.forEach(function (row) {
-  if (!row) return;
-  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
-  if (rg === sOldGuid) {
-    row.Guid = sStableGuid;
-    row.GUID = sStableGuid;
-    row.guidKey = sStableGuid;
-  }
-});
-oVm.setProperty("/cache/dataRowsByKey/" + sCK, aDetailRowsCache);
+    // Se il record corrente ha ancora un Guid locale (-new, NEW_, SYNTH_) lo
+    // sostituisce con un UUID stabile e propaga la sostituzione IN PLACE sulle
+    // cache VM. Senza persistere, ogni save rigenererebbe un Guid diverso →
+    // backend rejects con "Key exists with other guid".
+    _assignStableGuidBeforeSave: function (oD, oVm, sCK) {
+      function isLocalGuid(g) {
+        var s = String(g || "");
+        return !s || s.indexOf("NEW_") >= 0 || s.indexOf("SYNTH_") >= 0 || s.indexOf("-new") >= 0;
+      }
 
-// Update current view's RowsAll so the UI stays consistent after save
-var aCurrentRows = oD.getProperty("/RowsAll") || [];
-aCurrentRows.forEach(function (row) {
-  if (!row) return;
-  var rg = N.toStableString(row.Guid || row.GUID || row.guidKey || "");
-  if (rg === sOldGuid) {
-    row.Guid = sStableGuid;
-    row.GUID = sStableGuid;
-    row.guidKey = sStableGuid;
-  }
-});
-oD.setProperty("/RowsAll", aCurrentRows);
+      var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
+      var sStableGuid = isLocalGuid(sOldGuid) ? N.uuidv4() : sOldGuid;
 
-// Use the now-normalized cache for the payload
-aRecordsAll = aRecordsCache;
+      function rewriteGuid(row) {
+        if (!row) return;
+        var g = N.toStableString(row.guidKey || row.Guid || row.GUID || "");
+        if (g !== sOldGuid) return;
+        row.Guid = sStableGuid;
+        row.GUID = sStableGuid;
+        row.guidKey = sStableGuid;
+      }
 
+      oD.setProperty("/guidKey", sStableGuid);
+
+      var aRecordsCache = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+      aRecordsCache.forEach(rewriteGuid);
+      oVm.setProperty("/cache/recordsByKey/" + sCK, aRecordsCache);
+
+      var aDetailRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
+      aDetailRowsCache.forEach(rewriteGuid);
+      oVm.setProperty("/cache/dataRowsByKey/" + sCK, aDetailRowsCache);
+
+      var aCurrentRows = oD.getProperty("/RowsAll") || [];
+      aCurrentRows.forEach(rewriteGuid);
+      oD.setProperty("/RowsAll", aCurrentRows);
+
+      return aRecordsCache;
+    },
+
+    // Costruisce proxy detail + payload di save, eseguendo la validazione dei
+    // campi obbligatori. Ritorna null se la validazione fallisce (errore già
+    // mostrato all'utente).
+    _buildSavePayload: function (oD, oVm, sCK, aRecordsAll) {
       var sCat = String(oD.getProperty("/_mmct/cat") || "").trim();
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var aS01 = aRawFields
-        .filter(function (f) {
-          var sLiv = String(f.LivelloSchermata || "").trim();
-          return sLiv !== "02";
-        })
-        .map(function (f) {
-          return {
-            ui: String(f.UiFieldname || f.UIFIELDNAME || "").trim(),
-            label: String(f.UiFieldLabel || f.Descrizione || "").trim(),
-            domain: String(f.Dominio || "").trim(),
-            required: String(f.Impostazione || "").trim().toUpperCase() === "O",
-            multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X"
-          };
-        })
-        .filter(function (f) { return !!f.ui; });
-
-        var aS02 = aRawFields
-  .filter(function (f) { return String(f.LivelloSchermata || "").trim() === "02"; })
-  .map(function (f) {
-    return {
-      ui: String(f.UiFieldname || f.UIFIELDNAME || "").trim(),
-      label: String(f.UiFieldLabel || f.Descrizione || "").trim(),
-      domain: String(f.Dominio || "").trim(),
-      required: String(f.Impostazione || "").trim().toUpperCase() === "O",
-      multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X"
-    };
-  })
-  .filter(function (f) { return !!f.ui; });
+      var aS00 = sCat ? this._cfgForScreen(sCat, "00") : [];
+      var aS01 = sCat ? this._cfgForScreen(sCat, "01") : [];
+      var aS02 = sCat ? this._cfgForScreen(sCat, "02") : [];
 
       var oProxyDetail = new JSONModel({
         RecordsAll: aRecordsAll,
-        _mmct: { s01: aS01,s02: aS02 },
+        _mmct: { s00: aS00, s01: aS01, s02: aS02 },
         __deletedLinesForPost: oVm.getProperty("/cache/__deletedLinesForPost_" + sCK) || []
       });
-
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var sVendor10 = N.normalizeVendor10(this._sVendorId);
-      var sMaterial = String(this._sMaterial || "").trim();
 
       var vr = SaveUtil.validateRequiredBeforePost({
         oDetail: oProxyDetail, oVm: oVm,
@@ -812,8 +867,12 @@ aRecordsAll = aRecordsCache;
         MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top +
           (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
         oProxyDetail.destroy();
-        return;
+        return null;
       }
+
+      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
+      var sVendor10 = N.normalizeVendor10(this._sVendorId);
+      var sMaterial = String(this._sMaterial || "").trim();
 
       var oPayload = SaveUtil.buildSavePayload({
         oDetail: oProxyDetail, oVm: oVm,
@@ -826,83 +885,21 @@ aRecordsAll = aRecordsCache;
         uuidv4: N.uuidv4
       });
 
-      this._log("onSaveToBackend payload", { lines: oPayload.PostDataCollection ? oPayload.PostDataCollection.length : 0 });
+      return { proxy: oProxyDetail, payload: oPayload };
+    },
 
-        var self = this;
+    _executePostAndReload: function (oD, oVm, sCK, oProxyDetail, oPayload) {
+      var self = this;
       var mock = (oVm && oVm.getProperty("/mock")) || {};
-      // Capture the old (local) Guid BEFORE the save so we can replace it
-      // in cache with the backend-generated Guid from the response.
-      var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
 
       SaveUtil.executePost({
         oModel: this.getOwnerComponent().getModel(),
         payload: oPayload,
         mock: !!mock.mockS4,
-        onSuccess: function (oData) {
+        onSuccess: function () {
           oProxyDetail.destroy();
           oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-
-          // ─────────────────────────────────────────────────────────────
-          // BRUTE-FORCE CACHE RESYNC
-          // After save, we reload the entire dataset from the backend.
-          // This is the only safe way to guarantee that Screen3 and Screen4
-          // see the persisted records with real Guids — any in-place cache
-          // update is fragile because of multiple references scattered
-          // across recordsByKey, dataRowsByKey, selectedScreen3Record,
-          // synthetic rows, and snapshots.
-          // ─────────────────────────────────────────────────────────────
-
-          S4Loader.reloadDataFromBackend({
-            oVm: oVm,
-            oDataModel: self.getOwnerComponent().getModel(),
-            vendorId: self._sVendorId,
-            material: self._sMaterial,
-            logFn: self._log.bind(self)
-          }, function (aFreshRows) {
-            aFreshRows = aFreshRows || [];
-
-            // Rebuild records cache from fresh rows
-            var sCat2 = S4Loader.pickCat(aFreshRows[0] || {});
-            var aFreshRecords = S4Loader.buildRecords01ForCache(
-              aFreshRows,
-              sCat2 ? self._cfgForScreen(sCat2, "01") : [],
-              oVm
-            );
-
-            // Replace cache ENTIRELY (not in-place) so no stale references survive
-            oVm.setProperty("/cache/dataRowsByKey/" + sCK, aFreshRows);
-            oVm.setProperty("/cache/recordsByKey/" + sCK, aFreshRecords);
-
-            // Clear selected record — Screen3 will repopulate on bind
-            oVm.setProperty("/selectedScreen3Record", null);
-
-            // Tell Screen3 to USE the cache we just rebuilt (skip re-fetch)
-            oVm.setProperty("/__skipS3BackendOnce", true);
-
-             // IMPORTANT: also tell Screen3 to IGNORE its saved snapshot.
-            // Without this flag, Screen3 would bind aSavedSnapshot (taken
-            // when navigating away, containing the OLD local Guid) instead
-            // of reading the freshly-reloaded cache we just built.
-            oVm.setProperty("/__forceS3CacheReload", true);
-
-            // Clean up interval
-            if (self._attachSyncInterval) {
-              clearInterval(self._attachSyncInterval);
-              self._attachSyncInterval = null;
-            }
-
-            // Mark detail model as clean so no dirty warning on nav back
-            oD.setProperty("/__dirty", false);
-
-            MessageToast.show("Dati salvati con successo");
-
-            // Navigate back to Screen3 which will read the fresh cache
-            self.getOwnerComponent().getRouter().navTo("Screen3", {
-              vendorId: encodeURIComponent(self._sVendorId),
-              material: encodeURIComponent(self._sMaterial),
-              mode: self._sMode || "A"
-            }, true);
-          });
+          self._reloadAfterSaveAndNavBack(oD, oVm, sCK);
         },
         onPartialError: function (aErr) {
           oProxyDetail.destroy();
@@ -912,6 +909,54 @@ aRecordsAll = aRecordsCache;
           oProxyDetail.destroy();
           MessageBox.error(N.getBackendErrorMessage(oError));
         }
+      });
+    },
+
+    // Brute-force cache resync dopo un save: ricarica l'intero dataset dal
+    // backend e sostituisce completamente le cache VM. È l'unico modo sicuro
+    // di garantire che Screen3/Screen4 vedano i record persistiti con i Guid
+    // reali — qualsiasi update in-place è fragile per via dei riferimenti
+    // multipli (recordsByKey, dataRowsByKey, selectedScreen3Record, snapshot).
+    _reloadAfterSaveAndNavBack: function (oD, oVm, sCK) {
+      var self = this;
+
+      S4Loader.reloadDataFromBackend({
+        oVm: oVm,
+        oDataModel: this.getOwnerComponent().getModel(),
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        logFn: this._log.bind(this)
+      }, function (aFreshRows) {
+        aFreshRows = aFreshRows || [];
+
+        var sCat2 = S4Loader.pickCat(aFreshRows[0] || {});
+        var aFreshRecords = S4Loader.buildRecords01ForCache(
+          aFreshRows,
+          sCat2 ? self._cfgForScreen(sCat2, "01") : [],
+          oVm
+        );
+
+        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aFreshRows);
+        oVm.setProperty("/cache/recordsByKey/" + sCK, aFreshRecords);
+        oVm.setProperty("/selectedScreen3Record", null);
+        oVm.setProperty("/__skipS3BackendOnce", true);
+        // __forceS3CacheReload: altrimenti Screen3 ribinda lo snapshot salvato
+        // (con il vecchio Guid locale) invece della cache appena ricostruita.
+        oVm.setProperty("/__forceS3CacheReload", true);
+
+        if (self._attachSyncInterval) {
+          clearInterval(self._attachSyncInterval);
+          self._attachSyncInterval = null;
+        }
+
+        oD.setProperty("/__dirty", false);
+        MessageToast.show("Dati salvati con successo");
+
+        self.getOwnerComponent().getRouter().navTo("Screen3", {
+          vendorId: encodeURIComponent(self._sVendorId),
+          material: encodeURIComponent(self._sMaterial),
+          mode: self._sMode || "A"
+        }, true);
       });
     },
 

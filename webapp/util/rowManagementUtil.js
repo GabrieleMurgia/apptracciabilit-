@@ -307,6 +307,72 @@ createNewDetailRows: function (aTplRows, opts) {
   });
 },
     /**
+     * Raccoglie le UI key dei campi attachment da /_mmct/s01 e /_mmct/s02.
+     * Serve a azzerare i contatori allegati sui record clonati.
+     */
+    collectAttachmentUiKeys: function (oDetail) {
+      var aKeys = [];
+      ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
+        (oDetail.getProperty(sPath) || []).forEach(function (f) {
+          if (f && f.ui && f.attachment) aKeys.push(String(f.ui).trim());
+        });
+      });
+      return aKeys;
+    },
+
+    /**
+     * Clona un record esistente (parent + righe dettaglio) per la copia.
+     * Il nuovo record riceve un Guid fresco, CodAgg "I", stato "ST", attachment
+     * azzerati. Le righe raw mantengono tutti i campi tranne guid/stato/note.
+     */
+    cloneRecordForCopy: function (opts) {
+      var oSource = opts.source;
+      var aSourceRaws = opts.sourceRaws || [];
+      var iNewIdx = opts.newIdx;
+      var sNewGuid = opts.newGuid || N.genGuidNew();
+      var aAttachmentKeys = opts.attachmentUiKeys || [];
+      var statusTextFn = opts.statusText || N.statusText;
+
+      function resetAttachmentCounters(o) {
+        aAttachmentKeys.forEach(function (k) { if (k) o[k] = "0"; });
+      }
+
+      var oNewParent = N.deepClone(oSource);
+      oNewParent.idx = iNewIdx;
+      oNewParent.GUID = sNewGuid;
+      oNewParent.Guid = sNewGuid;
+      oNewParent.guidKey = sNewGuid;
+      oNewParent.CodAgg = "I";
+      oNewParent.Stato = "ST";
+      oNewParent.StatoText = statusTextFn("ST");
+      oNewParent.__status = "ST";
+      oNewParent.__isNew = true;
+      oNewParent.__state = "NEW";
+      oNewParent.__canEdit = true;
+      oNewParent.__canApprove = false;
+      oNewParent.__canReject = false;
+      oNewParent.__readOnly = false;
+      oNewParent.Note = "";
+      resetAttachmentCounters(oNewParent);
+
+      var aNewRaws = aSourceRaws.map(function (r) {
+        var x = N.deepClone(r);
+        x.Guid = sNewGuid;
+        x.GUID = sNewGuid;
+        x.guidKey = sNewGuid;
+        x.CodAgg = "I";
+        x.Stato = "ST";
+        x.Note = "";
+        x.__isNew = true;
+        delete x.__metadata;
+        resetAttachmentCounters(x);
+        return x;
+      });
+
+      return { parent: oNewParent, raws: aNewRaws, idx: iNewIdx, guid: sNewGuid };
+    },
+
+    /**
      * Verifica se le righe selezionate possono essere eliminate
      */
     canDeleteSelectedRows: function (aSel) {

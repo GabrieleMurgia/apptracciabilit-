@@ -26,7 +26,7 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "sap/m/BusyIndicator",
-  "sap/ui/core/BusyIndicator",
+  "sap/ui/core/BusyIndicator",/*  */
   "sap/ui/model/json/JSONModel"
 ], function (
   Dialog, Button, List, CustomListItem,

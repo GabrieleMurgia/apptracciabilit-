@@ -16,7 +16,6 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/domains",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil",
-  "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
@@ -28,7 +27,7 @@ sap.ui.define([
   BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
   Filter, FilterOperator, MdcColumn, HBox, Text, StateUtil,
   N, Domains, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, FilterSortUtil, MmctUtil, TableColumnAutoSize,
+  FilterSortUtil, MmctUtil, TableColumnAutoSize,
   PostUtil, RecordsUtil, S6Excel
 ) {
   "use strict";

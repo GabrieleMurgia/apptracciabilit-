@@ -1,3 +1,10 @@
+/**
+ * cellTemplateUtil.js — createCellTemplate + formatter per celle MDC.
+ *
+ * Split:
+ *   - dirtyHookUtil.js         → hookDirtyOnEdit
+ *   - attachmentCellTemplate.js → attachment / download cell templates
+ */
 sap.ui.define([
   "sap/m/HBox",
   "sap/m/Text",
@@ -9,9 +16,8 @@ sap.ui.define([
   "sap/m/SuggestionItem",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "sap/m/MessageBox",
-  "sap/m/Button",
-  "apptracciabilita/apptracciabilita/util/attachmentUtil"
+  "apptracciabilita/apptracciabilita/util/dirtyHookUtil",
+  "apptracciabilita/apptracciabilita/util/attachmentCellTemplate"
 ], function (
   HBox,
   Text,
@@ -23,266 +29,13 @@ sap.ui.define([
   SuggestionItem,
   Filter,
   FilterOperator,
-  MessageBox,
-  Button,
-  AttachmentUtil
+  DirtyHookUtil,
+  AttachmentCellTemplate
 ) {
   "use strict";
 
-  // =========================
-  // HOOK DIRTY ON EDIT (spostato dal controller)
-  // =========================
-  function hookDirtyOnEdit(oCtrl, hookOpts) {
-    hookOpts = hookOpts || {};
-    var sModelName = hookOpts.modelName || "detail";
-    var oView = hookOpts.view || null;
+  var hookDirtyOnEdit = DirtyHookUtil.hookDirtyOnEdit;
 
-    var touchCodAggParentFn = hookOpts.touchCodAggParentFn;                 // (row, path) => void
-    var clearPostErrorByContextFn = hookOpts.clearPostErrorByContextFn;     // (ctx) => void
-
-    if (!oCtrl) return;
-
-    // ---- anti-doppio-hook (MDC riusa i template)
-    try {
-      if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
-      if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-    } catch (e) {}
-
-    // ---- per Input: aggiorna binding anche su liveChange
-    try {
-      if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) {
-        oCtrl.setValueLiveUpdate(true);
-      }
-    } catch (e2) {}
-
-    function getCtx(ctrl) {
-      return (ctrl && ctrl.getBindingContext && (ctrl.getBindingContext(sModelName) || ctrl.getBindingContext())) || null;
-    }
-
-    function getModel(ctx) {
-      if (ctx && ctx.getModel) return ctx.getModel();
-      return (oView && oView.getModel && oView.getModel(sModelName)) || null;
-    }
-
-    function getVmModel() {
-      // preferisco view model "vm" (propaga dal component), fallback hookOpts.getVmModelFn
-      if (hookOpts.vmModel) return hookOpts.vmModel;
-      if (oView && oView.getModel) {
-        var m = oView.getModel("vm");
-        if (m) return m;
-      }
-      if (typeof hookOpts.getVmModelFn === "function") {
-        try { return hookOpts.getVmModelFn(); } catch (e) {}
-      }
-      return null;
-    }
-
-    function getBindingRelPath(ctrl) {
-      if (!ctrl || !ctrl.getBinding) return "";
-      var b = ctrl.getBinding("value") || ctrl.getBinding("selectedKey") || ctrl.getBinding("selectedKeys");
-      if (!b || !b.getPath) return "";
-      return String(b.getPath() || "").trim();
-    }
-
-    function readCtrlValue(ctrl) {
-      // ComboBox — selectedKey FIRST (preserves exact domain values including multi-spaces)
-      if (ctrl && typeof ctrl.getSelectedKey === "function" && ctrl.getBinding("selectedKey")) {
-        var sk = ctrl.getSelectedKey();
-        if (sk !== undefined && sk !== null && sk !== "") return sk;
-      }
-      // MultiComboBox
-      if (ctrl && typeof ctrl.getSelectedKeys === "function" && ctrl.getBinding("selectedKeys")) {
-        return ctrl.getSelectedKeys();
-      }
-      // Input (fallback)
-      if (ctrl && typeof ctrl.getValue === "function" && ctrl.getBinding("value")) {
-        return ctrl.getValue();
-      }
-      return undefined;
-    }
-
-    function forceUpdateModelIfNeeded(ctrl) {
-      var ctx = getCtx(ctrl);
-      if (!ctx) return;
-
-      var oModel = getModel(ctx);
-      if (!oModel || !oModel.setProperty) return;
-
-      var rel = getBindingRelPath(ctrl);
-      if (!rel) return;
-
-      var v = readCtrlValue(ctrl);
-      if (v === undefined) return;
-
-      var basePath = (ctx.getPath && ctx.getPath()) || "";
-      var fullPath = rel.charAt(0) === "/" ? rel : (basePath ? (basePath + "/" + rel) : rel);
-
-      try { oModel.setProperty(fullPath, v); } catch (e) {}
-    }
-
-    function _normStr(v) { return String(v == null ? "" : v).trim(); }
-
-    function _hasSuggestionsForField(field) {
-      try {
-        var oVm = getVmModel();
-        var aSug = oVm && oVm.getProperty("/suggestionsByField/" + field);
-        return Array.isArray(aSug) && aSug.length > 0;
-      } catch (e) { return false; }
-    }
-
-    function _isValueInSuggestions(field, value) {
-      try {
-        var v = _normStr(value).toUpperCase();
-        if (!v) return true; // vuoto => non blocco
-        var oVm = getVmModel();
-        var aSug = (oVm && oVm.getProperty("/suggestionsByField/" + field)) || [];
-        return (aSug || []).some(function (x) {
-          var k = (x && x.key != null) ? x.key : x;
-          return _normStr(k).toUpperCase() === v;
-        });
-      } catch (e) { return true; }
-    }
-
-    // debounce per liveChange
-    function scheduleDirty(ctrl, oEvt) {
-      try {
-        if (ctrl.__dirtyTimer) clearTimeout(ctrl.__dirtyTimer);
-        ctrl.__dirtyTimer = setTimeout(function () {
-          ctrl.__dirtyTimer = null;
-
-          var ctx = getCtx(ctrl);
-          if (!ctx) return;
-
-          var row = ctx.getObject && ctx.getObject();
-          var sPath = ctx.getPath && ctx.getPath();
-
-          if (row && typeof touchCodAggParentFn === "function") {
-            touchCodAggParentFn(row, sPath);
-          }
-        }, (oEvt && oEvt.getId && oEvt.getId() === "liveChange") ? 150 : 0);
-      } catch (e) {}
-    }
-
-    // salva old value su focusIn solo se il campo ha suggestions
-    try {
-      if (typeof oCtrl.attachFocusIn === "function") {
-        oCtrl.attachFocusIn(function () {
-          var rel = getBindingRelPath(oCtrl);
-          if (!rel) return;
-          if (_hasSuggestionsForField(rel)) {
-            try { oCtrl.data("__oldVal", oCtrl.getValue()); } catch (e) {}
-          }
-        });
-      }
-    } catch (e3) {}
-
-    function handler(oEvt) {
-      var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
-      var evtId = (oEvt && oEvt.getId && oEvt.getId()) || "";
-
-      // evita loop quando ripristino valore via setValue
-      try {
-        if (src && src.data && src.data("__skipConfirmOnce")) {
-          src.data("__skipConfirmOnce", false);
-          forceUpdateModelIfNeeded(src);
-          if (typeof clearPostErrorByContextFn === "function") clearPostErrorByContextFn(getCtx(src));
-          scheduleDirty(src, oEvt);
-          return;
-        }
-      } catch (e0) {}
-
-      forceUpdateModelIfNeeded(src);
-
-      // appena l'utente tocca una cella, tolgo subito "KO" dalla riga
-      if (typeof clearPostErrorByContextFn === "function") {
-        clearPostErrorByContextFn(getCtx(src));
-      }
-
-      // confirm se valore non è tra suggeriti (solo Input) su change/submit
-      var rel = getBindingRelPath(src);
-      var isInput = (src && src.isA && src.isA("sap.m.Input") && typeof src.getValue === "function" && src.getBinding("value"));
-
-      if (rel && isInput && (evtId === "change" /* || evtId === "submit" */) && _hasSuggestionsForField(rel)) {
-        var newVal = _normStr(src.getValue());
-
-        // --- Uniqueness check: block duplicate vendor batch values across rows ---
-        if (newVal) {
-          var bDuplicate = false;
-          try {
-            var ctx = getCtx(src);
-            var sMyPath = ctx && ctx.getPath && ctx.getPath();
-            var oModel = ctx && getModel(ctx);
-            if (oModel) {
-              var aAllRecs = oModel.getProperty("/RecordsAll") || [];
-              var sUpper = newVal.toUpperCase();
-              bDuplicate = aAllRecs.some(function (r) {
-                if (!r) return false;
-                var rv = _normStr(r[rel]).toUpperCase();
-                if (rv !== sUpper) return false;
-                // Exclude the current row itself
-                var rIdx = String(r.idx != null ? r.idx : "");
-                var myIdx = sMyPath ? (sMyPath.match(/\/(\d+)\s*$/) || [])[1] : null;
-                // If we can identify by path index, use it; otherwise compare by guidKey
-                if (myIdx != null && rIdx === myIdx) return false;
-                var row = ctx.getObject && ctx.getObject();
-                if (row && r.guidKey && row.guidKey && r.guidKey === row.guidKey) return false;
-                return true;
-              });
-            }
-          } catch (eUniq) {}
-
-          if (bDuplicate) {
-            var oldValDup = _normStr(src.data("__oldVal"));
-            MessageBox.error(
-              "Il Vendor Batch \"" + newVal + "\" è già presente in un altro record.\nInserisci un valore univoco."
-            );
-            try {
-              if (src.data) src.data("__skipConfirmOnce", true);
-              src.setValue(oldValDup);
-            } catch (e2) {}
-            forceUpdateModelIfNeeded(src);
-            return;
-          }
-        }
-
-        if (newVal && !_isValueInSuggestions(rel, newVal)) {
-          var oldVal = _normStr(src.data("__oldVal"));
-
-          MessageBox.confirm(
-            "Il valore \"" + newVal + "\" non è presente nei valori previsti per \"" + rel + "\".\nVuoi inserirlo comunque?",
-            {
-              actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-              emphasizedAction: MessageBox.Action.OK,
-              onClose: function (action) {
-                if (action === MessageBox.Action.OK) {
-                  try { src.data("__oldVal", newVal); } catch (e) {}
-                  scheduleDirty(src, oEvt);
-                } else {
-                  try {
-                    if (src.data) src.data("__skipConfirmOnce", true);
-                    src.setValue(oldVal);
-                  } catch (e2) {}
-                  forceUpdateModelIfNeeded(src);
-                }
-              }
-            }
-          );
-          return; // dirty solo dopo OK
-        }
-      }
-
-      scheduleDirty(src, oEvt);
-    }
-
-    // attach eventi (best-effort)
-    if (typeof oCtrl.attachLiveChange === "function") oCtrl.attachLiveChange(handler);
-    if (typeof oCtrl.attachChange === "function") oCtrl.attachChange(handler);
-    if (typeof oCtrl.attachSelectionChange === "function") oCtrl.attachSelectionChange(handler);
-    if (typeof oCtrl.attachSelectionFinish === "function") oCtrl.attachSelectionFinish(handler);
-    if (typeof oCtrl.attachSubmit === "function") oCtrl.attachSubmit(handler);
-    if (typeof oCtrl.attachTokenUpdate === "function") oCtrl.attachTokenUpdate(handler);
-  }
-  
   // =========================
   // DATE FORMATTER (DD/MM/YYYY)
   // =========================
@@ -296,414 +49,29 @@ sap.ui.define([
     if (v == null) return "";
     return String(v);
   }
-function _formatDecimalValue(v) {
+
+  function _formatDecimalValue(v) {
     if (v == null || v === "") return "";
     var n = parseFloat(String(v).replace(",", "."));
     if (isNaN(n)) return String(v);
     var oFormat = sap.ui.core.format.NumberFormat.getFloatInstance({
-        minFractionDigits: 2,
-        maxFractionDigits: 2
+      minFractionDigits: 2,
+      maxFractionDigits: 2
     });
     return oFormat.format(n);
-}
-var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
+  }
+
+  var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
     formatValue: function (v) {
-        if (v == null || v === "") return "";
-        return String(v).replace(".", ",");
+      if (v == null || v === "") return "";
+      return String(v).replace(".", ",");
     },
     parseValue: function (v) {
-        if (v == null || v === "") return "";
-        return String(v).replace(",", ".");
+      if (v == null || v === "") return "";
+      return String(v).replace(",", ".");
     },
     validateValue: function () {}
-});
-
-  // =========================
-  // ATTACHMENT CELL TEMPLATE
-  // =========================
-  /**
-   * Creates a cell with a Button that opens the attachment dialog.
-   * The button shows an attachment icon and the count of files (from the model field value).
-   *
-   * @param {string} sKey - Field name (e.g. "CertMatAb", "Attachment")
-   * @param {object} oMeta - MMCT field config with { label, attachment, ... }
-   * @param {object} opts - { view, ... }
-   */
-  function _createAttachmentCellTemplate(sKey, oMeta, opts) {
-    var sLabel = (oMeta && oMeta.label) || sKey;
-
-    var oBtn = new Button({
-      icon: "sap-icon://attachment",
-      // Disable button if record is not yet saved (no valid backend Guid).
-      // Local Guids (NEW_, SYNTH_, -new) mean the record is still pending save.
-      enabled: {
-        parts: [
-          { path: "detail>guidKey" },
-          { path: "detail>Guid" },
-          { path: "detail>GUID" },
-          { path: "detail>__isNew" }
-        ],
-        formatter: function (sGuidKey, sGuid, sGUID, bIsNew) {
-          var g = String(sGuidKey || sGuid || sGUID || "").trim();
-          if (!g) return false;
-          if (g.indexOf("NEW_") >= 0) return false;
-          if (g.indexOf("SYNTH_") >= 0) return false;
-          if (g.indexOf("-new") >= 0) return false;
-          if (bIsNew === true) return false;
-          return true;
-        }
-      },
-      text: {
-        path: "detail>" + sKey,
-        formatter: function (v) {
-          var n = parseInt(v, 10);
-          if (isNaN(n) || n <= 0) return "0";
-          return String(n);
-        }
-      },
-      tooltip: {
-        parts: [
-          { path: "detail>" + sKey },
-          { path: "detail>guidKey" },
-          { path: "detail>Guid" },
-          { path: "detail>GUID" },
-          { path: "detail>__isNew" }
-        ],
-        formatter: function (v, sGuidKey, sGuid, sGUID, bIsNew) {
-          var g = String(sGuidKey || sGuid || sGUID || "").trim();
-          var bUnsaved = !g ||
-            g.indexOf("NEW_") >= 0 ||
-            g.indexOf("SYNTH_") >= 0 ||
-            g.indexOf("-new") >= 0 ||
-            bIsNew === true;
-          if (bUnsaved) {
-            return sLabel + " — Salva il record prima di caricare allegati";
-          }
-          var n = parseInt(v, 10);
-          if (isNaN(n) || n <= 0) return sLabel + " — Nessun allegato";
-          return sLabel + " — " + n + " allegat" + (n === 1 ? "o" : "i");
-        }
-      },
-      type: {
-        path: "detail>" + sKey,
-        formatter: function (v) {
-          var n = parseInt(v, 10);
-          return (n > 0) ? "Emphasized" : "Transparent";
-        }
-      },
-      press: function (oEvt) {
-        var oSrc = oEvt.getSource();
-        var oCtx = oSrc.getBindingContext("detail");
-        if (!oCtx) return;
-        var oRow = oCtx.getObject();
-        var sGuid = String((oRow && (oRow.guidKey || oRow.Guid || oRow.GUID)) || "").trim();
-        if (!sGuid) {
-          sap.m.MessageToast.show("GUID mancante");
-          return;
-        }
-
-        var oView = opts.view || null;
-        var oComponent = oView && oView.getController && oView.getController().getOwnerComponent && oView.getController().getOwnerComponent();
-        var oODataModel = oComponent && oComponent.getModel();
-        var oVm = oComponent && oComponent.getModel("vm");
-        var bMock = !!(oVm && oVm.getProperty("/mock/mockS3"));
-        var bReadOnly = !!(oRow && oRow.__readOnly);
-
-        // Capture row GUID and model to update counter after upload/delete
-        var sRowGuid = sGuid;
-        var oDetailModel = oCtx.getModel();
-
-        // Read current Stato from the row to forward it to the backend
-        var sCurrentStato = String((oRow && (oRow.Stato || oRow.__status || "")) || "").trim();
-
-        AttachmentUtil.openAttachmentDialog({
-          oModel: oODataModel,
-          guid: sGuid,
-          fieldName: sKey,
-          fieldLabel: sLabel,
-          oView: oView,
-          mock: bMock,
-          readOnly: bReadOnly,
-          currentStato: sCurrentStato,
-          // When uploading an attachment on a rejected record, the backend
-          // automatically changes its status (RJ → U). Propagate the new
-          // status to all records arrays and snapshots so the UI reflects it.
-          onStatusChange: function (sNewStato, oData) {
-            var sStUpper = String(sNewStato || "").trim().toUpperCase();
-            if (!sStUpper) return;
-
-            // ── 1. Update current view's detail model ──
-            try {
-              if (oDetailModel) {
-                ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
-                  var aArr = oDetailModel.getProperty(sArrPath) || [];
-                  for (var i = 0; i < aArr.length; i++) {
-                    var r = aArr[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r.Stato = sStUpper;
-                      r.__status = sStUpper;
-                      // Reset readOnly so user can keep editing the (now modified) record
-                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
-                        r.__readOnly = false;
-                      }
-                      oDetailModel.setProperty(sArrPath + "/" + i + "/Stato", sStUpper);
-                      oDetailModel.setProperty(sArrPath + "/" + i + "/__status", sStUpper);
-                      break;
-                    }
-                  }
-                });
-                oDetailModel.refresh(true);
-              }
-            } catch (e) {
-              console.warn("[cellTemplateUtil] onStatusChange model update error", e);
-            }
-
-            // ── 2. Update VM cache so Screen3 sees the new status on navigation back ──
-            // Iterate over ALL cache entries (recordsByKey + dataRowsByKey) because we
-            // don't know the specific cache key from here — match by Guid only.
-            try {
-              if (oVm) {
-                var oCache = oVm.getProperty("/cache") || {};
-                var oRecordsByKey = oCache.recordsByKey || {};
-                Object.keys(oRecordsByKey).forEach(function (sCK) {
-                  var aRecs = oRecordsByKey[sCK] || [];
-                  if (!Array.isArray(aRecs)) return;
-                  var bChanged = false;
-                  for (var i = 0; i < aRecs.length; i++) {
-                    var r = aRecs[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r.Stato = sStUpper;
-                      r.__status = sStUpper;
-                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
-                        r.__readOnly = false;
-                      }
-                      bChanged = true;
-                    }
-                  }
-                  if (bChanged) {
-                    oVm.setProperty("/cache/recordsByKey/" + sCK, aRecs);
-                  }
-                });
-
-                var oDataRowsByKey = oCache.dataRowsByKey || {};
-                Object.keys(oDataRowsByKey).forEach(function (sCK) {
-                  var aRows = oDataRowsByKey[sCK] || [];
-                  if (!Array.isArray(aRows)) return;
-                  var bChanged = false;
-                  for (var i = 0; i < aRows.length; i++) {
-                    var r = aRows[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r.Stato = sStUpper;
-                      r.__status = sStUpper;
-                      if (sStUpper === "U" || sStUpper === "ST" || sStUpper === "CH") {
-                        r.__readOnly = false;
-                      }
-                      bChanged = true;
-                    }
-                  }
-                  if (bChanged) {
-                    oVm.setProperty("/cache/dataRowsByKey/" + sCK, aRows);
-                  }
-                });
-              }
-            } catch (eVm) {
-              console.warn("[cellTemplateUtil] onStatusChange VM cache update error", eVm);
-            }
-
-            // ── 3. Sync controller snapshots so status change isn't detected as unsaved ──
-            try {
-              var oController = oView && oView.getController && oView.getController();
-              if (oController && sRowGuid) {
-                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
-                  if (!Array.isArray(aSnap)) return;
-                  for (var i = 0; i < aSnap.length; i++) {
-                    var r = aSnap[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r.Stato = sStUpper;
-                      r.__status = sStUpper;
-                      break;
-                    }
-                  }
-                });
-              }
-            } catch (e2) {
-              console.warn("[cellTemplateUtil] onStatusChange snapshot sync error", e2);
-            }
-          },
-          onCountChange: function (iNewCount) {
-            var sVal = String(iNewCount);
-            try {
-              if (!oDetailModel) return;
-              // Update the record directly in RecordsAll and Records by GUID
-              /* ["/RecordsAll", "/Records"].forEach(function (sArrPath) { */
-              ["/RecordsAll", "/Records", "/RowsAll", "/Rows"].forEach(function (sArrPath) {
-                var aArr = oDetailModel.getProperty(sArrPath) || [];
-                for (var i = 0; i < aArr.length; i++) {
-                  var r = aArr[i];
-                  if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                    r[sKey] = sVal;
-                    // Also update via setProperty to trigger binding update
-                    oDetailModel.setProperty(sArrPath + "/" + i + "/" + sKey, sVal);
-                    break;
-                  }
-                }
-              });
-              oDetailModel.refresh(true);
-            } catch (e) {
-              console.warn("[cellTemplateUtil] onCountChange model update error", e);
-            }
-            // Sync snapshots so counter changes are NOT detected as unsaved changes
-            // (attachments are saved directly via OData, not via onSave)
-            try {
-              var oController = oView && oView.getController && oView.getController();
-              if (oController && sRowGuid) {
-                /* [oController._originalSnapshot, oController._snapshotRecords].forEach(function (aSnap) { */
-                [oController._originalSnapshot, oController._snapshotRecords, oController._snapshotRows].forEach(function (aSnap) {
-                  if (!Array.isArray(aSnap)) return;
-                  for (var i = 0; i < aSnap.length; i++) {
-                    var r = aSnap[i];
-                    if (r && String(r.guidKey || r.Guid || r.GUID || "") === sRowGuid) {
-                      r[sKey] = sVal;
-                      break;
-                    }
-                  }
-                });
-              }
-            } catch (e2) {
-              console.warn("[cellTemplateUtil] onCountChange snapshot sync error", e2);
-            }
-          }
-        });
-      }
-    });
-
-    return new HBox({
-      width: "100%",
-      justifyContent: "Center",
-      alignItems: "Center",
-      items: [oBtn]
-    });
-  }
-
-  // =========================
-  // DOWNLOAD / QUESTIONNAIRE CELL (Impostazione = "D")
-  // =========================
-  function _createDownloadCellTemplate(sKey, oMeta, opts) {
-
-    var oBtn = new Button({
-      icon: "sap-icon://download",
-      text: "{detail>" + sKey + "}",
-      type: "Transparent",
-      enabled: {
-        path: "detail>" + sKey,
-        formatter: function (v) { return !!(v && String(v).trim()); }
-      },
-      tooltip: {
-        path: "detail>" + sKey,
-        formatter: function (v) {
-          var s = (v && String(v).trim()) || "";
-          return s ? "Scarica questionario: " + s : "Nessun questionario";
-        }
-      },
-      press: function (oEvt) {
-        var oSrc = oEvt.getSource();
-        var oCtx = oSrc.getBindingContext("detail");
-        var sFieldValue = "";
-        if (oCtx) {
-          sFieldValue = String(oCtx.getProperty(sKey) || "").trim();
-        }
-        if (!sFieldValue) {
-          MessageBox.warning("Nessun valore per il campo " + sKey);
-          return;
-        }
-
-        // Retrieve OData model from view → component
-        var oODataModel = null;
-        try {
-          var oView = opts.view;
-          if (oView && oView.getModel) {
-            oODataModel = oView.getModel();
-          }
-          if (!oODataModel && oView && oView.getController) {
-            oODataModel = oView.getController().getOwnerComponent().getModel();
-          }
-        } catch (e) {
-          console.error("[cellTemplateUtil] Cannot get OData model", e);
-        }
-
-        if (!oODataModel) {
-          MessageBox.error("Modello OData non disponibile");
-          return;
-        }
-
-        // Build the path for GetFieldFileSet function import
-        var sFieldNameSafe = sKey.replace(/'/g, "''");
-        var sFieldValueSafe = sFieldValue.replace(/'/g, "''");
-        /* var sPath = "/GetFieldFileSet(FieldName='" + sFieldNameSafe + "',FieldValue='" + sFieldValueSafe + "')"; */
-        var sPath = "/" + oODataModel.createKey("GetFieldFileSet", {
-  FieldName: sKey,
-  FieldValue: sFieldValue
-});
-
-        sap.ui.core.BusyIndicator.show(0);
-        oODataModel.read(sPath, {
-          groupId: "$direct",
-          success: function (oData) {
-            sap.ui.core.BusyIndicator.hide();
-
-            var sContent = oData && oData.FileContent;
-            var sFileName = (oData && oData.FileName) || (sKey + "_" + sFieldValue);
-            var sMimeType = (oData && oData.MimeType) || "application/octet-stream";
-
-            if (!sContent) {
-              MessageBox.warning("Nessun file disponibile per \"" + sFieldValue + "\"");
-              return;
-            }
-
-            // Decode base64 → Blob → download
-            try {
-              var byteChars = atob(sContent);
-              var byteNumbers = new Array(byteChars.length);
-              for (var i = 0; i < byteChars.length; i++) {
-                byteNumbers[i] = byteChars.charCodeAt(i);
-              }
-              var byteArray = new Uint8Array(byteNumbers);
-              var oBlob = new Blob([byteArray], { type: sMimeType });
-
-              var sUrl = URL.createObjectURL(oBlob);
-              var oLink = document.createElement("a");
-              oLink.href = sUrl;
-              oLink.download = sFileName;
-              document.body.appendChild(oLink);
-              oLink.click();
-              document.body.removeChild(oLink);
-              URL.revokeObjectURL(sUrl);
-            } catch (e) {
-              console.error("[cellTemplateUtil] Download error", e);
-              MessageBox.error("Errore nel download del file");
-            }
-          },
-          error: function (oError) {
-            sap.ui.core.BusyIndicator.hide();
-            console.error("[cellTemplateUtil] GetFieldFileSet error", oError);
-            var sMsg = "Errore nel recupero del file";
-            try {
-              var oBody = JSON.parse(oError.responseText);
-              sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-            } catch (e) { /* ignore */ }
-            MessageBox.error(sMsg);
-          }
-        });
-      }
-    });
-
-    return new HBox({
-      width: "100%",
-      justifyContent: "Center",
-      alignItems: "Center",
-      items: [oBtn]
-    });
-  }
+  });
 
   // =========================
   // CREATE CELL TEMPLATE
@@ -712,18 +80,12 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
     opts = opts || {};
     var domainHasValuesFn = opts.domainHasValuesFn;
 
-    // ===== ATTACHMENT COLUMN =====
-    // If MMCT flag is "A", render an attachment button instead of an input
-    var bAttachment = !!(oMeta && oMeta.attachment);
-    if (bAttachment) {
-      return _createAttachmentCellTemplate(sKey, oMeta, opts);
+    if (oMeta && oMeta.attachment) {
+      return AttachmentCellTemplate.createAttachmentCellTemplate(sKey, oMeta, opts);
     }
 
-    // ===== DOWNLOAD / QUESTIONNAIRE COLUMN =====
-    // If MMCT flag is "D", render text + download icon button
-    var bDownload = !!(oMeta && oMeta.download);
-    if (bDownload) {
-      return _createDownloadCellTemplate(sKey, oMeta, opts);
+    if (oMeta && oMeta.download) {
+      return AttachmentCellTemplate.createDownloadCellTemplate(sKey, oMeta, opts);
     }
 
     var bRequired = !!(oMeta && oMeta.required);
@@ -743,7 +105,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
 
     var sValueStateText = (bRequired && !bLocked) ? "Campo obbligatorio" : "";
 
-    // suggestions (Input)
     var sSugPath = "vm>/suggestionsByField/" + sKey;
 
     var bHasSuggestions = false;
@@ -809,7 +170,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           visible: "{= !" + sReadOnlyExpr + " }",
           enabled: !bLocked,
 
-          // OneWay binding prevents JSONModel checkUpdate from contaminating other rows
           selectedKeys: {
             path: "detail>" + sKey,
             mode: "OneWay"
@@ -820,8 +180,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           showValueStateMessage: true,
           showSecondaryValues: true,
 
-          //FIX UI CHIPS MULTICOMBOBOX 26.03.2026
-          // Clear typed search text after selection to avoid residual text next to chip
           selectionChange: function (oEvt) {
             var oMcb = oEvt.getSource();
             setTimeout(function () { oMcb.setValue(""); }, 0);
@@ -833,14 +191,12 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
             template: new ListItem({
               key: "{vm>key}",
               text: "{vm>key}",
-              additionalText: "{vm>text}",
+              additionalText: "{vm>text}"
             }),
             length: 1000
           }
         });
 
-        // Manual model update via row context (not two-way binding)
-        // This ensures only the specific row is updated
         (function (fieldKey) {
           oEditCtrl.attachSelectionFinish(function (oEvt) {
             var oSrc = oEvt.getSource();
@@ -875,7 +231,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
         });
       }
     } else {
-      // Input con suggestions (se presenti) oppure semplice
       if (bHasSuggestions) {
         oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
@@ -906,10 +261,9 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
           }
         });
       } else {
-          oEditCtrl = new Input({
+        oEditCtrl = new Input({
           visible: "{= !" + sReadOnlyExpr + " }",
           editable: !bLocked,
-          /* value: bNumeric ? { path: "detail>" + sKey, formatter: _formatDecimalValue } : sValueBind, */
           value: bNumeric ? { path: "detail>" + sKey, type: new DecimalDisplayType() } : sValueBind,
           valueState: sValueState,
           valueStateText: sValueStateText
@@ -917,7 +271,6 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
       }
     }
 
-    // Hook dirty: se il controller passa la fn, uso quella. Altrimenti posso usare quella del util.
     if (typeof opts.hookDirtyOnEditFn === "function") {
       opts.hookDirtyOnEditFn(oEditCtrl);
     } else if (opts.view && typeof opts.touchCodAggParentFn === "function") {
@@ -925,8 +278,8 @@ var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
     }
 
     if (bNumeric && oEditCtrl && oEditCtrl.setValueLiveUpdate) {
-    oEditCtrl.setValueLiveUpdate(false);
-}
+      oEditCtrl.setValueLiveUpdate(false);
+    }
 
     return new HBox({ items: [oText, oEditCtrl] });
   }

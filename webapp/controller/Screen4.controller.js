@@ -858,7 +858,8 @@ sap.ui.define([
         getExportCacheKey: this._getDataCacheKey.bind(this),
         toStableString: N.toStableString,
         rowGuidKey: RecordsUtil.rowGuidKey,
-        getCodAgg: N.getCodAgg
+        getCodAgg: N.getCodAgg,
+        fromScreen: "S4"
       });
       if (!vr.ok) {
         var top = vr.errors.slice(0, 15).map(function (e) {

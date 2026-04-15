@@ -23,6 +23,9 @@ sap.ui.define([
       var toStableString = opts.toStableString;
       var rowGuidKey = opts.rowGuidKey;
       var getCodAgg = opts.getCodAgg;
+      var sFromScreen = String(opts.fromScreen || "S3").toUpperCase();
+      var sLabel01 = (sFromScreen === "S4") ? "Schermata precedente" : "Pagina corrente";
+      var sLabel02 = (sFromScreen === "S4") ? "Schermata corrente" : "Dettaglio";
 
       var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
       if (!Array.isArray(aParents)) aParents = [];
@@ -112,7 +115,7 @@ sap.ui.define([
           var meta = req01[k] || {};
           var v = p ? p[k] : undefined;
           if (isEmpty(v)) {
-            addErr("Pagina corrente", rowNo, k, meta.label || k);
+            addErr(sLabel01, rowNo, k, meta.label || k);
           }
         });
 
@@ -159,7 +162,7 @@ sap.ui.define([
             var meta = req02[k] || {};
             var v = r ? r[k] : undefined;
             if (isEmpty(v)) {
-              addErr("Dettaglio", rowNo, k, meta.label || k);
+              addErr(sLabel02, rowNo, k, meta.label || k);
             }
           });
         });
@@ -171,8 +174,8 @@ sap.ui.define([
         var rb = b.row || 0;
         if (ra !== rb) return ra - rb;
 
-        var pa = (a.page === "Pagina corrente") ? 0 : 1;
-        var pb = (b.page === "Pagina corrente") ? 0 : 1;
+        var pa = (a.page === sLabel01) ? 0 : 1;
+        var pb = (b.page === sLabel01) ? 0 : 1;
         if (pa !== pb) return pa - pb;
 
         return String(a.label || "").localeCompare(String(b.label || ""));

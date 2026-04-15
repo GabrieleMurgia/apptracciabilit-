@@ -93,12 +93,15 @@ sap.ui.define([
 
       var m = {}, a = [];
       (aAllRows || []).forEach(function (r) {
+        if (N.isTemplateRow(r)) return;
         var sGuidKey = rowGuidKey(r), sKey = sGuidKey;
         var stRow = (validForce.indexOf(sForce) >= 0) ? sForce : StatusUtil.normStatoRow(r, oVm);
         var oRec = m[sKey];
         if (!oRec) {
           oRec = {
-            idx: a.length, guidKey: sGuidKey, Fibra: rowFibra(r), Stato: stRow, __status: stRow,
+            idx: a.length, guidKey: sGuidKey, Fibra: rowFibra(r),
+            CodAgg: (r && (r.CodAgg || r.CODAGG)) || "",
+            Stato: stRow, __status: stRow,
             __canEdit: StatusUtil.canEdit(sRole, stRow), __canApprove: StatusUtil.canApprove(sRole, stRow),
             __canReject: StatusUtil.canReject(sRole, stRow), __readOnly: !StatusUtil.canEdit(sRole, stRow)
           };

@@ -18,7 +18,7 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "apptracciabilita/apptracciabilita/util/dirtyHookUtil",
   "apptracciabilita/apptracciabilita/util/attachmentCellTemplate"
-], function (
+], function ( 
   HBox,
   Text,
   Input,

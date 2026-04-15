@@ -31,7 +31,9 @@ sap.ui.define([
       // ── NoMatList: filtro per categoria materiale, senza materiale/stagione ──
       if (sCatMateriale) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sCatMateriale));
-        // Non aggiungere filtri Materiale né Stagione
+        if (sSeason) {
+          aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
+        }
         return aFilters;
       }
 

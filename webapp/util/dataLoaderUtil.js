@@ -36,26 +36,16 @@ sap.ui.define([
       }
 
       // ── Flusso normale: filtro per materiale + stagione ──
-      function norm(v) { return String(v || "").trim().toUpperCase(); }
-      var sRouteMat = norm(sMaterial);
-
-      var set = {};
-      function add(x) { x = norm(x); if (x) set[x] = true; }
-      add(sRouteMat);
-      if (sRouteMat && sRouteMat.slice(-1) !== "S") add(sRouteMat + "S");
-      if (sRouteMat && sRouteMat.slice(-1) === "S") add(sRouteMat.slice(0, -1));
-      var aMatVariants = Object.keys(set);
+      var sMatNorm = String(sMaterial || "").trim().toUpperCase();
 
       if (sSeason) {
         aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
       }
 
-      if (aMatVariants.length) {
-        var aMatFilters = aMatVariants.map(function (m) {
-          return new Filter("Materiale", FilterOperator.EQ, m);
-        });
-        aFilters.push(new Filter(aMatFilters, false));
+      if (sMatNorm) {
+        aFilters.push(new Filter("Materiale", FilterOperator.EQ, sMatNorm));
       }
+
 
       return aFilters;
     },

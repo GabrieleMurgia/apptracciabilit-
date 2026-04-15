@@ -81,6 +81,8 @@ __noMatListMode: false
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
 
+      debugger
+
       // ── NoMatList: rileva flag impostato da Screen2 ──
       var oVmNM = this.getOwnerComponent().getModel("vm");
       this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty("/__noMatListMode"));

@@ -73,7 +73,7 @@ sap.ui.define([
     /**
      * Clona i campi locked da un template
      */
-        cloneLockedFields: function (src, aCfg, toArrayMulti) {
+    cloneLockedFields: function (src, aCfg, toArrayMulti) {
       src = src || {};
       var out = {};
 
@@ -103,15 +103,9 @@ sap.ui.define([
      * Comportamento:
      *   - Attachment fields  → "0" (contatori azzerati)
      *   - Locked fields (B)  → ereditati dal template
-     *   - Tutti gli altri    → vuoti (sono dati specifici della partita,
-     *                          NON vanno ereditati: PartitaFornitore,
-     *                          FattEmissione, CalcCarbonFoot, certificazioni,
-     *                          note, percentuali, ecc.)
-     *
-     * NOTA: i campi strutturali identificativi del materiale (Stagione, Plant,
-     * Famiglia, DescMat, Fibra, QtaFibra, ecc.) vengono copiati separatamente
-     * da createNewParentRow tramite override esplicito, perché non sempre
-     * sono presenti in aCfg01. <- NOTA VECCHIA
+     *   - Tutti gli altri    → vuoti (dati specifici della partita, non
+     *                          ereditati: PartitaFornitore, FattEmissione,
+     *                          CalcCarbonFoot, certificazioni, note, ecc.)
      */
     cloneFieldsForNewParent: function (src, aCfg, toArrayMulti) {
       src = src || {};
@@ -144,168 +138,158 @@ sap.ui.define([
 
       return out;
     },
-    
-    
+
     /**
      * Crea una nuova riga parent
      */
     createNewParentRow: function (opts) {
-  var oDetail = opts.oDetail;
-  var tpl0 = opts.template;
-  var aCfg01 = opts.cfg01;
-  var sVendorId = opts.vendorId;
-  var sMaterial = opts.material;
-  var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
-  var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
-  var statusTextFn = opts.statusText || N.statusText;
-  var genGuidNew = opts.genGuidNew || N.genGuidNew;
+      var oDetail = opts.oDetail;
+      var tpl0 = opts.template;
+      var aCfg01 = opts.cfg01;
+      var sVendorId = opts.vendorId;
+      var sMaterial = opts.material;
+      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
+      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
+      var statusTextFn = opts.statusText || N.statusText;
+      var genGuidNew = opts.genGuidNew || N.genGuidNew;
 
-  // NEW: campi strutturali da MMCT s00 invece di lista hardcoded
-  // Legge direttamente da /_mmct/s00 nel detail model
-  var aCfgStruct = oDetail.getProperty("/_mmct/s00") || [];
+      var aCfgStruct = oDetail.getProperty("/_mmct/s00") || [];
 
-  var aAll = oDetail.getProperty("/RecordsAll") || [];
-  var iMax = -1;
-  (aAll || []).forEach(function (r) {
-    var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
-    if (!isNaN(n) && n > iMax) iMax = n;
-  });
-  var iNewIdx = iMax + 1;
-  var sGuidNew = genGuidNew();
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+      var iMax = -1;
+      (aAll || []).forEach(function (r) {
+        var n = parseInt((r && r.idx) != null ? r.idx : -1, 10);
+        if (!isNaN(n) && n > iMax) iMax = n;
+      });
+      var iNewIdx = iMax + 1;
+      var sGuidNew = genGuidNew();
 
-  var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
+      var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
 
-  // Costruisce i campi strutturali dinamicamente dai campi locked di s00
-  // (Stagione, Plant, DescMat, MatCatDesc, Famiglia, ecc.)
-  var oStructFields = {};
-  (aCfgStruct || []).forEach(function (f) {
-    if (!f || !f.ui || !f.locked) return; // solo Impostazione="B"
-    var k = String(f.ui).trim();
-    if (!k) return;
-    oStructFields[k] = (tpl0[k] != null && tpl0[k] !== "") ? tpl0[k] : "";
-  });
-  // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
-  oStructFields.MaterialeFornitore = tpl0.MaterialeFornitore || "";
-  // Fibra non è in s00 per tutte le categorie — fallback esplicito
-  oStructFields.Fibra = tpl0.Fibra || tpl0.FIBRA || "";
-  // QtaFibra: se s00 lo copre già (locked), non sovrascrivere; altrimenti fallback
-  if (oStructFields.QtaFibra === undefined || oStructFields.QtaFibra === "") {
-    oStructFields.QtaFibra = tpl0.QtaFibra || tpl0.QTA_FIBRA || "";
-  }
+      var oStructFields = {};
+      (aCfgStruct || []).forEach(function (f) {
+        if (!f || !f.ui || !f.locked) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        oStructFields[k] = (tpl0[k] != null && tpl0[k] !== "") ? tpl0[k] : "";
+      });
+      // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
+      oStructFields.MaterialeFornitore = tpl0.MaterialeFornitore || "";
+      // Fibra non è in s00 per tutte le categorie — fallback esplicito
+      oStructFields.Fibra = tpl0.Fibra || tpl0.FIBRA || "";
+      if (oStructFields.QtaFibra === undefined || oStructFields.QtaFibra === "") {
+        oStructFields.QtaFibra = tpl0.QtaFibra || tpl0.QTA_FIBRA || "";
+      }
 
-  var oNewRow = N.deepClone(Object.assign({}, oParentFields, oStructFields, {
-    idx: iNewIdx,
+      var oNewRow = N.deepClone(Object.assign({}, oParentFields, oStructFields, {
+        idx: iNewIdx,
 
-    GUID: sGuidNew,
-    Guid: sGuidNew,
-    guidKey: sGuidNew,
+        GUID: sGuidNew,
+        Guid: sGuidNew,
+        guidKey: sGuidNew,
 
-    // Questi tre usano sempre i valori runtime, non tpl0
-    CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
-    Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
-    Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
+        CatMateriale: tpl0.CatMateriale || oDetail.getProperty("/_mmct/cat") || "",
+        Fornitore: tpl0.Fornitore || normalizeVendor10(sVendorId),
+        Materiale: tpl0.Materiale || String(sMaterial || "").trim(),
 
-    CodAgg: "I",
-    Stato: "ST",
-    StatoText: statusTextFn("ST"),
-    __status: "ST",
-    __canEdit: true,
-    __canApprove: false,
-    __canReject: false,
-    __readOnly: false,
-    __isNew: true,
-    __state: "NEW"
-  }));
+        CodAgg: "I",
+        Stato: "ST",
+        StatoText: statusTextFn("ST"),
+        __status: "ST",
+        __canEdit: true,
+        __canApprove: false,
+        __canReject: false,
+        __readOnly: false,
+        __isNew: true,
+        __state: "NEW"
+      }));
 
-  (aCfg01 || []).forEach(function (f) {
-    if (!f || !f.ui) return;
-    var k = String(f.ui).trim();
-    if (!k) return;
-    if (k.toUpperCase() === "STATO") k = "Stato";
-    if (oNewRow[k] === undefined) oNewRow[k] = f.multiple ? [] : "";
-    if (f.multiple && !Array.isArray(oNewRow[k])) oNewRow[k] = toArrayMulti(oNewRow[k]);
-  });
+      (aCfg01 || []).forEach(function (f) {
+        if (!f || !f.ui) return;
+        var k = String(f.ui).trim();
+        if (!k) return;
+        if (k.toUpperCase() === "STATO") k = "Stato";
+        if (oNewRow[k] === undefined) oNewRow[k] = f.multiple ? [] : "";
+        if (f.multiple && !Array.isArray(oNewRow[k])) oNewRow[k] = toArrayMulti(oNewRow[k]);
+      });
 
-  return { row: oNewRow, idx: iNewIdx, guid: sGuidNew };
-},
+      return { row: oNewRow, idx: iNewIdx, guid: sGuidNew };
+    },
 
-/**
+    /**
      * Crea le righe dettaglio per un nuovo parent
      */
-createNewDetailRows: function (aTplRows, opts) {
-  var tpl0 = opts.template;
-  var aCfg02 = opts.cfg02;
-  var sGuidNew = opts.guid;
-  var sVendorId = opts.vendorId;
-  var sMaterial = opts.material;
-  var sCat = opts.cat;
-  // NEW: riceve cfgStruct dal chiamante (Screen3.controller.js)
-  var aCfgStruct = opts.cfgStruct || [];
-  var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
-  var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
+    createNewDetailRows: function (aTplRows, opts) {
+      var tpl0 = opts.template;
+      var aCfg02 = opts.cfg02;
+      var sGuidNew = opts.guid;
+      var sVendorId = opts.vendorId;
+      var sMaterial = opts.material;
+      var sCat = opts.cat;
+      var aCfgStruct = opts.cfgStruct || [];
+      var normalizeVendor10 = opts.normalizeVendor10 || N.normalizeVendor10;
+      var toArrayMulti = opts.toArrayMulti || N.toArrayMulti;
 
-  var self = this;
+      var self = this;
 
-  return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
-    var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
+      return (aTplRows && aTplRows.length ? aTplRows : [tpl0]).map(function (src) {
+        var oLockedDet = self.cloneLockedFields(src, aCfg02, toArrayMulti);
 
-    var x = {};
-    Object.assign(x, oLockedDet);
+        var x = {};
+        Object.assign(x, oLockedDet);
 
-    // Fibra: preserva solo se presente sulla riga sorgente (pellami)
-    var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
-    if (fibraSrc != null && String(fibraSrc).trim() !== "") {
-      x.Fibra = fibraSrc;
-    }
+        // Fibra: preserva solo se presente sulla riga sorgente (pellami)
+        var fibraSrc = (src.Fibra != null ? src.Fibra : src.FIBRA);
+        if (fibraSrc != null && String(fibraSrc).trim() !== "") {
+          x.Fibra = fibraSrc;
+        }
 
-    x.Guid = sGuidNew;
-    x.GUID = sGuidNew;
-    x.guidKey = sGuidNew;
+        x.Guid = sGuidNew;
+        x.GUID = sGuidNew;
+        x.guidKey = sGuidNew;
 
-    // Costruisce i campi strutturali dinamicamente dai campi locked di s00
-    (aCfgStruct || []).forEach(function (f) {
-      if (!f || !f.ui || !f.locked) return; // solo Impostazione="B"
-      var k = String(f.ui).trim();
-      if (!k) return;
-      var val = (src[k] != null && src[k] !== "") ? src[k] : (tpl0[k] != null ? tpl0[k] : "");
-      x[k] = val;
-    });
-    // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
-    x.MaterialeFornitore = src.MaterialeFornitore || tpl0.MaterialeFornitore || "";
-    // QtaFibra: se s00 non lo copre (non è locked), fallback esplicito
-    if (x.QtaFibra === undefined || x.QtaFibra === "") {
-      if (src.QtaFibra || tpl0.QtaFibra) {
-        x.QtaFibra = src.QtaFibra || tpl0.QtaFibra || "";
-      }
-    }
+        (aCfgStruct || []).forEach(function (f) {
+          if (!f || !f.ui || !f.locked) return;
+          var k = String(f.ui).trim();
+          if (!k) return;
+          var val = (src[k] != null && src[k] !== "") ? src[k] : (tpl0[k] != null ? tpl0[k] : "");
+          x[k] = val;
+        });
+        // MaterialeFornitore è "00"+"F" (non locked) — override esplicito
+        x.MaterialeFornitore = src.MaterialeFornitore || tpl0.MaterialeFornitore || "";
+        if (x.QtaFibra === undefined || x.QtaFibra === "") {
+          if (src.QtaFibra || tpl0.QtaFibra) {
+            x.QtaFibra = src.QtaFibra || tpl0.QtaFibra || "";
+          }
+        }
 
-    // Questi tre usano sempre valori runtime
-    x.Fornitore = normalizeVendor10(sVendorId);
-    x.Materiale = String(sMaterial || "").trim();
-    x.CatMateriale = src.CatMateriale || tpl0.CatMateriale || sCat || "";
+        x.Fornitore = normalizeVendor10(sVendorId);
+        x.Materiale = String(sMaterial || "").trim();
+        x.CatMateriale = src.CatMateriale || tpl0.CatMateriale || sCat || "";
 
-    x.CodAgg = "I";
-    x.Stato = "ST";
-    x.__status = "ST";
-    x.__readOnly = false;
-    x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-    x.__isNew = true;
-    x.Approved = 0;
-    x.Rejected = 0;
-    x.ToApprove = 1;
+        x.CodAgg = "I";
+        x.Stato = "ST";
+        x.__status = "ST";
+        x.__readOnly = false;
+        x.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+        x.__isNew = true;
+        x.Approved = 0;
+        x.Rejected = 0;
+        x.ToApprove = 1;
 
-    (aCfg02 || []).forEach(function (f) {
-      if (!f || !f.ui) return;
-      var k = String(f.ui).trim();
-      if (!k) return;
-      if (k.toUpperCase() === "STATO") return;
-      if (x[k] === undefined) x[k] = f.multiple ? [] : "";
-      if (f.multiple && !Array.isArray(x[k])) x[k] = toArrayMulti(x[k]);
-    });
+        (aCfg02 || []).forEach(function (f) {
+          if (!f || !f.ui) return;
+          var k = String(f.ui).trim();
+          if (!k) return;
+          if (k.toUpperCase() === "STATO") return;
+          if (x[k] === undefined) x[k] = f.multiple ? [] : "";
+          if (f.multiple && !Array.isArray(x[k])) x[k] = toArrayMulti(x[k]);
+        });
 
-    return x;
-  });
-},
+        return x;
+      });
+    },
+
     /**
      * Raccoglie le UI key dei campi attachment da /_mmct/s01 e /_mmct/s02.
      * Serve a azzerare i contatori allegati sui record clonati.

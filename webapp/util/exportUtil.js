@@ -22,10 +22,12 @@ sap.ui.define([
 
       var aCols = [];
       var mSeen = {};
+      var mGuidBlacklist = { GUID: 1, Guid: 1, guidKey: 1, GuidKey: 1 };
 
       var add = function (label, prop) {
         prop = String(prop || "").trim();
         if (!prop || mSeen[prop]) return;
+        if (mGuidBlacklist[prop]) return;
         mSeen[prop] = true;
 
         aCols.push({
@@ -37,7 +39,6 @@ sap.ui.define([
 
       add("Fornitore", "Fornitore");
       add("Materiale", "Materiale");
-      add("GUID", "GUID");
       add("Fibra", "Fibra");
       add("Stato", "Stato");
       add("Stato testo", "StatoText");
@@ -76,8 +77,6 @@ sap.ui.define([
           v = r.Fornitore != null ? r.Fornitore : (opts.vendorId || "");
         } else if (p === "Materiale") {
           v = r.Materiale != null ? r.Materiale : (opts.material || "");
-        } else if (p === "GUID") {
-          v = r.GUID != null ? r.GUID : (r.Guid != null ? r.Guid : (r.guidKey != null ? r.guidKey : ""));
         } else if (p === "Fibra") {
           v = r.Fibra != null ? r.Fibra : (r.FIBRA != null ? r.FIBRA : "");
         } else if (p === "Stato") {

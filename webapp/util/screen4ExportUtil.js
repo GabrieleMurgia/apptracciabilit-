@@ -67,13 +67,14 @@ sap.ui.define([
 
       sap.ui.require(["sap/ui/export/Spreadsheet"], function (Spreadsheet) {
         try {
-          var aCols = (aCfg02 || []).map(function (f) {
-            return { label: String(f.label || f.ui), property: String(f.ui), type: "string" };
-          });
+          var mGuidBlacklist = { GUID: 1, Guid: 1, guidKey: 1, GuidKey: 1 };
+          var aCols = (aCfg02 || [])
+            .map(function (f) { return { label: String(f.label || f.ui), property: String(f.ui), type: "string" }; })
+            .filter(function (c) { return !mGuidBlacklist[c.property]; });
           if (!aCols.length) {
-            aCols = Object.keys(aRows[0] || {}).map(function (k) {
-              return { label: k, property: k, type: "string" };
-            });
+            aCols = Object.keys(aRows[0] || {})
+              .filter(function (k) { return !mGuidBlacklist[k]; })
+              .map(function (k) { return { label: k, property: k, type: "string" }; });
           }
 
           var oSheet = new Spreadsheet({ workbook: { columns: aCols }, dataSource: aRows, fileName: sFile });

@@ -176,6 +176,7 @@ sap.ui.define([
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
+          debugger
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
           self._log("DataSet loaded", { count: aResults.length, cat: sCat });
@@ -340,12 +341,13 @@ _bindTable: async function (aRows) {
         aCfgAll.unshift({ ui: "Stato", label: "Stato", domain: "", required: false });
       }
       // Ensure key fields
-      ["Fornitore", "Materiale", "Fibra", "Stagione"].forEach(function (k) {
+/*       ["Fornitore", "Materiale", "Fibra", "Stagione"].forEach(function (k) {
         if (!seen[k.toUpperCase()]) {
           aCfgAll.push({ ui: k, label: k, domain: "", required: false });
           seen[k.toUpperCase()] = true;
         }
-      });
+      }); */
+
 
       // Set MDC config
       var aProps = aCfgAll.map(function (f) {
@@ -573,7 +575,7 @@ _bindTable: async function (aRows) {
       try {
         BusyIndicator.show(0);
 
-        // Build columns from MMCT config
+/*         // Build columns from MMCT config
         var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
         var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
         var seen = {};
@@ -602,6 +604,44 @@ _bindTable: async function (aRows) {
             seen[k] = true;
             aCols.push({ label: f.label || ui, property: ui, type: "String" });
           });
+        }); */
+
+      // Build columns from MMCT config — same logic as _bindTable:
+      // only InSummary="X" fields, sorted by SummarySort (ascending, 0 last).
+      // This guarantees Excel export matches what the user sees on screen.
+      var oVm = this.getOwnerComponent().getModel("vm");
+      var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
+      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
+
+      var seen = {};
+      var aCols = [];
+
+      // Stato first (technical workflow column)
+      aCols.push({ label: "Stato", property: "StatoText", type: "String" });
+      seen["STATO"] = true;
+      seen["STATOTEXT"] = true;
+
+      // MMCT-driven columns (filtered + sorted exactly as the on-screen table)
+      aRawFields
+        .filter(function (f) {
+          return String(f.InSummary || "").trim().toUpperCase() === "X";
+        })
+        .sort(function (a, b) {
+          var sA = parseInt(String(a.SummarySort != null ? a.SummarySort : 0).trim(), 10) || 0;
+          var sB = parseInt(String(b.SummarySort != null ? b.SummarySort : 0).trim(), 10) || 0;
+          if (sA > 0 && sB > 0) return sA - sB;
+          if (sA > 0) return -1;
+          if (sB > 0) return 1;
+          return 0;
+        })
+        .forEach(function (f) {
+          var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+          if (!ui) return;
+          var k = ui.toUpperCase();
+          if (seen[k]) return;
+          seen[k] = true;
+          var sLabel = String(f.UiFieldLabel || f.Descrizione || ui).trim();
+          aCols.push({ label: sLabel, property: ui, type: "String" });
         });
 
         // Map rows

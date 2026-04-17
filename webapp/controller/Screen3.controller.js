@@ -558,7 +558,52 @@ var oVm = self.getOwnerComponent().getModel("vm");
     // ==================== TOUCH CODAGG ====================
     _touchCodAggParent: function (p, sPath) {
       TouchCodAggUtil.touchCodAggParent(p, sPath, { oDetail: this._getODetail(), oVm: this._getOVm(), cacheKey: this._getExportCacheKey() });
+      this._checkParentDirtyRevert(p, sPath);
       /* RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" }); */
+    },
+
+    _checkParentDirtyRevert: function (p, sPath) {
+      var snap = this._snapshotRecords;
+      if (!snap || !p || p.__isNew) return;
+
+      var oDetail = this._getODetail();
+      var aKeys = (oDetail.getProperty("/_mmct/s01") || []).map(function (f) { return f && f.ui; }).filter(Boolean);
+      if (!aKeys.length) return;
+
+      var iIdx = (p.idx != null) ? parseInt(p.idx, 10) : NaN;
+      if (isNaN(iIdx)) return;
+      var snapRow = null;
+      snap.forEach(function (s) { if (!snapRow && parseInt(s.idx, 10) === iIdx) snapRow = s; });
+      if (!snapRow) return;
+
+      function vMatch(v1, v2) {
+        if (Array.isArray(v1) && Array.isArray(v2)) return JSON.stringify(v1) === JSON.stringify(v2);
+        return String(v1 == null ? "" : v1) === String(v2 == null ? "" : v2);
+      }
+
+      if (!aKeys.every(function (k) { return vMatch(p[k], snapRow[k]); })) return;
+
+      var sOrigCa = snapRow.CodAgg || "";
+      p.CodAgg = sOrigCa;
+      if (sPath) oDetail.setProperty(sPath + "/CodAgg", sOrigCa);
+
+      var idx = iIdx;
+      var aAll = oDetail.getProperty("/RecordsAll") || [];
+      for (var i = 0; i < aAll.length; i++) {
+        if (parseInt(aAll[i] && aAll[i].idx, 10) === idx) {
+          oDetail.setProperty("/RecordsAll/" + i + "/CodAgg", sOrigCa);
+          break;
+        }
+      }
+
+      var g = N.toStableString(N.getGuid(p));
+      if (g) {
+        var oVm = this._getOVm();
+        var sKey = this._getExportCacheKey();
+        var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+        aRaw.forEach(function (r) { if (N.rowGuidKey(r) === g) r.CodAgg = sOrigCa; });
+        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+      }
     },
 
     // ==================== NAV SCREEN4 ====================

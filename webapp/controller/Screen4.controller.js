@@ -237,12 +237,62 @@ sap.ui.define([
         TouchCodAggUtil.touchCodAggRow(row);
         if (before !== TouchCodAggUtil.getCodAgg(row) && ctx.getPath)
           self.getView().getModel("detail").setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
+        self._checkRowDirtyRevert(row, ctx);
       };
       if (oCtrl.attachLiveChange) oCtrl.attachLiveChange(fn);
       if (oCtrl.attachChange) oCtrl.attachChange(fn);
       if (oCtrl.attachSelectionChange) oCtrl.attachSelectionChange(fn);
       if (oCtrl.attachSelectionFinish) oCtrl.attachSelectionFinish(fn);
       if (oCtrl.attachSubmit) oCtrl.attachSubmit(fn);
+    },
+
+    _checkRowDirtyRevert: function (row, ctx) {
+      var snap = this._snapshotRows;
+      if (!snap || !row || row.__isNew) return;
+
+      var oD = this.getView().getModel("detail");
+      var aKeys = (oD.getProperty("/_mmct/s02") || []).map(function (f) { return f && f.ui; }).filter(Boolean);
+      if (!aKeys.length) return;
+
+      function vMatch(v1, v2) {
+        if (Array.isArray(v1) && Array.isArray(v2)) return JSON.stringify(v1) === JSON.stringify(v2);
+        return String(v1 == null ? "" : v1) === String(v2 == null ? "" : v2);
+      }
+
+      var sGuid = N.toStableString(row.guidKey || "");
+      var sLId = String(row.__localId || "");
+      var snapRow = null;
+      snap.forEach(function (s) {
+        if (snapRow) return;
+        if (sGuid && N.toStableString(s.guidKey || "") === sGuid) { snapRow = s; return; }
+        if (sLId && String(s.__localId || "") === sLId) snapRow = s;
+      });
+      if (!snapRow) return;
+
+      if (!aKeys.every(function (k) { return vMatch(row[k], snapRow[k]); })) return;
+
+      row.CodAgg = snapRow.CodAgg || "";
+      if (ctx && ctx.getPath) oD.setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
+
+      var aRows = oD.getProperty("/RowsAll") || [];
+      var allClean = aRows.every(function (r) {
+        if (!r || r.__isNew) return false;
+        var rGuid = N.toStableString(r.guidKey || "");
+        var rLId = String(r.__localId || "");
+        var sn = null;
+        snap.forEach(function (s) {
+          if (sn) return;
+          if (rGuid && N.toStableString(s.guidKey || "") === rGuid) { sn = s; return; }
+          if (rLId && String(s.__localId || "") === rLId) sn = s;
+        });
+        if (!sn) return false;
+        return aKeys.every(function (k) { return vMatch(r[k], sn[k]); });
+      });
+
+      if (allClean) {
+        oD.setProperty("/__dirty", false);
+        this._applyUiPermissions();
+      }
     },
 
     _createCellTemplate: function (sKey, oMeta) {
@@ -377,6 +427,7 @@ sap.ui.define([
       oD.setProperty("/RowsAll", aSelected);
       oD.setProperty("/Rows", aSelected);
       oD.setProperty("/RowsCount", aSelected.length);
+      this._snapshotRows = N.deepClone(aSelected);
 
       this._refreshHeader4Fields();
       this._applyUiPermissions();

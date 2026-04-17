@@ -183,11 +183,6 @@ sap.ui.define([
         });
         recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
-        if (!recordsScreen4.length) {
-          MessageToast.show("Nessun dato Screen4 in cache (recordsScreen4 vuoto)");
-          return;
-        }
-
         function norm(v) { return String(v == null ? "" : v).trim(); }
 
         function guidOf(x) {
@@ -209,13 +204,19 @@ sap.ui.define([
           return false;
         }
 
-        var mParentByKey = {};
-        recordsScreen3.forEach(function (p) {
-          var k = keyOf(p);
-          if (k !== "||") mParentByKey[k] = p;
-        });
+        var mergedRows;
 
-        var mergedRows = recordsScreen4.map(function (r4) {
+        if (!recordsScreen4.length) {
+          // Nessun dettaglio in cache: esporta solo i record Screen3 (colonne s02 vuote)
+          mergedRows = recordsScreen3.map(function (r) { return Object.assign({}, r); });
+        } else {
+          var mParentByKey = {};
+          recordsScreen3.forEach(function (p) {
+            var k = keyOf(p);
+            if (k !== "||") mParentByKey[k] = p;
+          });
+
+          mergedRows = recordsScreen4.map(function (r4) {
           var out = Object.assign({}, r4);
 
           var k = keyOf(out);
@@ -250,7 +251,8 @@ sap.ui.define([
           }
 
           return out;
-        });
+          });
+        }
 
         mergedRows = (mergedRows || []).filter(function (r) {
           return getCodAgg(r) !== "N";

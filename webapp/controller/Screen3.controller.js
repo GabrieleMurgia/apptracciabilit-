@@ -604,6 +604,15 @@ var oVm = self.getOwnerComponent().getModel("vm");
         aRaw.forEach(function (r) { if (N.rowGuidKey(r) === g) r.CodAgg = sOrigCa; });
         oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
       }
+
+      if (Array.isArray(this._originalSnapshot)) {
+        for (var j = 0; j < this._originalSnapshot.length; j++) {
+          if (parseInt(this._originalSnapshot[j] && this._originalSnapshot[j].idx, 10) === idx) {
+            this._originalSnapshot[j] = N.deepClone(p);
+            break;
+          }
+        }
+      }
     },
 
     // ==================== NAV SCREEN4 ====================

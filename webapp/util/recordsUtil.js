@@ -204,27 +204,84 @@ sap.ui.define([
     // =========================
 
     hasUnsavedChanges: function (oDetail, snapshotRecords) {
-      var aCurrent = oDetail.getProperty("/RecordsAll") || [];
-      var aSnapshot = snapshotRecords || [];
+  var aCurrent = oDetail.getProperty("/RecordsAll") || [];
+  var aSnapshot = snapshotRecords || [];
 
-      if (!aSnapshot.length) return false;
-      if (aCurrent.length !== aSnapshot.length) return true;
+  var isDateLikeString = function (value) {
+    return typeof value === "string" && !isNaN(Date.parse(value));
+  };
 
-      var aCfg = oDetail.getProperty("/_mmct/s01") || [];
-      var aKeys = aCfg.map(function (f) { return f && f.ui; }).filter(Boolean);
-      if (!aKeys.length) return false;
+  var normalizeValue = function (value) {
+    if (value == null) {
+      return value;
+    }
 
-      function vMatch(v1, v2) {
-        if (Array.isArray(v1) && Array.isArray(v2)) return JSON.stringify(v1) === JSON.stringify(v2);
-        return String(v1 == null ? "" : v1) === String(v2 == null ? "" : v2);
-      }
+    // Date -> stringa ISO
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
 
-      return aCurrent.some(function (rCurr, i) {
-        var rSnap = aSnapshot[i];
-        if (!rSnap) return true;
-        return aKeys.some(function (k) { return !vMatch(rCurr[k], rSnap[k]); });
-      });
-    },
+    // stringa data -> stringa ISO canonica
+    if (isDateLikeString(value)) {
+      return new Date(value).toISOString();
+    }
+
+    // Set -> array ordinato e normalizzato
+    if (value instanceof Set) {
+      return Array.from(value)
+        .map(normalizeValue)
+        .sort();
+    }
+
+    // Array -> normalizza ogni elemento
+    if (Array.isArray(value)) {
+      return value
+        .map(normalizeValue)
+        .sort(function (a, b) {
+          return JSON.stringify(a).localeCompare(JSON.stringify(b));
+        });
+    }
+
+    // Oggetto -> normalizza ricorsivamente
+    if (typeof value === "object") {
+      var result = {};
+      Object.keys(value)
+        .sort()
+        .forEach(function (key) {
+          result[key] = normalizeValue(value[key]);
+        });
+      return result;
+    }
+
+    return value;
+  };
+
+  var normalizeRecord = function (obj) {
+    var result = {};
+
+    Object.keys(obj).forEach(function (k) {
+      if (k.indexOf("__") === 0) return;
+      if (k === "idx" || k === "guidKey" || k === "StatoText") return;
+
+      result[k] = normalizeValue(obj[k]);
+    });
+
+    return result;
+  };
+
+  aSnapshot = aSnapshot.map(normalizeRecord);
+  aCurrent = aCurrent.map(normalizeRecord);
+
+  if (!aSnapshot.length) return false;
+  if (aCurrent.length !== aSnapshot.length) return true;
+
+  return aCurrent.some(function (rCurr, i) {
+    var rSnap = aSnapshot[i];
+    if (!rSnap) return true;
+
+    return JSON.stringify(rCurr) !== JSON.stringify(rSnap);
+  });
+},
     toArrayMulti: N.toArrayMulti,
 
       _bindRecords: async function (aRecords) {

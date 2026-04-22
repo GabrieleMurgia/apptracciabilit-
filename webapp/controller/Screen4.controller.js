@@ -370,6 +370,7 @@ sap.ui.define([
         oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
         vendorId: this._sVendorId, material: this._sMaterial,
         catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
+        season: (oVm && oVm.getProperty("/__currentSeason")) || "",
         logFn: this._log.bind(this)
       }, function (aRes) {
         aAllRows = Array.isArray(aRes) ? aRes : [];
@@ -980,6 +981,7 @@ sap.ui.define([
         vendorId: this._sVendorId,
         material: this._sMaterial,
         catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
+        season: (oVm && oVm.getProperty("/__currentSeason")) || "",
         logFn: this._log.bind(this)
       }, function (aFreshRows) {
         aFreshRows = aFreshRows || [];

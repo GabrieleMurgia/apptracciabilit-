@@ -87,6 +87,7 @@ __noMatListMode: false
       var oVmNM = this.getOwnerComponent().getModel("vm");
       this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty("/__noMatListMode"));
       this._sNoMatListCat = (oVmNM && oVmNM.getProperty("/__noMatListCat")) || "";
+      if (oVmNM) oVmNM.setProperty("/__currentSeason", this._sSeason || "");
       if (this._bNoMatListMode) {
         this._log("NoMatList MODE attivo -> mostro anche template, add/copy/delete disabilitati, filtro per categoria:", this._sNoMatListCat);
       }

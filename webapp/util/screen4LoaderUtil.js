@@ -75,6 +75,11 @@ sap.ui.define([
         }
       }
 
+      var sSeason = String(opts.season || "").trim();
+      if (sSeason) {
+        aFilters.push(new Filter("Stagione", FilterOperator.EQ, sSeason));
+      }
+
       BusyIndicator.show(0);
       opts.oDataModel.read("/DataSet", {
         filters: aFilters, urlParameters: { "sap-language": "IT" },

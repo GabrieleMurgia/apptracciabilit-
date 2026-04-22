@@ -57,15 +57,22 @@ sap.ui.define([
 
       var sVendor = String(opts.vendorId || "").trim();
       if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
-      var sRouteMat = norm(opts.material);
-      var aMatVariants = [sRouteMat];
-      if (sRouteMat && !sRouteMat.endsWith("S")) aMatVariants.push(sRouteMat + "S");
-      if (sRouteMat && sRouteMat.endsWith("S")) aMatVariants.push(sRouteMat.slice(0, -1));
-      aMatVariants = aMatVariants.filter(function (v, i, a) { return !!v && a.indexOf(v) === i; });
 
       var aFilters = [new Filter("UserID", FilterOperator.EQ, sUserId), new Filter("Fornitore", FilterOperator.EQ, sVendor)];
-      if (aMatVariants.length) {
-        aFilters.push(new Filter({ filters: aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); }), and: false }));
+
+      var sCatMateriale = String(opts.catMateriale || "").trim();
+      if (sCatMateriale) {
+        aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sCatMateriale));
+      } else {
+        var sRouteMat = norm(opts.material);
+        var aMatVariants = [sRouteMat];
+        if (sRouteMat && !sRouteMat.endsWith("S")) aMatVariants.push(sRouteMat + "S");
+        if (sRouteMat && sRouteMat.endsWith("S")) aMatVariants.push(sRouteMat.slice(0, -1));
+        aMatVariants = aMatVariants.filter(function (v, i, a) { return !!v && a.indexOf(v) === i; });
+
+        if (aMatVariants.length) {
+          aFilters.push(new Filter({ filters: aMatVariants.map(function (m) { return new Filter("Materiale", FilterOperator.EQ, m); }), and: false }));
+        }
       }
 
       BusyIndicator.show(0);

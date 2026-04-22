@@ -368,7 +368,9 @@ sap.ui.define([
 
       S4Loader.reloadDataFromBackend({
         oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
-        vendorId: this._sVendorId, material: this._sMaterial, logFn: this._log.bind(this)
+        vendorId: this._sVendorId, material: this._sMaterial,
+        catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
+        logFn: this._log.bind(this)
       }, function (aRes) {
         aAllRows = Array.isArray(aRes) ? aRes : [];
         var sCat = S4Loader.pickCat(aAllRows[0] || {});
@@ -977,6 +979,7 @@ sap.ui.define([
         oDataModel: this.getOwnerComponent().getModel(),
         vendorId: this._sVendorId,
         material: this._sMaterial,
+        catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
         logFn: this._log.bind(this)
       }, function (aFreshRows) {
         aFreshRows = aFreshRows || [];

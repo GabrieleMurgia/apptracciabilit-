@@ -239,6 +239,14 @@ sap.ui.define([
             var sLabel = String(f.UiFieldLabel || f.Descrizione || sProp).trim();
             return { label: sLabel, property: sProp };
           }).filter(function (c) { return !!c.property; });
+
+          var mSeenCols = Object.create(null);
+          aCols = aCols.filter(function (c) {
+            var sKey = String(c.property || "").trim().toUpperCase();
+            if (!sKey || mSeenCols[sKey]) return false;
+            mSeenCols[sKey] = true;
+            return true;
+          });
         } else {
           // Fallback: hardcoded legacy list
           aCols = [

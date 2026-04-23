@@ -5,7 +5,7 @@
     {
       "source": "^/sap/(.*)$",
       "target": "/sap/$1",
-      "destination": "SAP_Gateway", 
+      "destination": "SAP_PLM_Gateway", 
       "authenticationType": "xsuaa",
       "csrfProtection": false
     },

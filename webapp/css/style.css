@@ -328,6 +328,11 @@
   margin-left: auto;
 }
 
+/* Icona totalcount Table */
+.sapMTableTitleTotalCount{
+  display: none!important;
+}
+
 /* ============================================================
    RESPONSIVE / MOBILE
    ============================================================ */

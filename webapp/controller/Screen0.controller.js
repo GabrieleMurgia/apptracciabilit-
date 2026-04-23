@@ -304,7 +304,7 @@ sap.ui.define([
               "sap-language": "IT"
             },
             success: function (oData) {
-              BusyIndicator.hide();
+                BusyIndicator.hide();
               
               if (!oData) {
                 console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);

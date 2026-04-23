@@ -166,7 +166,7 @@ sap.ui.define([
 
       var oParentFields = this.cloneFieldsForNewParent(tpl0, aCfg01, toArrayMulti);
 
-      var oStructFields = {};
+       var oStructFields = {};
       (aCfgStruct || []).forEach(function (f) {
         if (!f || !f.ui || !f.locked) return;
         var k = String(f.ui).trim();

@@ -27,7 +27,7 @@ sap.ui.define([
         new Filter("UserID", FilterOperator.EQ, sUserId),
         new Filter("Fornitore", FilterOperator.EQ, sVendor10)
       ];
-
+      
       // ── NoMatList: filtro per categoria materiale, senza materiale/stagione ──
       if (sCatMateriale) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sCatMateriale));

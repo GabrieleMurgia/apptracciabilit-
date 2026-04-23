@@ -173,13 +173,14 @@ sap.ui.define([
         var inlineFS = opts.inlineFS;
         var vendorId = opts.vendorId;
         var material = opts.material;
+        var bIncludeTemplates = !!opts.includeTemplatesInExport;
 
         var recordsScreen4 = Object.values(oVm.getData().cache.dataRowsByKey)[1] || oVm.getProperty("/cache/dataRowsByKey/" + opts.cacheKey) || [];
         var recordsScreen3 = oDetail.getData().Records || [];
 
         recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];
         recordsScreen4 = (recordsScreen4 || []).filter(function (r) {
-          return getCodAgg(r) !== "N";
+          return bIncludeTemplates || getCodAgg(r) !== "N";
         });
         recordsScreen3 = Array.isArray(recordsScreen3) ? recordsScreen3.slice() : [];
 
@@ -255,7 +256,7 @@ sap.ui.define([
         }
 
         mergedRows = (mergedRows || []).filter(function (r) {
-          return getCodAgg(r) !== "N";
+          return bIncludeTemplates || getCodAgg(r) !== "N";
         });
 
         var aColumns = this.buildExportColumnsComplete(oDetail);

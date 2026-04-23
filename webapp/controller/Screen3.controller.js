@@ -831,7 +831,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
 
     // ==================== EXPORT ====================
     onExportExcel: async function () {
-      await ExportUtil.exportExcel({ oVm: this.getOwnerComponent().getModel("vm"), oDetail: this._getODetail(), toStableString: N.toStableString, statusText: RecordsUtil.statusText, inlineFS: this._inlineFS, vendorId: this._sVendorId, material: this._sMaterial, cacheKey: this._getExportCacheKey() });
+      await ExportUtil.exportExcel({ oVm: this.getOwnerComponent().getModel("vm"), oDetail: this._getODetail(), toStableString: N.toStableString, statusText: RecordsUtil.statusText, inlineFS: this._inlineFS, vendorId: this._sVendorId, material: this._sMaterial, cacheKey: this._getExportCacheKey(), includeTemplatesInExport: !!this._bNoMatListMode });
     },
     onPrint: function () { MessageToast.show("Stampa: TODO"); },
 

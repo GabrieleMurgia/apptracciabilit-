@@ -47,13 +47,13 @@ sap.ui.define([], function () {
   function canApprove(role, status) {
     role = String(role || "").trim().toUpperCase();
     status = String(status || "").trim().toUpperCase();
-    return role === "I" && (status === "ST" || status === "CH");
+    return (role === "I" || role === "S") && (status === "ST" || status === "CH");
   }
 
   function canReject(role, status) {
     role = String(role || "").trim().toUpperCase();
     status = String(status || "").trim().toUpperCase();
-    return role === "I" && (status === "ST" || status === "CH");
+    return (role === "I" || role === "S") && (status === "ST" || status === "CH");
   }
 
   function normStatoRow(r, oVm /* JSONModel vm */) {

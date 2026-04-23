@@ -463,9 +463,9 @@ var oVm = self.getOwnerComponent().getModel("vm");
         oDetail.setProperty("/__canDeleteRow", oDetail.getProperty("/__canAddRow"));
       }
 
-      var bHasApprovable = aSt.some(function (s) { return s === "ST" || s === "CH"; });
-      oDetail.setProperty("/__canApprove", sRole === "I");
-      oDetail.setProperty("/__canReject", sRole === "I");
+      var bCanApproveReject = (sRole === "I" || sRole === "S");
+      oDetail.setProperty("/__canApprove", bCanApproveReject);
+      oDetail.setProperty("/__canReject", bCanApproveReject);
 
       RecordsUtil.refreshHeader3Fields(oDetail);
       this._log("_refreshHeader3Fields done");
@@ -849,10 +849,9 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
     return st === "ST" || st === "CH" || st === "AP";
 });
 
-
-
-      oDetail.setProperty("/__canApprove", sRole === "I");
-oDetail.setProperty("/__canReject", sRole === "I");
+      var bCanApproveReject = (sRole === "I" || sRole === "S");
+      oDetail.setProperty("/__canApprove", bCanApproveReject);
+      oDetail.setProperty("/__canReject", bCanApproveReject);
 
       this._clearSelectionMdc();
       this._applyClientFilters();

@@ -76,7 +76,7 @@ sap.ui.define([
       } catch (e) { }
     },
 
-    // _log and _dbg inherited from BaseController
+    // _log inherited from BaseController
 
     // ==================== ROUTE ====================
     _onRouteMatched: function (oEvent) {
@@ -626,7 +626,7 @@ sap.ui.define([
         state: this._filterState, uiModel: this.getView().getModel("ui"),
         getCfg02MapFn: this._getCfg02Map.bind(this), domainHasValuesFn: this._domainHasValues.bind(this),
         onSortPressFn: function (oEvt) { S4Filter.onHeaderSortPress(oEvt, self._filterState, self._hdrSortBtns, self._applyFiltersAndSort.bind(self)); },
-        applyFn: this._applyFiltersAndSort.bind(this), dbgFn: this._dbg.bind(this)
+        applyFn: this._applyFiltersAndSort.bind(this)
       });
     },
 

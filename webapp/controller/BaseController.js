@@ -30,10 +30,7 @@ sap.ui.define([
     _log: function () {
       var a = Array.prototype.slice.call(arguments);
       a.unshift(this._sLogPrefix + " " + N.ts());
-    },
-
-    _dbg: function () {
-      if (this._DBG === false) return;
+      console.log.apply(console, a);
     },
 
     _logTable: function (label, sTableId) {

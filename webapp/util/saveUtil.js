@@ -3,11 +3,10 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/postUtil"
-], function (BusyIndicator, MessageToast, MessageBox, N, PostUtil) {
+], function (BusyIndicator, MessageToast, MessageBox, N, VmPaths, PostUtil) {
   "use strict";
-
-  var deepClone = N.deepClone;
 
   return {
 
@@ -31,14 +30,14 @@ sap.ui.define([
       if (!Array.isArray(aParents)) aParents = [];
 
       var sCacheKey = getExportCacheKey();
-      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || [];
       if (!Array.isArray(aRawAll)) aRawAll = [];
 
       var sKSafe = getCacheKeySafe();
-      var mAllS4 = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+      var mAllS4 = oVm.getProperty(VmPaths.SCREEN4_DETAILS_BY_KEY) || {};
       var mByIdx = (mAllS4 && mAllS4[sKSafe]) ? mAllS4[sKSafe] : {};
 
-      var mGuidByIdxAll = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+      var mGuidByIdxAll = oVm.getProperty(VmPaths.SCREEN4_PARENT_GUID_BY_IDX) || {};
       var mGuidByIdx = (mGuidByIdxAll && mGuidByIdxAll[sKSafe]) ? mGuidByIdxAll[sKSafe] : {};
 
       var maps = PostUtil.getRequiredMapFromMmct(oDetail);
@@ -208,7 +207,7 @@ sap.ui.define([
       });
 
       var sCacheKey = getExportCacheKey();
-      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || [];
       if (!Array.isArray(aRawAll)) aRawAll = [];
 
       var aS01 = (oDetail && oDetail.getProperty("/_mmct/s01")) || [];

@@ -1,11 +1,12 @@
 sap.ui.define([
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/saveUtil",
   "apptracciabilita/apptracciabilita/util/rowErrorUtil"
-], function (MessageBox, N, RecordsUtil, PostUtil, SaveUtil, RowErrorUtil) {
+], function (MessageBox, N, VmPaths, RecordsUtil, PostUtil, SaveUtil, RowErrorUtil) {
   "use strict";
 
   function buildValidationMessage(vr) {
@@ -35,8 +36,8 @@ sap.ui.define([
     },
 
     invalidateScreen3Cache: function (opts) {
-      opts.vmModel.setProperty("/cache/dataRowsByKey/" + opts.cacheKey, []);
-      opts.vmModel.setProperty("/cache/recordsByKey/" + opts.cacheKey, []);
+      opts.vmModel.setProperty(VmPaths.dataRowsByKeyPath(opts.cacheKey), []);
+      opts.vmModel.setProperty(VmPaths.recordsByKeyPath(opts.cacheKey), []);
     },
 
     refreshAfterPost: function (opts) {
@@ -53,8 +54,8 @@ sap.ui.define([
             oVm: opts.vmModel,
             includeTemplates: !!opts.noMatListMode
           });
-          opts.vmModel.setProperty("/cache/dataRowsByKey/" + opts.cacheKey, aResults);
-          opts.vmModel.setProperty("/cache/recordsByKey/" + opts.cacheKey, aRecordsBuilt);
+          opts.vmModel.setProperty(VmPaths.dataRowsByKeyPath(opts.cacheKey), aResults);
+          opts.vmModel.setProperty(VmPaths.recordsByKeyPath(opts.cacheKey), aRecordsBuilt);
 
           Promise.resolve(opts.bindRecordsFn(aRecordsBuilt)).then(function () {
             opts.setSnapshotRecordsFn(N.deepClone(aRecordsBuilt));

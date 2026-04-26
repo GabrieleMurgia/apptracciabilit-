@@ -178,7 +178,6 @@ sap.ui.define([
         filters: aFilters,
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
-          debugger
           BusyIndicator.hide();
           var aResults = (oData && oData.results) || [];
           self._log("DataSet loaded", { count: aResults.length, cat: sCat });

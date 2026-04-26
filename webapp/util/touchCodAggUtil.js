@@ -3,8 +3,9 @@
  *
  */
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths"
+], function (N, VmPaths) {
   "use strict";
 
   var TouchCodAggUtil = {
@@ -93,7 +94,7 @@ if (isNew) {
 
       var oVm = opts.oVm;
       var sKey = opts.cacheKey;
-      var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+      var aRaw = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || [];
       if (!Array.isArray(aRaw)) {
         aRaw = [];
       }
@@ -136,7 +137,7 @@ if (isNew) {
       });
 
       if (changed) {
-        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aRaw);
       }
     }
   };

@@ -22,10 +22,11 @@ sap.ui.define([
   "sap/ui/mdc/p13n/StateUtil",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil"
-], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, MdcTableUtil, FilterSortUtil, P13nUtil) {
+], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, VmPaths, MdcTableUtil, FilterSortUtil, P13nUtil) {
   "use strict";
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.BaseController", {
@@ -485,7 +486,7 @@ sap.ui.define([
       // Also update raw cache rows
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
-      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey);
+      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey));
       var iRawUpdated = 0;
       if (Array.isArray(aRawAll)) {
         aRawAll.forEach(function (r) {

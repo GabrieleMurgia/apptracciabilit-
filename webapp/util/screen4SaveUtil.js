@@ -3,11 +3,12 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/saveUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil"
-], function (JSONModel, MessageToast, MessageBox, N, RecordsUtil, PostUtil, SaveUtil, S4Loader) {
+], function (JSONModel, MessageToast, MessageBox, N, VmPaths, RecordsUtil, PostUtil, SaveUtil, S4Loader) {
   "use strict";
 
   function buildValidationMessage(vr) {
@@ -32,11 +33,11 @@ sap.ui.define([
         var sCK = opts.cacheKey;
         var sGuid = N.toStableString(oD.getProperty("/guidKey"));
         var sFibra = N.toStableString(oD.getProperty("/Fibra"));
-        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).filter(function (r) {
+        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).filter(function (r) {
           return S4Loader.rowGuidKey(r) !== sGuid;
         });
 
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC.concat(aRows));
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC.concat(aRows));
         opts.updateVmRecordStatusFn(
           sCK,
           sGuid,
@@ -77,13 +78,13 @@ sap.ui.define([
 
       oD.setProperty("/guidKey", sStableGuid);
 
-      var aRecordsCache = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+      var aRecordsCache = oVm.getProperty(VmPaths.recordsByKeyPath(sCK)) || [];
       aRecordsCache.forEach(rewriteGuid);
-      oVm.setProperty("/cache/recordsByKey/" + sCK, aRecordsCache);
+      oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aRecordsCache);
 
-      var aDetailRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
+      var aDetailRowsCache = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || [];
       aDetailRowsCache.forEach(rewriteGuid);
-      oVm.setProperty("/cache/dataRowsByKey/" + sCK, aDetailRowsCache);
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aDetailRowsCache);
 
       var aCurrentRows = oD.getProperty("/RowsAll") || [];
       aCurrentRows.forEach(rewriteGuid);
@@ -105,7 +106,7 @@ sap.ui.define([
       var oProxyDetail = new JSONModel({
         RecordsAll: aRecordsAll,
         _mmct: { s00: aS00, s01: aS01, s02: aS02 },
-        __deletedLinesForPost: oVm.getProperty("/cache/__deletedLinesForPost_" + sCK) || []
+        __deletedLinesForPost: oVm.getProperty(VmPaths.deletedLinesForPostPath(sCK)) || []
       });
 
       var vr = SaveUtil.validateRequiredBeforePost({
@@ -154,7 +155,7 @@ sap.ui.define([
         mock: !!mock.mockS4,
         onSuccess: function () {
           opts.proxyDetail.destroy();
-          oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
+          oVm.setProperty(VmPaths.deletedLinesForPostPath(sCK), []);
           self.reloadAfterSaveAndNavBack(opts);
         },
         onPartialError: function (aErr) {
@@ -178,8 +179,8 @@ sap.ui.define([
         oDataModel: opts.odataModel,
         vendorId: opts.vendorId,
         material: opts.material,
-        catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
-        season: (oVm && oVm.getProperty("/__currentSeason")) || "",
+        catMateriale: (oVm && oVm.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "",
+        season: (oVm && oVm.getProperty(VmPaths.CURRENT_SEASON)) || "",
         logFn: opts.logFn
       }, function (aFreshRows) {
         aFreshRows = aFreshRows || [];
@@ -191,11 +192,11 @@ sap.ui.define([
           oVm
         );
 
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aFreshRows);
-        oVm.setProperty("/cache/recordsByKey/" + sCK, aFreshRecords);
-        oVm.setProperty("/selectedScreen3Record", null);
-        oVm.setProperty("/__skipS3BackendOnce", true);
-        oVm.setProperty("/__forceS3CacheReload", true);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aFreshRows);
+        oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aFreshRecords);
+        oVm.setProperty(VmPaths.SELECTED_SCREEN3_RECORD, null);
+        oVm.setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, true);
+        oVm.setProperty(VmPaths.FORCE_S3_CACHE_RELOAD, true);
 
         opts.stopAttachmentPollingFn();
         oD.setProperty("/__dirty", false);
@@ -220,7 +221,7 @@ sap.ui.define([
 
       var oVm = opts.vmModel;
       var sCK = opts.cacheKey;
-      var aRecordsAll = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+      var aRecordsAll = oVm.getProperty(VmPaths.recordsByKeyPath(sCK)) || [];
       if (!aRecordsAll.length) {
         MessageBox.warning("Nessun record trovato. Tornare alla schermata precedente e riprovare.");
         return;

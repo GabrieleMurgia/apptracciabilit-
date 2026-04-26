@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/statusUtil"
-], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, StatusUtil) {
+], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, VmPaths, StatusUtil) {
   "use strict";
 
   var EdmType = exportLibrary.EdmType;
@@ -175,7 +176,7 @@ sap.ui.define([
         var material = opts.material;
         var bIncludeTemplates = !!opts.includeTemplatesInExport;
 
-        var recordsScreen4 = Object.values(oVm.getData().cache.dataRowsByKey)[1] || oVm.getProperty("/cache/dataRowsByKey/" + opts.cacheKey) || [];
+        var recordsScreen4 = Object.values(oVm.getData().cache.dataRowsByKey)[1] || oVm.getProperty(VmPaths.dataRowsByKeyPath(opts.cacheKey)) || [];
         var recordsScreen3 = oDetail.getData().Records || [];
 
         recordsScreen4 = Array.isArray(recordsScreen4) ? recordsScreen4.slice() : [];

@@ -1,41 +1,41 @@
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/vmCache"
-], function (VmCache) {
+  "apptracciabilita/apptracciabilita/util/vmModelPaths"
+], function (VmPaths) {
   "use strict";
 
   var Screen4CacheUtil = {
 
     setSelectedParentForScreen4: function (oParentOrNull, oVm, oComponent) {
-      oVm.setProperty("/selectedScreen3Record", oParentOrNull || null);
+      oVm.setProperty(VmPaths.SELECTED_SCREEN3_RECORD, oParentOrNull || null);
       oComponent.setModel(oVm, "vm");
     },
 
     getSelectedParentForScreen4: function (oVm) {
-      return oVm ? oVm.getProperty("/selectedScreen3Record") : null;
+      return oVm ? oVm.getProperty(VmPaths.SELECTED_SCREEN3_RECORD) : null;
     },
 
     ensureScreen4CacheForParentIdx: function (iIdx, sGuid, oVm, sCacheKeySafe) {
-      var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+      var mAll = oVm.getProperty(VmPaths.SCREEN4_DETAILS_BY_KEY) || {};
       if (!mAll[sCacheKeySafe]) mAll[sCacheKeySafe] = {};
       if (!mAll[sCacheKeySafe][String(iIdx)]) mAll[sCacheKeySafe][String(iIdx)] = [];
-      oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+      oVm.setProperty(VmPaths.SCREEN4_DETAILS_BY_KEY, mAll);
 
-      var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+      var mP = oVm.getProperty(VmPaths.SCREEN4_PARENT_GUID_BY_IDX) || {};
       if (!mP[sCacheKeySafe]) mP[sCacheKeySafe] = {};
       mP[sCacheKeySafe][String(iIdx)] = sGuid || "";
-      oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+      oVm.setProperty(VmPaths.SCREEN4_PARENT_GUID_BY_IDX, mP);
     },
 
     purgeScreen4CacheByParentIdx: function (aIdx, oVm, sCacheKeySafe) {
-      var mAll = oVm.getProperty("/cache/screen4DetailsByKey") || {};
+      var mAll = oVm.getProperty(VmPaths.SCREEN4_DETAILS_BY_KEY) || {};
       if (mAll[sCacheKeySafe]) {
         (aIdx || []).forEach(function (n) { delete mAll[sCacheKeySafe][String(n)]; });
-        oVm.setProperty("/cache/screen4DetailsByKey", mAll);
+        oVm.setProperty(VmPaths.SCREEN4_DETAILS_BY_KEY, mAll);
       }
-      var mP = oVm.getProperty("/cache/screen4ParentGuidByIdx") || {};
+      var mP = oVm.getProperty(VmPaths.SCREEN4_PARENT_GUID_BY_IDX) || {};
       if (mP[sCacheKeySafe]) {
         (aIdx || []).forEach(function (n) { delete mP[sCacheKeySafe][String(n)]; });
-        oVm.setProperty("/cache/screen4ParentGuidByIdx", mP);
+        oVm.setProperty(VmPaths.SCREEN4_PARENT_GUID_BY_IDX, mP);
       }
     }
   };

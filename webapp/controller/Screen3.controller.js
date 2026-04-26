@@ -10,6 +10,7 @@ sap.ui.define([
 
   // ===== UTIL =====
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/domains",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
@@ -30,11 +31,10 @@ sap.ui.define([
 ], function (
   BaseController, JSONModel, MessageToast,
   Button, MdcColumn, HBox, ObjectStatus, StateUtil,
-  N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
+  N, VmPaths, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
   Screen3SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
-  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize,
-  PercUtil
+  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize
 ) {
   "use strict";
 
@@ -82,13 +82,11 @@ __noMatListMode: false
       this._sMaterial = decodeURIComponent(oArgs.material || "");
       this._sSeason = decodeURIComponent(oArgs.season || "");
 
-      debugger
-
       // ── NoMatList: rileva flag impostato da Screen2 ──
       var oVmNM = this.getOwnerComponent().getModel("vm");
-      this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty("/__noMatListMode"));
-      this._sNoMatListCat = (oVmNM && oVmNM.getProperty("/__noMatListCat")) || "";
-      if (oVmNM) oVmNM.setProperty("/__currentSeason", this._sSeason || "");
+      this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty(VmPaths.NO_MAT_LIST_MODE));
+      this._sNoMatListCat = (oVmNM && oVmNM.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "";
+      if (oVmNM) oVmNM.setProperty(VmPaths.CURRENT_SEASON, this._sSeason || "");
       if (this._bNoMatListMode) {
         this._log("NoMatList MODE attivo -> mostro anche template, add/copy/delete disabilitati, filtro per categoria:", this._sNoMatListCat);
       }
@@ -98,8 +96,8 @@ __noMatListMode: false
         self._log("_onRouteMatched args", oArgs);
 
 var oVm = self.getOwnerComponent().getModel("vm");
-        var bReturningFromS4 = !!oVm.getProperty("/__skipS3BackendOnce");
-        var bForceCacheReload = !!oVm.getProperty("/__forceS3CacheReload");
+        var bReturningFromS4 = !!oVm.getProperty(VmPaths.SKIP_S3_BACKEND_ONCE);
+        var bForceCacheReload = !!oVm.getProperty(VmPaths.FORCE_S3_CACHE_RELOAD);
 
         // If Screen4 just saved, the snapshot contains stale data with old
         // local Guids. Ignore it and use the fresh VM cache instead.
@@ -110,7 +108,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
         if (bForceCacheReload) {
           self._snapshotRecords = null;
           self._originalSnapshot = null;
-          oVm.setProperty("/__forceS3CacheReload", false);
+          oVm.setProperty(VmPaths.FORCE_S3_CACHE_RELOAD, false);
         } else {
           self._snapshotRecords = null;
           if (!bReturningFromS4) {
@@ -146,7 +144,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
         var oVm = this.getOwnerComponent().getModel("vm");
         if (!oVm) return "";
         var sKey = "MATINFO|" + String(this._sVendorId) + "|" + String(this._sMaterial);
-        var oInfo = oVm.getProperty("/cache/recordsByKey/" + sKey);
+        var oInfo = oVm.getProperty(VmPaths.recordsByKeyPath(sKey));
         var v = oInfo && oInfo.open;
         v = String(v == null ? "" : v).trim().toUpperCase();
         return (v === "X") ? "X" : "";
@@ -157,10 +155,10 @@ var oVm = self.getOwnerComponent().getModel("vm");
     _loadDataOnce: function (aSavedSnapshot) {
       var oVm = this._getOVm();
       var sKey = this._getExportCacheKey();
-      var aRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
-      var aRecs = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
-      var bSkip = !!oVm.getProperty("/__skipS3BackendOnce");
-      if (bSkip) oVm.setProperty("/__skipS3BackendOnce", false);
+      var aRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || null;
+      var aRecs = oVm.getProperty(VmPaths.recordsByKeyPath(sKey)) || null;
+      var bSkip = !!oVm.getProperty(VmPaths.SKIP_S3_BACKEND_ONCE);
+      if (bSkip) oVm.setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, false);
       var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
 
       if (bHasCache) {
@@ -184,7 +182,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
       var oVm = this._getOVm();
       try {
         this._hydrateAndFormat(aRows);
-        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRows);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aRows);
 
         var oDetail = this._getODetail();
         var aRecs;
@@ -205,7 +203,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
           }
         }
 
-        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecs);
+        oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecs);
         var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
         if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
 
@@ -236,8 +234,8 @@ var oVm = self.getOwnerComponent().getModel("vm");
         aRecordsBuilt = this._excludeTemplatesByRawRows(aRecordsBuilt, aResults);
       }
 
-      oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
-      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aResults);
+      oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecordsBuilt);
       this._bindRecords(aRecordsBuilt);
     },
 
@@ -587,9 +585,9 @@ var oVm = self.getOwnerComponent().getModel("vm");
       if (g) {
         var oVm = this._getOVm();
         var sKey = this._getExportCacheKey();
-        var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || [];
+        var aRaw = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || [];
         aRaw.forEach(function (r) { if (N.rowGuidKey(r) === g) r.CodAgg = sOrigCa; });
-        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aRaw);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aRaw);
       }
 
       if (Array.isArray(this._originalSnapshot)) {
@@ -663,8 +661,8 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
 
 
       var aAll = (oDetail.getProperty("/RecordsAll") || []).slice(); aAll.push(result.row); oDetail.setProperty("/RecordsAll", aAll);
-      var aRC = (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).slice(); aRC.push(result.row); oVm.setProperty("/cache/recordsByKey/" + sCacheKey, aRC);
-      var aRW = (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).slice(); oVm.setProperty("/cache/dataRowsByKey/" + sCacheKey, aRW.concat(aNewDetails));
+      var aRC = (oVm.getProperty(VmPaths.recordsByKeyPath(sCacheKey)) || []).slice(); aRC.push(result.row); oVm.setProperty(VmPaths.recordsByKeyPath(sCacheKey), aRC);
+      var aRW = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || []).slice(); oVm.setProperty(VmPaths.dataRowsByKeyPath(sCacheKey), aRW.concat(aNewDetails));
 
       Screen4CacheUtil.setSelectedParentForScreen4(result.row, oVm, this.getOwnerComponent());
       Screen4CacheUtil.ensureScreen4CacheForParentIdx(result.idx, result.guid, oVm, this._getCacheKeySafe());
@@ -697,7 +695,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
 
-      var aRawAll = oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || [];
+      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || [];
       var aSourceRaws = aRawAll.filter(function (r) {
         return N.toStableString(RecordsUtil.rowGuidKey(r)) === sSourceGuid;
       });
@@ -721,12 +719,12 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
 
       oDetail.setProperty("/RecordsAll", aAll.concat([oClone.parent]));
       oVm.setProperty(
-        "/cache/recordsByKey/" + sCacheKey,
-        (oVm.getProperty("/cache/recordsByKey/" + sCacheKey) || []).concat([oClone.parent])
+        VmPaths.recordsByKeyPath(sCacheKey),
+        (oVm.getProperty(VmPaths.recordsByKeyPath(sCacheKey)) || []).concat([oClone.parent])
       );
       oVm.setProperty(
-        "/cache/dataRowsByKey/" + sCacheKey,
-        (oVm.getProperty("/cache/dataRowsByKey/" + sCacheKey) || []).concat(oClone.raws)
+        VmPaths.dataRowsByKeyPath(sCacheKey),
+        (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || []).concat(oClone.raws)
       );
 
       Screen4CacheUtil.setSelectedParentForScreen4(oClone.parent, oVm, this.getOwnerComponent());
@@ -759,11 +757,11 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var oVm = this._getOVm(), sKeyCache = this._getExportCacheKey();
       var mDelPair = {}, mDelGuid = {};
       aSel.forEach(function (p) { var g = N.toStableString(p && (p.guidKey || p.GUID || p.Guid)), f = N.toStableString(p && p.Fibra); if (g && f) mDelPair[g + "||" + f] = true; else if (g) mDelGuid[g] = true; });
-      oVm.setProperty("/cache/recordsByKey/" + sKeyCache, (oVm.getProperty("/cache/recordsByKey/" + sKeyCache) || []).filter(function (r) { return aIdxToRemove.indexOf(parseInt(r && r.idx, 10)) < 0; }));
+      oVm.setProperty(VmPaths.recordsByKeyPath(sKeyCache), (oVm.getProperty(VmPaths.recordsByKeyPath(sKeyCache)) || []).filter(function (r) { return aIdxToRemove.indexOf(parseInt(r && r.idx, 10)) < 0; }));
 
-      var aRowsCacheBefore = oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || [];
+      var aRowsCacheBefore = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKeyCache)) || [];
       aSel.forEach(function (p) { PostUtil.stashDeleteForPostFromCache(p, aRowsCacheBefore, oDetail, { toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey }); }.bind(this));
-      oVm.setProperty("/cache/dataRowsByKey/" + sKeyCache, (oVm.getProperty("/cache/dataRowsByKey/" + sKeyCache) || []).filter(function (r) { var g = RecordsUtil.rowGuidKey(r), f = RecordsUtil.rowFibra(r); return !(mDelPair[g + "||" + f] || mDelGuid[g]); }));
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sKeyCache), (oVm.getProperty(VmPaths.dataRowsByKeyPath(sKeyCache)) || []).filter(function (r) { var g = RecordsUtil.rowGuidKey(r), f = RecordsUtil.rowFibra(r); return !(mDelPair[g + "||" + f] || mDelGuid[g]); }));
 
       Screen4CacheUtil.purgeScreen4CacheByParentIdx(aIdxToRemove, oVm, this._getCacheKeySafe());
       var oSel = Screen4CacheUtil.getSelectedParentForScreen4(this.getOwnerComponent().getModel("vm"));

@@ -8,8 +8,9 @@ sap.ui.define([
   "sap/m/HBox",
   "sap/m/Button",
   "sap/m/MessageBox",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/attachmentUtil"
-], function (HBox, Button, MessageBox, AttachmentUtil) {
+], function (HBox, Button, MessageBox, VmPaths, AttachmentUtil) {
   "use strict";
 
   function createAttachmentCellTemplate(sKey, oMeta, opts) {
@@ -152,7 +153,7 @@ sap.ui.define([
                     }
                   }
                   if (bChanged) {
-                    oVm.setProperty("/cache/recordsByKey/" + sCK, aRecs);
+                    oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aRecs);
                   }
                 });
 
@@ -173,7 +174,7 @@ sap.ui.define([
                     }
                   }
                   if (bChanged) {
-                    oVm.setProperty("/cache/dataRowsByKey/" + sCK, aRows);
+                    oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aRows);
                   }
                 });
               }

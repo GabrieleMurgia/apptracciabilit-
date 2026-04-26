@@ -7,8 +7,9 @@
  */
 sap.ui.define([
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (MessageToast, N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths"
+], function (MessageToast, N, VmPaths) {
   "use strict";
 
   return {
@@ -29,7 +30,7 @@ sap.ui.define([
         if (gSel) return gSel;
       }
 
-      var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + cacheKey) || [];
+      var aRaw = oVm.getProperty(VmPaths.dataRowsByKeyPath(cacheKey)) || [];
       if (!Array.isArray(aRaw)) aRaw = [];
 
       var rTpl = aRaw.find(function (r) {
@@ -54,7 +55,7 @@ sap.ui.define([
       var rowGuidKey = opts.rowGuidKey || N.rowGuidKey;
       var isBaseCodAgg = opts.isBaseCodAgg || N.isBaseCodAgg;
 
-      var aRaw = oVm.getProperty("/cache/dataRowsByKey/" + cacheKey) || [];
+      var aRaw = oVm.getProperty(VmPaths.dataRowsByKeyPath(cacheKey)) || [];
       if (!Array.isArray(aRaw)) aRaw = [];
 
       var aTpl = aRaw.filter(function (r) {

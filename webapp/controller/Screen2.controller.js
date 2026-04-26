@@ -7,8 +7,9 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/mockData"
-], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, MockData) {
+], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, VmPaths, MockData) {
   "use strict";
 
   // Local helpers (use N.safeStr / N.lc from normalize.js)
@@ -706,8 +707,8 @@ if (!oItem) return;
         }
       }
       if (oVm) {
-        oVm.setProperty("/__noMatListMode", bNoMatList);
-        oVm.setProperty("/__noMatListCat", bNoMatList ? sCatMateriale : "");
+        oVm.setProperty(VmPaths.NO_MAT_LIST_MODE, bNoMatList);
+        oVm.setProperty(VmPaths.NO_MAT_LIST_CAT, bNoMatList ? sCatMateriale : "");
       }
       if (bNoMatList) {
         this._log("NoMatList attivo per categoria", sCatMateriale, "-> Screen3 con filtro categoria");

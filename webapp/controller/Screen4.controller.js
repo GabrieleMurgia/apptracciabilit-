@@ -6,6 +6,7 @@ sap.ui.define([
   "sap/ui/mdc/p13n/StateUtil",
 
   "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/domains",
   "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
@@ -19,14 +20,11 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
-
-  "apptracciabilita/apptracciabilita/util/mockData"
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
 ], function (
   BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
-  N, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize,
-  MockData
+  N, VmPaths, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize
 ) {
   "use strict";
 
@@ -263,7 +261,7 @@ sap.ui.define([
     // ==================== STATUS ====================
     _updateVmRecordStatus: function (sCK, sGuid, sFibra, sRole, sStatus) {
       var oVm = this._getOVm();
-      var aRecs = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
+      var aRecs = oVm.getProperty(VmPaths.recordsByKeyPath(sCK)) || [];
       if (!Array.isArray(aRecs) || !aRecs.length) return;
       var idx = aRecs.findIndex(function (r) {
         if (String(r && r.guidKey || "") !== String(sGuid || "")) return false;
@@ -275,7 +273,7 @@ sap.ui.define([
       rec.__canEdit = StatusUtil.canEdit(sRole, st); rec.__canApprove = StatusUtil.canApprove(sRole, st);
       rec.__canReject = StatusUtil.canReject(sRole, st); rec.__readOnly = !rec.__canEdit;
       aRecs = aRecs.slice(); aRecs[idx] = rec;
-      oVm.setProperty("/cache/recordsByKey/" + sCK, aRecs);
+      oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aRecs);
     },
 
     // ==================== HEADER ====================
@@ -306,8 +304,8 @@ sap.ui.define([
       var oVm = this._getOVm();
       var sKey = this._getDataCacheKey();
       var self = this;
-      var aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || null;
-      var aRecords = oVm.getProperty("/cache/recordsByKey/" + sKey) || null;
+      var aAllRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || null;
+      var aRecords = oVm.getProperty(VmPaths.recordsByKeyPath(sKey)) || null;
 
       function apply() {
         self._applySelectedRecordToDetail(
@@ -326,15 +324,15 @@ sap.ui.define([
       S4Loader.reloadDataFromBackend({
         oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
         vendorId: this._sVendorId, material: this._sMaterial,
-        catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
-        season: (oVm && oVm.getProperty("/__currentSeason")) || "",
+        catMateriale: (oVm && oVm.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "",
+        season: (oVm && oVm.getProperty(VmPaths.CURRENT_SEASON)) || "",
         logFn: this._log.bind(this)
       }, function (aRes) {
         aAllRows = Array.isArray(aRes) ? aRes : [];
         var sCat = S4Loader.pickCat(aAllRows[0] || {});
         aRecords = S4Loader.buildRecords01ForCache(aAllRows, sCat ? self._cfgForScreen(sCat, "01") : [], oVm);
-        oVm.setProperty("/cache/dataRowsByKey/" + sKey, aAllRows);
-        oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aAllRows);
+        oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecords);
         apply();
       });
     },
@@ -346,9 +344,9 @@ sap.ui.define([
       var iIdx = parseInt(this._sRecordKey, 10);
       if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
-      var oSel = (oVm.getData() || {}).selectedScreen3Record || null;
+      var oSel = oVm.getProperty(VmPaths.SELECTED_SCREEN3_RECORD) || null;
       if (oSel) aRecords[iIdx] = oSel;
-      oVm.setProperty("/cache/recordsByKey/" + sKey, aRecords);
+      oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecords);
 
       var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
       if (!oRec) {
@@ -367,7 +365,7 @@ sap.ui.define([
         oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || ""
       );
       var aSelected = this._resolveOrSynthRowsForGuid(sGuid, oRec, oSel, aAllRows, sKey);
-      aAllRows = oVm.getProperty("/cache/dataRowsByKey/" + sKey) || aAllRows;
+      aAllRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || aAllRows;
 
       this._applyGroupStatusAndPerms(aSelected, oVm, oD);
 
@@ -420,7 +418,7 @@ sap.ui.define([
 
       var aNext = aAllRows.slice();
       aNext.push(oS);
-      this._getOVm().setProperty("/cache/dataRowsByKey/" + sKey, aNext);
+      this._getOVm().setProperty(VmPaths.dataRowsByKeyPath(sKey), aNext);
       return [oS];
     },
 
@@ -619,9 +617,9 @@ sap.ui.define([
         }
         oD.setProperty("/RowsAll", aRem); oD.setProperty("/__dirty", true);
         var oVm = this._getOVm(), sCK = this._getDataCacheKey(), sGuid = N.toStableString(oD.getProperty("/guidKey"));
-        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
+        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
         aRem.forEach(function (l) { if (!l.CodAgg) l.CodAgg = "U"; });
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC.concat(aRem));
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC.concat(aRem));
         this._applyUiPermissions(); this._applyFiltersAndSort();
         var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
         MessageToast.show("Righe eliminate");
@@ -683,9 +681,9 @@ sap.ui.define([
         oD.setProperty("/__dirty", true);
 
         var oVm = this.getOwnerComponent().getModel("vm"), sCK = this._getDataCacheKey();
-        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
+        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).slice();
         aC.push(oNew);
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC);
 
         this._applyUiPermissions(); this._applyFiltersAndSort();
         var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
@@ -740,9 +738,9 @@ sap.ui.define([
         oD.setProperty("/__dirty", true);
 
         var oVm = this._getOVm(), sCK = this._getDataCacheKey();
-        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).slice();
+        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).slice();
         aC.push(oNew);
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC);
+        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC);
 
         this._applyUiPermissions();
         this._applyFiltersAndSort();
@@ -795,7 +793,7 @@ sap.ui.define([
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
 
     // ==================== NAVIGATION ====================
-    _markSkipS3BackendOnce: function () { this._getOVm().setProperty("/__skipS3BackendOnce", true); },
+    _markSkipS3BackendOnce: function () { this._getOVm().setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, true); },
     _getNavBackFallback: function () {
       return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
     },

@@ -245,7 +245,7 @@ sap.ui.define([
             var sKey = String(c.property || "").trim().toUpperCase();
             if (!sKey || mSeenCols[sKey]) return false;
             mSeenCols[sKey] = true;
-            return true;
+            return true; /*  */
           });
         } else {
           // Fallback: hardcoded legacy list

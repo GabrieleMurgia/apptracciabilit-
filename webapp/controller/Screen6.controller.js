@@ -35,6 +35,8 @@ sap.ui.define([
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen6", {
 
     _sLogPrefix: "[S6]",
+    MAIN_TABLE_ID: "mdcTable6",
+    MAIN_INPUT_FILTER_ID: "inputFilter6",
 
     // ==================== INIT ====================
     onInit: function () {
@@ -673,11 +675,7 @@ sap.ui.define([
       await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
       await this._applyInlineHeaderFilterSort(oTbl);
 
-      var self = this;
-      setTimeout(function () {
-        P13nUtil.forceP13nAllVisible(oTbl, StateUtil, self._log.bind(self), "t300");
-        setTimeout(function () { self._applyInlineHeaderFilterSort(oTbl); }, 350);
-      }, 300);
+      this._scheduleHeaderFilterSort(oTbl);
     },
 
     // ==================== TABLE COLUMNS ====================
@@ -724,30 +722,6 @@ sap.ui.define([
       FilterSortUtil.applyClientFilters(this.getView().getModel("detail"), this._inlineFS, this.byId("mdcTable6"));
     },
     onGlobalFilter: function (oEvt) { FilterSortUtil.onGlobalFilter(oEvt, this.getView().getModel("detail"), this._applyClientFilters.bind(this)); },
-    _onInlineColFilterLiveChange: function (oEvt) { FilterSortUtil.onInlineColFilterLiveChange(oEvt, this._inlineFS, this._applyClientFilters.bind(this)); },
-    _onInlineColSortPress: function (oEvt) { FilterSortUtil.onInlineColSortPress(oEvt, this._inlineFS, this._applyClientFilters.bind(this)); },
-    _setInnerHeaderHeight: function (oMdcTbl) {
-      try { MdcTableUtil.setInnerHeaderHeight(oMdcTbl, !!this.getView().getModel("ui").getProperty("/showHeaderFilters")); } catch (e) {}
-    },
-    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
-      this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
-      return MdcTableUtil.applyInlineHeaderFilterSort(oMdcTbl, {
-        view: this.getView(), inlineFS: this._inlineFS,
-        applyClientFilters: this._applyClientFilters.bind(this), log: this._log.bind(this)
-      });
-    },
-    onToggleHeaderFilters: function () { FilterSortUtil.toggleHeaderFilters(this.getView().getModel("ui"), this.byId("mdcTable6"), this._setInnerHeaderHeight.bind(this), this._applyInlineHeaderFilterSort.bind(this)); },
-    onToggleHeaderSort: function () { FilterSortUtil.toggleHeaderSort(this.getView().getModel("ui"), this.byId("mdcTable6"), this._applyInlineHeaderFilterSort.bind(this)); },
-    onOpenColumnFilters: function () { this.onToggleHeaderFilters(); },
-    onOpenSort: function () { this.onToggleHeaderSort(); },
-    onResetFiltersAndSort: function () {
-      FilterSortUtil.resetFiltersAndSort({
-        oDetail: this.getView().getModel("detail"), inlineFS: this._inlineFS, inputFilter: this.byId("inputFilter6"),
-        table: this.byId("mdcTable6"), applyClientFiltersFn: this._applyClientFilters.bind(this),
-        applyInlineHeaderFilterSortFn: this._applyInlineHeaderFilterSort.bind(this),
-        setInnerHeaderHeightFn: this._setInnerHeaderHeight.bind(this)
-      });
-    },
 
     // ==================== CLEAR UPLOAD ====================
     onClearUpload: function () {

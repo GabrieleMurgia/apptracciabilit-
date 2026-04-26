@@ -7,14 +7,25 @@
  * - Cache key helpers (_getCacheKeySafe, _getExportCacheKey)
  * - Navigation (onNavBack, _performNavBack)
  * - Mock detection (_isMockEnabled)
+ * - Header filter/sort dispatch (Screen3/5/6): _setInnerHeaderHeight,
+ *   _applyInlineHeaderFilterSort, _onInlineCol*, onToggleHeader*,
+ *   onOpenColumnFilters/Sort, onResetFiltersAndSort, _scheduleHeaderFilterSort
+ *
+ * Subclasses that use the header filter/sort helpers must declare:
+ *   MAIN_TABLE_ID         e.g. "mdcTable3"
+ *   MAIN_INPUT_FILTER_ID  e.g. "inputFilter3"
  */
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
   "sap/ui/core/BusyIndicator",
+  "sap/ui/mdc/p13n/StateUtil",
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/vmCache"
-], function (Controller, History, BusyIndicator, N, VmCache) {
+  "apptracciabilita/apptracciabilita/util/vmCache",
+  "apptracciabilita/apptracciabilita/util/mdcTableUtil",
+  "apptracciabilita/apptracciabilita/util/filterSortUtil",
+  "apptracciabilita/apptracciabilita/util/p13nUtil"
+], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, MdcTableUtil, FilterSortUtil, P13nUtil) {
   "use strict";
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.BaseController", {
@@ -513,6 +524,56 @@ sap.ui.define([
       sap.m.MessageToast.show(
         aSelected.length + " record " + (sNewStatus === "AP" ? "approvati" : "rifiutati") + ". Premi Salva per confermare."
       );
+    },
+
+    // ==================== HEADER FILTER / SORT (Screen3/5/6) ====================
+
+    _setInnerHeaderHeight: function (oMdcTbl) {
+      try { MdcTableUtil.setInnerHeaderHeight(oMdcTbl, !!this.getView().getModel("ui").getProperty("/showHeaderFilters")); } catch (e) { }
+    },
+
+    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
+      this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
+      return MdcTableUtil.applyInlineHeaderFilterSort(oMdcTbl, {
+        view: this.getView(), inlineFS: this._inlineFS,
+        applyClientFilters: this._applyClientFilters.bind(this), log: this._log.bind(this)
+      });
+    },
+
+    _onInlineColFilterLiveChange: function (oEvt) {
+      FilterSortUtil.onInlineColFilterLiveChange(oEvt, this._inlineFS, this._applyClientFilters.bind(this));
+    },
+
+    _onInlineColSortPress: function (oEvt) {
+      FilterSortUtil.onInlineColSortPress(oEvt, this._inlineFS, this._applyClientFilters.bind(this));
+    },
+
+    onToggleHeaderFilters: function () {
+      FilterSortUtil.toggleHeaderFilters(this.getView().getModel("ui"), this.byId(this.MAIN_TABLE_ID), this._setInnerHeaderHeight.bind(this), this._applyInlineHeaderFilterSort.bind(this));
+    },
+
+    onToggleHeaderSort: function () {
+      FilterSortUtil.toggleHeaderSort(this.getView().getModel("ui"), this.byId(this.MAIN_TABLE_ID), this._applyInlineHeaderFilterSort.bind(this));
+    },
+
+    onOpenColumnFilters: function () { this.onToggleHeaderFilters(); },
+    onOpenSort: function () { this.onToggleHeaderSort(); },
+
+    onResetFiltersAndSort: function () {
+      FilterSortUtil.resetFiltersAndSort({
+        oDetail: this._getODetail(), inlineFS: this._inlineFS, inputFilter: this.byId(this.MAIN_INPUT_FILTER_ID),
+        table: this.byId(this.MAIN_TABLE_ID), applyClientFiltersFn: this._applyClientFilters.bind(this),
+        applyInlineHeaderFilterSortFn: this._applyInlineHeaderFilterSort.bind(this),
+        setInnerHeaderHeightFn: this._setInnerHeaderHeight.bind(this)
+      });
+    },
+
+    _scheduleHeaderFilterSort: function (oTbl) {
+      var self = this;
+      setTimeout(function () {
+        P13nUtil.forceP13nAllVisible(oTbl, StateUtil, self._log.bind(self), "t300");
+        setTimeout(function () { self._applyInlineHeaderFilterSort(oTbl); }, 350);
+      }, 300);
     }
   });
 });

@@ -41,6 +41,8 @@ sap.ui.define([
 
     _sLogPrefix: "[S5]",
     _sMockFlag: "mockS5",
+    MAIN_TABLE_ID: "mdcTable5",
+    MAIN_INPUT_FILTER_ID: "inputFilter5",
 
     // ==================== INIT ====================
     onInit: function () {
@@ -377,11 +379,7 @@ _bindTable: async function (aRows) {
       await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
       await this._applyInlineHeaderFilterSort(oTbl);
 
-      var self = this;
-      setTimeout(function () {
-        P13nUtil.forceP13nAllVisible(oTbl, StateUtil, self._log.bind(self), "t300");
-        setTimeout(function () { self._applyInlineHeaderFilterSort(oTbl); }, 350);
-      }, 300);
+      this._scheduleHeaderFilterSort(oTbl);
 
       this._log("_bindTable done", { rows: aRows.length, cols: aCfgAll.length });
     },
@@ -527,42 +525,6 @@ _bindTable: async function (aRows) {
       oDetail.setProperty("/__q", String(oEvt.getParameter("value") || ""));
       this._applyClientFilters();
     },
-    _onInlineColFilterLiveChange: function (oEvt) {
-      FilterSortUtil.onInlineColFilterLiveChange(oEvt, this._inlineFS, this._applyClientFilters.bind(this));
-    },
-    _onInlineColSortPress: function (oEvt) {
-      FilterSortUtil.onInlineColSortPress(oEvt, this._inlineFS, this._applyClientFilters.bind(this));
-    },
-    onResetFiltersAndSort: function () {
-      FilterSortUtil.resetFiltersAndSort({
-        oDetail: this.getView().getModel("detail"), inlineFS: this._inlineFS, inputFilter: this.byId("inputFilter5"),
-        table: this.byId("mdcTable5"), applyClientFiltersFn: this._applyClientFilters.bind(this),
-        applyInlineHeaderFilterSortFn: this._applyInlineHeaderFilterSort.bind(this),
-        setInnerHeaderHeightFn: this._setInnerHeaderHeight.bind(this)
-      });
-    },
-
-    _setInnerHeaderHeight: function (oMdcTbl) {
-      try { MdcTableUtil.setInnerHeaderHeight(oMdcTbl, !!this.getView().getModel("ui").getProperty("/showHeaderFilters")); } catch (e) { }
-    },
-
-    _applyInlineHeaderFilterSort: async function (oMdcTbl) {
-      this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
-      return MdcTableUtil.applyInlineHeaderFilterSort(oMdcTbl, {
-        view: this.getView(), inlineFS: this._inlineFS,
-        applyClientFilters: this._applyClientFilters.bind(this), log: this._log.bind(this)
-      });
-    },
-
-    // ==================== HEADER BUTTONS ====================
-    onToggleHeaderFilters: function () {
-      FilterSortUtil.toggleHeaderFilters(this.getView().getModel("ui"), this.byId("mdcTable5"), this._setInnerHeaderHeight.bind(this), this._applyInlineHeaderFilterSort.bind(this));
-    },
-    onToggleHeaderSort: function () {
-      FilterSortUtil.toggleHeaderSort(this.getView().getModel("ui"), this.byId("mdcTable5"), this._applyInlineHeaderFilterSort.bind(this));
-    },
-    onOpenColumnFilters: function () { this.onToggleHeaderFilters(); },
-    onOpenSort: function () { this.onToggleHeaderSort(); },
 
     // ==================== EXPORT ====================
     onExportExcel: async function () {

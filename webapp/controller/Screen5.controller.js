@@ -24,23 +24,20 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
-  "apptracciabilita/apptracciabilita/util/mockData"
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
 
 ], function (
   BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
   Filter, FilterOperator, MdcColumn, HBox, ObjectStatus, StateUtil,
   N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, ExportUtil, RecordsUtil, DataLoaderUtil,
-  FilterSortUtil, MmctUtil, TableColumnAutoSize,
-  MockData
+  FilterSortUtil, MmctUtil, TableColumnAutoSize
 ) {
   "use strict";
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen5", {
 
     _sLogPrefix: "[S5]",
-    _sMockFlag: "mockS5",
     MAIN_TABLE_ID: "mdcTable5",
     MAIN_INPUT_FILTER_ID: "inputFilter5",
 
@@ -144,7 +141,6 @@ sap.ui.define([
     _loadDataByCat: function (sCat) {
       var self = this;
       var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
       var sUserId = (oVm && oVm.getProperty("/userId")) || "";
 
       // Build filters: OnlySaved eq 'X' + CatMateriale eq sCat
@@ -153,23 +149,6 @@ sap.ui.define([
         new Filter("OnlySaved", FilterOperator.EQ, "X"),
         new Filter("CatMateriale", FilterOperator.EQ, sCat)
       ];
-
-      // MOCK path
-      if (mock.mockS5) {
-        BusyIndicator.show(0);
-        MockData.loadDataSetGeneric().then(function (aAll) {
-          BusyIndicator.hide();
-          var a = (Array.isArray(aAll) ? aAll : []).filter(function (r) {
-            return String(r && r.CatMateriale || "").trim().toUpperCase() === sCat.toUpperCase();
-          });
-          self._onDataLoaded(a, sCat);
-        }).catch(function (e) {
-          BusyIndicator.hide();
-          console.error("[S5] MOCK ERROR", e);
-          MessageToast.show("Errore caricamento mock");
-        });
-        return;
-      }
 
       // REAL OData call to DataSet
       BusyIndicator.show(0);
@@ -641,8 +620,6 @@ _bindTable: async function (aRows) {
         BusyIndicator.hide();
       }
     },
-    onPrint: function () { MessageToast.show("Stampa: TODO"); },
-
     // ==================== NAVIGATION ====================
     _getNavBackFallback: function () {
       return { route: "Screen0", params: {} };

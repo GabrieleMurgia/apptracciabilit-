@@ -33,13 +33,3 @@ server:
           - path: /sap
             url: http://s4d:44300
             destination: SAP_PLM_Gateway
-    - name: sap-fe-mockserver
-      beforeMiddleware: csp
-      configuration:
-        mountPath: /
-        services:
-          - urlPath: /sap/opu/odata/sap/ZVEND_TRACE_SRV
-            metadataPath: ./webapp/localService/mainService/metadata.xml
-            mockdataPath: ./webapp/localService/mainService/data
-            generateMockData: true
-        annotations: []

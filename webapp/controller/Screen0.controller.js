@@ -2,14 +2,10 @@ sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel",
   "sap/ui/core/BusyIndicator",
-  "apptracciabilita/apptracciabilita/util/domainFallback",
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/mockData",
   "apptracciabilita/apptracciabilita/util/normalize"
-], function (Controller, JSONModel, BusyIndicator, DomainFallback, MessageToast, MockData, N) {
+], function (Controller, JSONModel, BusyIndicator, MessageToast, N) {
   "use strict";
-
-  function ts() { return new Date().toISOString(); }
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen0", {
 
@@ -44,7 +40,7 @@ sap.ui.define([
       var oComponent = this.getOwnerComponent();
       if (!oComponent || !oComponent.getModel) return;
 
-      var oModel = oComponent.getModel(); // default ODataModel
+      var oModel = oComponent.getModel();
       if (!oModel) return;
 
       if (oModel.__vendTraceGuardsInstalled) return;
@@ -67,7 +63,6 @@ sap.ui.define([
         }
       }
 
-      // 1) metadataFailed (es: $metadata 503)
       if (typeof oModel.attachMetadataFailed === "function") {
         oModel.attachMetadataFailed(function (oEvent) {
           var info = extractInfoFromEvent(oEvent);
@@ -75,7 +70,6 @@ sap.ui.define([
         });
       }
 
-      // 2) requestFailed (catch generale)
       if (typeof oModel.attachRequestFailed === "function") {
         oModel.attachRequestFailed(function (oEvent) {
           var info = extractInfoFromEvent(oEvent);
@@ -86,7 +80,6 @@ sap.ui.define([
         });
       }
 
-      // 3) metadataLoaded().catch (copre "già fallito")
       if (typeof oModel.metadataLoaded === "function") {
         try {
           oModel.metadataLoaded().catch(function (err) {
@@ -103,81 +96,33 @@ sap.ui.define([
       }
     },
 
-    // =========================================================
-    // FALLBACK AUTOMATICO A MOCK SE BACKEND DOWN
-    // =========================================================
-    _applyMockFallbackNow: function (oVm, opts) {
-      try {
-        if (!oVm) return;
-
-        MockData.applyVm(oVm, {
-          userId: opts.userId,
-          userType: opts.userType
-        });
-
-        var mock = oVm.getProperty("/mock") || {};
-        oVm.setProperty("/mock", Object.assign({}, mock, { mockS0: true }));
-      } catch (e) {
-        console.error("[Screen0][MOCK FALLBACK] ERROR", e);
-      }
-    },
-
     onInit: function () {
       var oComponent = this.getOwnerComponent();
 
-      // 1) Intercetta subito errori $metadata / requestFailed
       this._installODataGuards();
 
-      // =========================================================
-      // VM (globale)
-      // =========================================================
       var oVm = new JSONModel({
         userId: "",
         userType: "",
         userDescription: "",
         showAggregatedTile: false,
-
         userCategories: [],
         userVendors: [],
         userDomains: [],
-
         domainsByKey: {},
         domainsByName: {},
-
         userMMCT: [],
         mmctFieldsByCat: {},
-
-        // cache usata da Screen2/3/4
         cache: {
           dataRowsByKey: {},
           recordsByKey: {}
         },
-
-        // config MDC eventuale
         mdcCfg: {},
-
-        // auth/permessi (derivati da userType)
         auth: {
           role: "UNKNOWN",
           isSupplier: false,
           isValentino: false,
           isSuperuser: false
-        },
-
-        // mock centralizzato
-        mock: {
-          vendorIdx: 0,
-          forceStato: "",
-          mockS0: true,
-          mockS1: true,
-          mockS2: true,
-          mockS3: true,
-          mockS4: true,
-          files: {
-            userInfos: "",
-            materials: "",
-            dataSet: ""
-          }
         }
       });
       oVm.setSizeLimit(100000);
@@ -185,7 +130,7 @@ sap.ui.define([
       oComponent.setModel(oVm, "vm");
 
       function buildAuth(userType) {
-        var t = String(userType || "").trim().toUpperCase(); // I/E/S
+        var t = String(userType || "").trim().toUpperCase();
         return {
           role: (t === "E" ? "FORNITORE" : (t === "I" ? "VALENTINO" : (t === "S" ? "SUPERUSER" : "UNKNOWN"))),
           isSupplier: t === "E",
@@ -194,303 +139,141 @@ sap.ui.define([
         };
       }
 
-      // =========================================================
-      // MOCK SWITCHES 
-      // =========================================================
       var sUserId = "";
-
-      var sMockUserInfosFile = "mock/UserInfosSet.json";
-      var sMockMaterialsFile = "mock/MaterialDataSet.json";
-      var sMockDataSetFile = "mock/DataSet.json";
-
-      var bMockS0 = false;
-      var bMockS1 = false;
-      var bMockS2 = false;
-      var bMockS3 = false;
-      var bMockS4 = false;
-
-      var iVendorIdx = 0;
-      var sForceStato = "";
-
-      // tipo utente mock
-      var sMockUserType = ""; // "E" / "I" / "S"
-
-      // override userType
-      var sOverrideUserTypeWhenReal = ""; // es: "I"
-
-      // se backend giù, fai fallback automatico su mock (consigliato)
-      var bAutoFallbackToMockWhenBackendDown = true;
-
-      oVm.setProperty("/mock", {
-        vendorIdx: iVendorIdx,
-        forceStato: sForceStato,
-        mockS0: !!bMockS0,
-        mockS1: !!bMockS1,
-        mockS2: !!bMockS2,
-        mockS3: !!bMockS3,
-        mockS4: !!bMockS4,
-        files: {
-          userInfos: sMockUserInfosFile,
-          materials: sMockMaterialsFile,
-          dataSet: sMockDataSetFile
-        }
-      });
-
-      // =========================================================
-      // MOCK S0: VM completo senza OData (da file)
-      // =========================================================
-      if (bMockS0) {
-        
-        BusyIndicator.show(0);
-
-        MockData.applyVmFromFile(oVm, {
-          path: sMockUserInfosFile,
-          userId: sUserId,
-          userType: sMockUserType
-        }).then(function () {
-          BusyIndicator.hide();
-
-          // riallineo flags mock
-          oVm.setProperty("/mock", {
-            vendorIdx: iVendorIdx,
-            forceStato: sForceStato,
-            mockS0: !!bMockS0,
-            mockS1: !!bMockS1,
-            mockS2: !!bMockS2,
-            mockS3: !!bMockS3,
-            mockS4: !!bMockS4,
-            files: {
-              userInfos: sMockUserInfosFile,
-              materials: sMockMaterialsFile,
-              dataSet: sMockDataSetFile
-            }
-          });
-
-        }).catch(function (err) {
-          BusyIndicator.hide();
-          console.error("[Screen0][MOCK FILE] UserInfosSet ERROR -> fallback hardcoded", err);
-
-          MockData.applyVm(oVm, { userId: sUserId, userType: sMockUserType });
-
-          MessageToast.show("MOCK UserInfosSet.json NON CARICATO (vedi Console/Network)");
-        });
-
-        return;
-      }
-
-      // =========================================================
-      // PATH NORMALE: 
-      // =========================================================
+      var sOverrideUserTypeWhenReal = "";
       var oModel = oComponent.getModel();
 
       if (!oModel || typeof oModel.read !== "function") {
         this._handleBackendDown({ where: "onInit", message: "ODataModel non disponibile (probabile metadata KO)" });
-        if (bAutoFallbackToMockWhenBackendDown) {
-          this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
-        }
         return;
       }
 
-      if (typeof oModel.metadataLoaded === "function") {
-        BusyIndicator.show(0);
+      if (typeof oModel.metadataLoaded !== "function") {
+        this._handleBackendDown({ where: "onInit", message: "metadataLoaded() non disponibile" });
+        return;
+      }
 
-        oModel.metadataLoaded().then(function () {
+      BusyIndicator.show(0);
 
-          var sPath = "/UserInfosSet('" + sUserId + "')";
+      oModel.metadataLoaded().then(function () {
+        var sPath = "/UserInfosSet('" + sUserId + "')";
 
-          oModel.read(sPath, {
-            urlParameters: {
-              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields",
-              "sap-language": "IT"
-            },
-            success: function (oData) {
-                BusyIndicator.hide();
-              
-              if (!oData) {
-                console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);
-                return;
-              }
+        oModel.read(sPath, {
+          urlParameters: {
+            "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields",
+            "sap-language": "IT"
+          },
+          success: function (oData) {
+            BusyIndicator.hide();
 
-              var sUserType = oData.UserType;
-              if (sOverrideUserTypeWhenReal) {
-                sUserType = String(sOverrideUserTypeWhenReal || "").trim().toUpperCase();
-              }
+            if (!oData) {
+              console.error("[Screen0] UserInfosSet: nessun dato restituito per", sUserId);
+              return;
+            }
 
-              var aDomains = (oData.UserInfosDomains && oData.UserInfosDomains.results) || [];
-              var aMMCT = (oData.UserInfosMMCT && oData.UserInfosMMCT.results) || [];
-              var aVend = []; // Vendors loaded lazily via _ensureVendorsLoaded()
+            var sUserType = oData.UserType;
+            if (sOverrideUserTypeWhenReal) {
+              sUserType = String(sOverrideUserTypeWhenReal || "").trim().toUpperCase();
+            }
 
-              // domainsByName: Domain -> [{key,text}]
-              /* QUA INSERIRE LOGICA PER INSERIMENTO LIBERO <- CON POPUP "AcceptNewVal" : "X" */
-              var domainsByName = aDomains.reduce(function (acc, d) {
-                var sDom = d.Domain;
-                acc[sDom] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
-                  var v = x.Value;
-                  return { key: v, text: x.Descrizione };
-                });
-                return acc;
-              }, {});
+            var aDomains = (oData.UserInfosDomains && oData.UserInfosDomains.results) || [];
+            var aMMCT = (oData.UserInfosMMCT && oData.UserInfosMMCT.results) || [];
+            var aVend = [];
 
-              
-
-              // === raccogli tutti i fields MMCT in una lista unica ===
-              var aAllFields = aMMCT.reduce(function (acc, cat) {
-                var aFields = (cat.UserMMCTFields && cat.UserMMCTFields.results) || [];
-                return acc.concat(aFields);
-              }, []);
-
-              // === DOMAIN FALLBACK ===
-              (function applyDomainFallbackIfNeeded() {
-                var bEnabled = false;
-
-                try {
-                  if (DomainFallback && typeof DomainFallback.isEnabled === "function") {
-                    bEnabled = !!DomainFallback.isEnabled();
-                  } else {
-                    var qs = (window && window.location && window.location.search) || "";
-                    bEnabled = /(?:\?|&)mockDom=1(?:&|$)/.test(qs) ||
-                      (window && window.localStorage && window.localStorage.getItem("VENDTRACE_MOCK_DOMAIN_FALLBACK") === "1");
-                  }
-                } catch (e) { bEnabled = false; }
-
-                if (!bEnabled) return;
-
-                try {
-                  if (DomainFallback && typeof DomainFallback.apply === "function") {
-                    var r = DomainFallback.apply(domainsByName, aAllFields);
-                    domainsByName = (r && (r.domainsByName || r.domainsByNamePatched || r.domains)) || domainsByName;
-                    aAllFields = (r && (r.fields || r.fieldsPatched)) || aAllFields;
-
-                    return;
-                  }
-                } catch (e1) {
-                  console.warn("[Screen0][DomainFallback] apply() error:", e1);
-                }
-              })();
-
-              // domainsByKey: Domain -> { key: text }
-              var domainsByKey = Object.keys(domainsByName).reduce(function (acc, dom) {
-                var m = {};
-                (domainsByName[dom] || []).forEach(function (it) { m[it.key] = it.text; });
-                acc[dom] = m;
-                return acc;
-              }, {});
-
-              // mmctFieldsByCat: Cat -> raw fields[]
-              var mmctFieldsByCat = aAllFields.reduce(function (acc, f) {
-                var c = f && f.CatMateriale;
-                if (!c) return acc;
-                if (!acc[c]) acc[c] = [];
-                acc[c].push(f);
-                return acc;
-              }, {});
-
-              // preserva coerenza anche dentro aMMCT
-              aMMCT.forEach(function (cat) {
-                var c = cat.CatMateriale;
-                if (cat.UserMMCTFields && cat.UserMMCTFields.results && mmctFieldsByCat[c]) {
-                  cat.UserMMCTFields.results = mmctFieldsByCat[c];
-                }
+            var domainsByName = aDomains.reduce(function (acc, d) {
+              var sDom = d.Domain;
+              acc[sDom] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
+                return { key: x.Value, text: x.Descrizione };
               });
+              return acc;
+            }, {});
 
-              oVm.setData({
-                userId: sUserId,
-                userType: sUserType,
-                userDescription: oData.UserDescription || "",
-                /* showAggregatedTile: sUserType !== "", */
-                showAggregatedTile: (sUserType === "I" || sUserType === "S"),
+            var aAllFields = aMMCT.reduce(function (acc, cat) {
+              var aFields = (cat.UserMMCTFields && cat.UserMMCTFields.results) || [];
+              return acc.concat(aFields);
+            }, []);
 
-                auth: buildAuth(sUserType),
+            var domainsByKey = Object.keys(domainsByName).reduce(function (acc, dom) {
+              var m = {};
+              (domainsByName[dom] || []).forEach(function (it) { m[it.key] = it.text; });
+              acc[dom] = m;
+              return acc;
+            }, {});
 
-                mock: oVm.getProperty("/mock") || {},
-                
+            var mmctFieldsByCat = aAllFields.reduce(function (acc, f) {
+              var c = f && f.CatMateriale;
+              if (!c) return acc;
+              if (!acc[c]) acc[c] = [];
+              acc[c].push(f);
+              return acc;
+            }, {});
 
-                userDomains: aDomains,
-                userCategories: aMMCT,
-                userVendors: aVend,
-
-                userMMCT: aMMCT,
-                mmctFieldsByCat: mmctFieldsByCat,
-
-                UserInfosMMCT: oData.UserInfosMMCT?.results || [],
-                UserInfosVend: [], // loaded lazily via _ensureVendorsLoaded()
-                UserInfosDomains: oData.UserInfosDomains?.results || [],
-
-                domainsByName: domainsByName,
-                domainsByKey: domainsByKey,
-
-                mdcCfg: oVm.getProperty("/mdcCfg") || {},
-                cache: oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} }
-              }, true);
-
-            }.bind(this),
-            error: function (oError) {
-              BusyIndicator.hide();
-
-              this._handleBackendDown({
-                where: "UserInfosSet.read error",
-                statusCode: oError && oError.statusCode,
-                message: (oError && oError.message) || "Errore lettura UserInfosSet"
-              }, oError);
-
-              if (bAutoFallbackToMockWhenBackendDown) {
-                this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
+            aMMCT.forEach(function (cat) {
+              var c = cat.CatMateriale;
+              if (cat.UserMMCTFields && cat.UserMMCTFields.results && mmctFieldsByCat[c]) {
+                cat.UserMMCTFields.results = mmctFieldsByCat[c];
               }
-            }.bind(this)
-          });
+            });
 
-        }.bind(this)).catch(function (err) {
-          BusyIndicator.hide();
-          this._handleBackendDown({
-            where: "metadataLoaded().catch in onInit",
-            statusCode: err && (err.statusCode || err.status),
-            message: (err && err.message) || String(err || "")
-          }, err);
-
-          if (bAutoFallbackToMockWhenBackendDown) {
-            this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
-          }
-        }.bind(this));
-
-        return;
-      }
-
-      this._handleBackendDown({ where: "onInit", message: "metadataLoaded() non disponibile" });
-      if (bAutoFallbackToMockWhenBackendDown) {
-        this._applyMockFallbackNow(oVm, { userId: sUserId, userType: sMockUserType });
-      }
+            oVm.setData({
+              userId: sUserId,
+              userType: sUserType,
+              userDescription: oData.UserDescription || "",
+              showAggregatedTile: (sUserType === "I" || sUserType === "S"),
+              auth: buildAuth(sUserType),
+              userDomains: aDomains,
+              userCategories: aMMCT,
+              userVendors: aVend,
+              userMMCT: aMMCT,
+              mmctFieldsByCat: mmctFieldsByCat,
+              UserInfosMMCT: oData.UserInfosMMCT?.results || [],
+              UserInfosVend: [],
+              UserInfosDomains: oData.UserInfosDomains?.results || [],
+              domainsByName: domainsByName,
+              domainsByKey: domainsByKey,
+              mdcCfg: oVm.getProperty("/mdcCfg") || {},
+              cache: oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} }
+            }, true);
+          }.bind(this),
+          error: function (oError) {
+            BusyIndicator.hide();
+            this._handleBackendDown({
+              where: "UserInfosSet.read error",
+              statusCode: oError && oError.statusCode,
+              message: (oError && oError.message) || "Errore lettura UserInfosSet"
+            }, oError);
+          }.bind(this)
+        });
+      }.bind(this)).catch(function (err) {
+        BusyIndicator.hide();
+        this._handleBackendDown({
+          where: "metadataLoaded().catch in onInit",
+          statusCode: err && (err.statusCode || err.status),
+          message: (err && err.message) || String(err || "")
+        }, err);
+      }.bind(this));
     },
 
     // =========================================================
-    // LAZY VENDOR LOADING  (chiamata separata a /VendorDataSet)
+    // LAZY VENDOR LOADING
     // =========================================================
     _vendorPromise: null,
 
-_ensureVendorsLoaded: function () {
-  var oVm = this.getOwnerComponent().getModel("vm");
-  if (oVm && oVm.getProperty("/__vendorCacheStale")) {
-    this._vendorPromise = null;
-    oVm.setProperty("/__vendorCacheStale", false);
-  }
+    _ensureVendorsLoaded: function () {
+      var oVm = this.getOwnerComponent().getModel("vm");
+      if (oVm && oVm.getProperty("/__vendorCacheStale")) {
+        this._vendorPromise = null;
+        oVm.setProperty("/__vendorCacheStale", false);
+      }
 
-  if (this._vendorPromise) return this._vendorPromise;
+      if (this._vendorPromise) return this._vendorPromise;
 
-      // Already populated (e.g. from mock)?
       var aExisting = oVm.getProperty("/userVendors") || [];
       if (aExisting.length) {
         this._vendorPromise = Promise.resolve(aExisting);
         return this._vendorPromise;
       }
 
-      // Mock path
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      if (mock.mockS0 || mock.mockVendors) {
-        // Mock vendors are already set by MockData.applyVm
-        this._vendorPromise = Promise.resolve(oVm.getProperty("/userVendors") || []);
-        return this._vendorPromise;
-      }
-
-      // Real OData call to /VendorDataSet
       var oModel = this.getOwnerComponent().getModel();
       var self = this;
 
@@ -508,7 +291,7 @@ _ensureVendorsLoaded: function () {
           error: function (oError) {
             BusyIndicator.hide();
             console.error("[Screen0] VendorDataSet ERROR", oError);
-            self._vendorPromise = null; // allow retry
+            self._vendorPromise = null;
             reject(oError);
           }
         });
@@ -524,16 +307,9 @@ _ensureVendorsLoaded: function () {
       var sUserType = (oVm && oVm.getProperty("/userType")) || "";
       sUserType = String(sUserType || "").trim().toUpperCase();
 
-      var self = this;
-
       this._ensureVendorsLoaded().then(function () {
-
         if (sUserType === "E") {
           var aVend = (oVm && oVm.getProperty("/userVendors")) || (oVm && oVm.getProperty("/UserInfosVend")) || [];
-          var mock = (oVm && oVm.getProperty("/mock")) || {};
-          var iIdx = parseInt(mock.vendorIdx || 0, 10);
-          if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
-
           var oV = aVend[2] || aVend[0] || null;
           var sVendorId = oV && (oV.Fornitore || oV.VENDOR || oV.Lifnr);
 
@@ -552,20 +328,18 @@ _ensureVendorsLoaded: function () {
         }
 
         oRouter.navTo("Screen1", { mode: "A" });
-
       }).catch(function (err) {
         console.error("[Screen0] onPressFlowA vendor load failed", err);
         MessageToast.show(N.getBackendErrorMessage(err));
       });
     },
 
-     onPressFlowB: function () {
-      /* return;  *//* temp return */
+    onPressFlowB: function () {
       this.getOwnerComponent().getRouter().navTo("Screen6");
     },
 
-   onPressFlowC: function () {
-  this.getOwnerComponent().getRouter().navTo("Screen5");
-}
+    onPressFlowC: function () {
+      this.getOwnerComponent().getRouter().navTo("Screen5");
+    }
   });
 });

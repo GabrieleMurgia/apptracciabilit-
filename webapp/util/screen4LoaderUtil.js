@@ -31,29 +31,10 @@ sap.ui.define([
 
     reloadDataFromBackend: function (opts, fnDone) {
       var oVm = opts.oVm;
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var bMockS4 = !!mock.mockS4;
-      var sForceStato = String(mock.forceStato || "").trim().toUpperCase();
       var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var logFn = opts.logFn || function () {};
 
       function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
       function norm(v) { return String(v || "").trim().toUpperCase(); }
-
-      if (bMockS4) {
-        var sUrl = sap.ui.require.toUrl("apptracciabilita/apptracciabilita/mock/DataSet.json");
-        var oJ = new sap.ui.model.json.JSONModel(sUrl);
-        try { oJ.loadData(sUrl, null, false); } catch (e) { logFn("[MOCK S4] sync FAIL", e && e.message); }
-        var d = oJ.getData();
-        var aMock = (d && d.results) || (d && d.d && d.d.results) || d;
-        if (!Array.isArray(aMock)) {
-          if (aMock && Array.isArray(aMock.results)) aMock = aMock.results;
-          else if (aMock && aMock.d && Array.isArray(aMock.d.results)) aMock = aMock.d.results;
-          else aMock = [];
-        }
-        if (validForce.indexOf(sForceStato) >= 0) aMock.forEach(function (r) { r.Stato = sForceStato; });
-        done(aMock); return;
-      }
 
       var sVendor = String(opts.vendorId || "").trim();
       if (/^\d+$/.test(sVendor) && sVendor.length < 10) sVendor = sVendor.padStart(10, "0");
@@ -86,7 +67,6 @@ sap.ui.define([
         success: function (oData) {
           BusyIndicator.hide();
           var a = (oData && oData.results) || [];
-          if (validForce.indexOf(sForceStato) >= 0) a.forEach(function (r) { r.Stato = sForceStato; });
           done(a);
         },
         error: function () { BusyIndicator.hide(); MessageToast.show("Errore nel caricamento dei dettagli"); done([]); }
@@ -95,8 +75,6 @@ sap.ui.define([
 
     buildRecords01ForCache: function (aAllRows, aCfg01, oVm) {
       var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sForce = String(mock.forceStato || "").trim().toUpperCase();
       var aCols01 = (aCfg01 || []).map(function (x) { return x && x.ui; }).filter(Boolean);
       var mIsMulti = {};
       (aCfg01 || []).forEach(function (f) { if (f && f.ui && f.multiple) mIsMulti[f.ui] = true; });
@@ -107,7 +85,7 @@ sap.ui.define([
       (aAllRows || []).forEach(function (r) {
         if (N.isTemplateRow(r)) return;
         var sGuidKey = rowGuidKey(r), sKey = sGuidKey;
-        var stRow = (validForce.indexOf(sForce) >= 0) ? sForce : StatusUtil.normStatoRow(r, oVm);
+        var stRow = StatusUtil.normStatoRow(r);
         var oRec = m[sKey];
         if (!oRec) {
           oRec = {

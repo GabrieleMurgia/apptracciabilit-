@@ -31,8 +31,6 @@ sap.ui.define([
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
 
     _sLogPrefix: "[S4]",
-    _sMockFlag: "mockS4",
-
     // ==================== INIT ====================
     onInit: function () {
 
@@ -118,8 +116,7 @@ sap.ui.define([
     // ==================== CACHE / CONFIG ====================
     // _getOVm, _getCacheKeySafe inherited from BaseController
     _getDataCacheKey: function () {
-      var mock = (this.getOwnerComponent().getModel("vm").getProperty("/mock")) || {};
-      return (!!(mock.mockS3 || mock.mockS4) ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
+      return "REAL|" + this._getCacheKeySafe();
     },
     _cfgForScreen: function (sCat, s) { return MmctUtil.cfgForScreen(this.getOwnerComponent().getModel("vm"), sCat, s); },
     _domainHasValues: function (d) { return Domains.domainHasValues(this.getOwnerComponent(), d); },

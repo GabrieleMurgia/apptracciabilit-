@@ -6,7 +6,6 @@
  * - VM / Detail model access (_getOVm, _getODetail)
  * - Cache key helpers (_getCacheKeySafe, _getExportCacheKey)
  * - Navigation (onNavBack, _performNavBack)
- * - Mock detection (_isMockEnabled)
  * - Header filter/sort dispatch (Screen3/5/6): _setInnerHeaderHeight,
  *   _applyInlineHeaderFilterSort, _onInlineCol*, onToggleHeader*,
  *   onOpenColumnFilters/Sort, onResetFiltersAndSort, _scheduleHeaderFilterSort
@@ -73,19 +72,8 @@ sap.ui.define([
       return VmCache.getCacheKeySafe(this._sVendorId, this._sMaterial);
     },
 
-    _getExportCacheKey: function (sMockFlag) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var sFlag = sMockFlag || this._sMockFlag || "mockS3";
-      return (mock[sFlag] ? "MOCK|" : "REAL|") + this._getCacheKeySafe();
-    },
-
-    // ==================== MOCK DETECTION ====================
-
-    _isMockEnabled: function (sFlag) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      return !!(mock[sFlag || this._sMockFlag || "mockS3"]);
+    _getExportCacheKey: function () {
+      return "REAL|" + this._getCacheKeySafe();
     },
 
     // ==================== USER INFOS GUARD ====================
@@ -123,21 +111,12 @@ sap.ui.define([
       if (!oVm) {
         var JSONModel = sap.ui.require("sap/ui/model/json/JSONModel");
         oVm = new JSONModel({
-          userId: "", userType: "", mock: {},
+          userId: "", userType: "",
           cache: { dataRowsByKey: {}, recordsByKey: {} },
           mdcCfg: {}, domainsByName: {}, domainsByKey: {},
           mmctFieldsByCat: {}
         });
         oComponent.setModel(oVm, "vm");
-      }
-
-      // Check for mock mode
-      var mock = oVm.getProperty("/mock") || {};
-      if (mock.mockS0) {
-        // Mock mode: delegate to Screen0 by redirecting
-        this._log("_ensureUserInfosLoaded: mock mode, redirecting to Screen0");
-        oComponent.getRouter().navTo("Screen0", {}, true);
-        return new Promise(function () {}); // never resolves — user will be redirected
       }
 
       if (!oModel || typeof oModel.read !== "function") {
@@ -214,7 +193,6 @@ sap.ui.define([
                 userDescription: oData.UserDescription || "",
                 showAggregatedTile: sUserType !== "E",
                 auth: auth,
-                mock: oVm.getProperty("/mock") || {},
                 userDomains: aDomains,
                 userCategories: aMMCT,
                 /* userVendors: aVend, */

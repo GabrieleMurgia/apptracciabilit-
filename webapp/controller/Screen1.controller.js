@@ -38,10 +38,6 @@ sap.ui.define([
       var oModel = this.getOwnerComponent().getModel();
       if (!oModel || typeof oModel.read !== "function") { this._applyFilters(); return; }
 
-      // Mock path — skip reload
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      if (mock.mockS0 || mock.mockVendors) { this._applyFilters(); return; }
-
       var sUserId = oVm.getProperty("/userId") || "";
 
       var self = this;

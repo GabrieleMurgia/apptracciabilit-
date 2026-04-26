@@ -43,7 +43,6 @@ sap.ui.define([
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
 
     _sLogPrefix: "[S3]",
-    _sMockFlag: "mockS3",
     PARENT_TABLE_ID: "mdcTable3",
     MAIN_TABLE_ID: "mdcTable3",
     MAIN_INPUT_FILTER_ID: "inputFilter3",
@@ -283,7 +282,6 @@ var oVm = self.getOwnerComponent().getModel("vm");
 
     _reloadDataFromBackend: function (fnDone) {
       var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
       var sUserId = (oVm && oVm.getProperty("/userId")) || "";
       var sVendor10 = String(this._sVendorId || "").trim();
       if (/^\d+$/.test(sVendor10) && sVendor10.length < 10) sVendor10 = ("0000000000" + sVendor10).slice(-10);
@@ -312,7 +310,6 @@ var oVm = self.getOwnerComponent().getModel("vm");
         filters: DataLoaderUtil.buildCommonFilters(oFilterOpts),
         filtersVendorBatch: DataLoaderUtil.buildCommonFilters(oFilterOptsVB),
         vendor10: sVendor10, oVmCache: this._getOVm(),
-        mockS3: !!mock.mockS3, forceStato: String(mock.forceStato || "").trim().toUpperCase(),
         onDone: fnDone
       });
     },
@@ -802,8 +799,6 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
     onExportExcel: async function () {
       await ExportUtil.exportExcel({ oVm: this.getOwnerComponent().getModel("vm"), oDetail: this._getODetail(), toStableString: N.toStableString, statusText: RecordsUtil.statusText, inlineFS: this._inlineFS, vendorId: this._sVendorId, material: this._sMaterial, cacheKey: this._getExportCacheKey(), includeTemplatesInExport: !!this._bNoMatListMode });
     },
-    onPrint: function () { MessageToast.show("Stampa: TODO"); },
-
     // ==================== APPROVE / REJECT ====================
     _getApproveTableId: function () { return "mdcTable3"; },
 

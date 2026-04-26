@@ -146,13 +146,11 @@ sap.ui.define([
     executePostAndReload: function (opts) {
       var oVm = opts.vmModel;
       var sCK = opts.cacheKey;
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
       var self = this;
 
       SaveUtil.executePost({
         oModel: opts.odataModel,
         payload: opts.payload,
-        mock: !!mock.mockS4,
         onSuccess: function () {
           opts.proxyDetail.destroy();
           oVm.setProperty(VmPaths.deletedLinesForPostPath(sCK), []);

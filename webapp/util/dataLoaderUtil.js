@@ -3,10 +3,9 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "apptracciabilita/apptracciabilita/util/mockData",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
   "apptracciabilita/apptracciabilita/util/normalize"
-], function (BusyIndicator, MessageToast, Filter, FilterOperator, MockData, MmctUtil, N) {
+], function (BusyIndicator, MessageToast, Filter, FilterOperator, MmctUtil, N) {
   "use strict";
 
   return {
@@ -65,34 +64,9 @@ sap.ui.define([
       var aFiltersVB = opts.filtersVendorBatch || aFilters;  // ← NoMatList fix: filtri separati per VendorBatchSet
       var sVendor10 = opts.vendor10;
       var oVmCache = opts.oVmCache;
-      var bMockS3 = opts.mockS3;
-      var sForceStato = opts.forceStato;
       var fnDone = opts.onDone;
 
       function done(a) { if (typeof fnDone === "function") fnDone(a || []); }
-
-      // MOCK
-      if (bMockS3) {
-        BusyIndicator.show(0);
-
-        MockData.loadDataSetGeneric().then(function (aAll) {
-          BusyIndicator.hide();
-
-          var a = Array.isArray(aAll) ? aAll : [];
-          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-            a.forEach(function (r) { if (r) r.Stato = sForceStato; });
-          }
-
-          done(a);
-        }).catch(function (e) {
-          BusyIndicator.hide();
-          console.error("[DataLoader] MOCK loadDataSetGeneric ERROR", e);
-          MessageToast.show("MOCK DataSet.json NON CARICATO");
-          done([]);
-        });
-
-        return;
-      }
 
       // REAL
       BusyIndicator.show(0);
@@ -164,10 +138,6 @@ sap.ui.define([
 
           var aDataSetRows = res[0];
           var aVendorBatches = res[1];
-
-          if (sForceStato === "ST" || sForceStato === "AP" || sForceStato === "RJ" || sForceStato === "CH") {
-            aDataSetRows.forEach(function (r) { if (r) r.Stato = sForceStato; });
-          }
 
           done(aDataSetRows);
 

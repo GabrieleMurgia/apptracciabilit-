@@ -7,9 +7,8 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/vmModelPaths",
-  "apptracciabilita/apptracciabilita/util/mockData"
-], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, VmPaths, MockData) {
+  "apptracciabilita/apptracciabilita/util/vmModelPaths"
+], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, VmPaths) {
   "use strict";
 
   // Local helpers (use N.safeStr / N.lc from normalize.js)
@@ -112,10 +111,7 @@ sap.ui.define([
       var oRow = oCtx.getObject() || {};
       var sPath = oCtx.getPath();
 
-      var sVendor = safeStr(this._sVendorId).trim();
-      if (MockData && typeof MockData.padVendor === "function") {
-        sVendor = MockData.padVendor(sVendor);
-      }
+      var sVendor = N.normalizeVendor10(this._sVendorId);
 
       var sMateriale = safeStr(oRow.MaterialOriginal || oRow.Material).trim();
       var sStagione = safeStr(oRow.Stagione).trim();
@@ -128,20 +124,6 @@ sap.ui.define([
         Stagione: sStagione,
         MatStatus: sNewStatus
       };
-
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var bMockS2 = !!mock.mockS2;
-
-      if (bMockS2) {
-        var oJson = this.getView().getModel();
-        oJson.setProperty(sPath + "/MatStatus", sNewStatus);
-        var r = oJson.getProperty(sPath);
-        recomputeSupportFields(r);
-        oJson.refresh(true);
-        MessageToast.show("MOCK: stato aggiornato a " + sNewStatus);
-        return;
-      }
 
       var oODataModel = this.getOwnerComponent().getModel();
       var oJsonModel = this.getView().getModel();
@@ -308,10 +290,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   }
 
   // ====== 2) VENDOR (padded) ======
-  var sVendor = safeStr(this._sVendorId).trim();
-  if (MockData && typeof MockData.padVendor === "function") {
-    sVendor = MockData.padVendor(sVendor);
-  }
+  var sVendor = N.normalizeVendor10(this._sVendorId);
 
   // ====== 3) METADATA HELPERS (self-contained) ======
   var oODataModel = this.getOwnerComponent().getModel();
@@ -436,40 +415,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
     return o;
   });
 
-  // ====== 6) MOCK ======
-  var oVm = this.getOwnerComponent().getModel("vm");
-  var mock = (oVm && oVm.getProperty("/mock")) || {};
-  var bMockS2 = !!mock.mockS2;
-
-  if (bMockS2) {
-    var oJson = this.getView().getModel();
-    aSelectedItems.forEach(function (it) {
-      var ctx = it.getBindingContext();
-      var path = ctx && ctx.getPath();
-      if (!path) return;
-
-      var row = oJson.getProperty(path);
-      if (!row) return;
-
-      var st = safeStr(row.MatStatus).trim().toUpperCase();
-      if (st === "DMMY") return;
-
-      if (sTarget === "RELE" && st === "LOCK") {
-        oJson.setProperty(path + "/MatStatus", sTargetStatus);
-        recomputeSupportFields(row);
-      } else if (sTarget === "LOCK" && st !== "LOCK") {
-        oJson.setProperty(path + "/MatStatus", sTargetStatus);
-        recomputeSupportFields(row);
-      }
-    });
-
-    oJson.refresh(true);
-    oTable.removeSelections(true);
-    MessageToast.show("MOCK: operazione massiva completata (" + aItemsPayload.length + ")");
-    return;
-  }
-
-  // ====== 7) BACKEND: DEEP INSERT (1 POST) ======
+  // ====== 6) BACKEND: DEEP INSERT (1 POST) ======
   var oPayload = {};
   oPayload[pHeaderVendor] = sVendor;
   oPayload[sNavName] = { results: aItemsPayload };
@@ -511,33 +457,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
     _loadMaterials: function () {
       var oViewModel = this.getView().getModel();
       var oVm = this.getOwnerComponent().getModel("vm");
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-      var bMockS2 = !!mock.mockS2;
-
-      this._log("_loadMaterials mock?", { mockS2: bMockS2, mock: mock });
-
-      if (bMockS2) {
-        var sVendorWanted = MockData.padVendor(this._sVendorId);
-        var sUserId = String((oVm && oVm.getProperty("/userId")) || "").trim();
-
-        BusyIndicator.show(0);
-        this._log("[MOCK FILE] loading MaterialDataSet.json", { userId: sUserId, vendorId: sVendorWanted });
-
-        MockData.loadMaterialDataSetGeneric().then(function (aAll) {
-          var aMaterials = aAll.map(buildRow);
-          oViewModel.setProperty("/showMatStatusCol", aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; }));
-          oViewModel.setProperty("/Materials", aMaterials);
-          _extractDistinctFilterValues(aMaterials, oViewModel);
-          this._applyFilters();
-        }.bind(this)).catch(function (err) {
-          console.error("[Screen2][MOCK FILE] ERROR", err);
-          MessageToast.show("MOCK MaterialDataSet.json NON TROVATO o non leggibile");
-        }).finally(function () {
-          BusyIndicator.hide();
-        });
-
-        return;
-      }
+      this._log("_loadMaterials", { vendorId: this._sVendorId, userId: (oVm && oVm.getProperty("/userId")) || "" });
 
       var oODataModel = this.getOwnerComponent().getModel();
       var that = this;

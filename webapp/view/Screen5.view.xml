@@ -101,7 +101,6 @@
 
         <Toolbar id="tblToolbar5" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar5sp"/>
-          <Button id="tbPrint5" icon="sap-icon://print" tooltip="Stampa" press=".onPrint" type="Transparent"/>
           <Button id="tbExcel5" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
         </Toolbar>
 

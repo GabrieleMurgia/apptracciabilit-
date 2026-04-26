@@ -78,7 +78,6 @@ sap.ui.define([
       });
       if (!vr.ok) return MessageBox.error(buildValidationMessage(vr));
 
-      var mock = (opts.vmModel && opts.vmModel.getProperty("/mock")) || {};
       var oDetail = opts.detailModel;
       var oPayload = SaveUtil.buildSavePayload({
         oDetail: oDetail,
@@ -98,7 +97,6 @@ sap.ui.define([
       SaveUtil.executePost({
         oModel: opts.odataModel,
         payload: oPayload,
-        mock: !!mock.mockS3,
         onSuccess: function () {
           oDetail.setProperty("/__deletedLinesForPost", []);
           self.invalidateScreen3Cache({

@@ -89,20 +89,12 @@ sap.ui.define([
    * @param {sap.ui.model.odata.v2.ODataModel} opts.oModel - OData model
    * @param {string} opts.guid - GUID (base64 or dashed format)
    * @param {string} opts.fieldName - Field name (e.g. "Attachment", "CertMatAb")
-   * @param {boolean} [opts.mock] - If true, return mock data
    * @returns {Promise<object[]>} Array of { Guid, FieldName, FileName, Note }
    */
   function listAttachments(opts) {
     var oModel = opts.oModel;
     var sGuid = opts.guid;
     var sFieldName = opts.fieldName || "";
-
-    if (opts.mock) {
-      return Promise.resolve([
-        { Guid: sGuid, FieldName: sFieldName, FileName: "mock_document.pdf", Note: "Mock file 1" },
-        { Guid: sGuid, FieldName: sFieldName, FileName: "mock_report.xlsx", Note: "Mock file 2" }
-      ]);
-    }
 
     var sGuidDashed = base64ToGuidDashed(sGuid);
     if (!sGuidDashed) return Promise.reject("GUID non valido");
@@ -358,7 +350,6 @@ sap.ui.define([
    * @param {string} opts.fieldName - Field name for attachment scope
    * @param {string} [opts.fieldLabel] - Human-readable label for the field
    * @param {sap.ui.core.mvc.View} [opts.oView] - View (for addDependent)
-   * @param {boolean} [opts.mock] - Mock mode
    * @param {boolean} [opts.readOnly] - If true, hide upload/delete
    * @param {function(number)} [opts.onCountChange] - Called with new attachment count after upload/delete
    */
@@ -368,7 +359,6 @@ sap.ui.define([
     var sFieldName = opts.fieldName || "";
     var sLabel = opts.fieldLabel || sFieldName || "Allegati";
     var bReadOnly = !!opts.readOnly;
-    var bMock = !!opts.mock;
 
     var fnCountChange = typeof opts.onCountChange === "function" ? opts.onCountChange : null;
     var fnStatusChange = typeof opts.onStatusChange === "function" ? opts.onStatusChange : null;
@@ -394,7 +384,7 @@ sap.ui.define([
     // Helper: reload attachment list into dialog model
     function _reloadList() {
       oDialogModel.setProperty("/loading", true);
-      listAttachments({ oModel: oModel, guid: sGuid, fieldName: sFieldName, mock: bMock })
+      listAttachments({ oModel: oModel, guid: sGuid, fieldName: sFieldName })
         .then(function (aList) {
           var iCount = (aList || []).length;
           oDialogModel.setProperty("/attachments", aList || []);

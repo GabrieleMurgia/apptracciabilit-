@@ -457,18 +457,12 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
     executePost: function (opts) {
       var oModel = opts.oModel;
       var oPayload = opts.payload;
-      var bMock = opts.mock;
       var onSuccess = opts.onSuccess;
       var onPartialError = opts.onPartialError;
       var onFullError = opts.onFullError;
 
       if (!oPayload.PostDataCollection || !oPayload.PostDataCollection.length) {
         MessageToast.show("Nessuna riga da salvare");
-        return;
-      }
-
-      if (bMock) {
-        MessageToast.show("MOCK attivo: POST non eseguita (payload in Console)");
         return;
       }
 

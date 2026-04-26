@@ -56,11 +56,7 @@ sap.ui.define([], function () {
     return (role === "I" || role === "S") && (status === "ST" || status === "CH");
   }
 
-  function normStatoRow(r, oVm /* JSONModel vm */) {
-    var mock = (oVm && oVm.getProperty && oVm.getProperty("/mock")) || {};
-    var sForce = String(mock.forceStato || "").trim().toUpperCase();
-    if (sForce === "ST" || sForce === "AP" || sForce === "RJ" || sForce === "CH") return sForce;
-
+  function normStatoRow(r) {
     var s = String((r && (r.Stato || r.STATO)) || "").trim().toUpperCase();
     if (s === "ST" || s === "AP" || s === "RJ" || s === "CH") return s;
 

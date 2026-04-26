@@ -365,10 +365,10 @@ sap.ui.define([], function () {
   }
 
   /**
-   * Build the full export cache key (prefixed with MOCK| or REAL|).
+   * Build the full export cache key.
    */
-  function buildExportCacheKey(bIsMock, sVendorId, sMaterial) {
-    return (bIsMock ? "MOCK|" : "REAL|") + buildCacheKeySafe(sVendorId, sMaterial);
+  function buildExportCacheKey(_unused, sVendorId, sMaterial) {
+    return "REAL|" + buildCacheKeySafe(sVendorId, sMaterial);
   }
 
   // -------------------------------------------------------

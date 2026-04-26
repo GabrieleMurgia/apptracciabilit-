@@ -88,7 +88,6 @@ sap.ui.define([
         var oComponent = oView && oView.getController && oView.getController().getOwnerComponent && oView.getController().getOwnerComponent();
         var oODataModel = oComponent && oComponent.getModel();
         var oVm = oComponent && oComponent.getModel("vm");
-        var bMock = !!(oVm && oVm.getProperty("/mock/mockS3"));
         var bReadOnly = !!(oRow && oRow.__readOnly);
 
         var sRowGuid = sGuid;
@@ -102,7 +101,6 @@ sap.ui.define([
           fieldName: sKey,
           fieldLabel: sLabel,
           oView: oView,
-          mock: bMock,
           readOnly: bReadOnly,
           currentStato: sCurrentStato,
           onStatusChange: function (sNewStato, oData) {

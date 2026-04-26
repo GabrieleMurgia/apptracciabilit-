@@ -2,7 +2,6 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
-  "sap/m/MessageBox",
   "sap/m/Button",
   "sap/ui/mdc/table/Column",
   "sap/m/HBox",
@@ -20,7 +19,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/rowErrorUtil",
   "apptracciabilita/apptracciabilita/util/exportUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/saveUtil",
+  "apptracciabilita/apptracciabilita/util/screen3SaveUtil",
   "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
   "apptracciabilita/apptracciabilita/util/rowManagementUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
@@ -29,11 +28,11 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
 
 ], function (
-  BaseController, JSONModel, MessageToast, MessageBox,
+  BaseController, JSONModel, MessageToast,
   Button, MdcColumn, HBox, ObjectStatus, StateUtil,
   N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
-  SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
+  Screen3SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
   Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize,
   PercUtil
 ) {
@@ -512,7 +511,14 @@ var oVm = self.getOwnerComponent().getModel("vm");
     // ==================== ROW ERRORS ====================
     _clearPostErrorByContext: function (oCtx) {
       var self = this;
-      RowErrorUtil.clearPostErrorByContext(oCtx, { oDetail: this._getODetail(), updateRowStyles: function () { var oTbl = self.byId("mdcTable3"); self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl)); } });
+      Screen3SaveUtil.clearPostErrorByContext({
+        context: oCtx,
+        detailModel: this._getODetail(),
+        updateRowStylesFn: function () {
+          var oTbl = self.byId("mdcTable3");
+          self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl));
+        }
+      });
     },
     _updatePostErrorRowStyles: function (oInner) {
       var self = this;
@@ -524,7 +530,16 @@ var oVm = self.getOwnerComponent().getModel("vm");
     },
     _markRowsWithPostErrors: function (aRespLines) {
       var self = this;
-      RowErrorUtil.markRowsWithPostErrors(aRespLines, { oDetail: this._getODetail(), toStableString: N.toStableString, applyClientFilters: this._applyClientFilters.bind(this), ensurePostErrorRowHooks: function () { var oTbl = self.byId("mdcTable3"); self._ensurePostErrorRowHooks(oTbl); self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl)); } });
+      Screen3SaveUtil.markRowsWithPostErrors({
+        responseLines: aRespLines,
+        detailModel: this._getODetail(),
+        applyClientFiltersFn: this._applyClientFilters.bind(this),
+        ensurePostErrorRowHooksFn: function () {
+          var oTbl = self.byId("mdcTable3");
+          self._ensurePostErrorRowHooks(oTbl);
+          self._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl));
+        }
+      });
     },
 
     // ==================== TOUCH CODAGG ====================
@@ -761,42 +776,27 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
 
     // ==================== SAVE ====================
     onSave: function () {
-      /* if (!RecordsUtil.validatePercBeforeSave(this._getODetail(), "/RecordsAll")) return; */
-
-      var vr = SaveUtil.validateRequiredBeforePost({ oDetail: this._getODetail(), oVm: this._getOVm(), getCacheKeySafe: this._getCacheKeySafe.bind(this), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
-      if (!vr.ok) {
-        var top = vr.errors.slice(0, 15).map(function (e) { return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")"; }).join("\n");
-        return MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top + (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
-      }
-
-      var oVm = this.getOwnerComponent().getModel("vm"), mock = (oVm && oVm.getProperty("/mock")) || {};
-      var oDetail = this._getODetail();
-      var oPayload = SaveUtil.buildSavePayload({ oDetail: oDetail, oVm: this._getOVm(), userId: (oVm && oVm.getProperty("/userId")) || "", vendor10: N.normalizeVendor10(this._sVendorId), material: String(this._sMaterial || "").trim(), getExportCacheKey: this._getExportCacheKey.bind(this), toStableString: N.toStableString, getCodAgg: N.getCodAgg, getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oDetail); }, normalizeMultiString: N.normalizeMultiString, uuidv4: N.uuidv4 });
-
-      var self = this;
-      SaveUtil.executePost({ oModel: this.getOwnerComponent().getModel(), payload: oPayload, mock: !!mock.mockS3,
-        onSuccess: function (oData) { oDetail.setProperty("/__deletedLinesForPost", []); self._invalidateScreen3Cache(); self._refreshAfterPost(oData); },
-        onPartialError: function (aErr) { self._markRowsWithPostErrors(aErr); PostUtil.showPostErrorMessagePage(aErr); },
-        onFullError: function () { }
-      });
-    },
-
-    _invalidateScreen3Cache: function () { var k = this._getExportCacheKey(), v = this._getOVm(); v.setProperty("/cache/dataRowsByKey/" + k, []); v.setProperty("/cache/recordsByKey/" + k, []); },
-
-    _refreshAfterPost: function (oPostData) {
-      var self = this;
-      return new Promise(function (resolve) {
-        self._reloadDataFromBackend(function (aResults) {
-          self._hydrateAndFormat(aResults);
-          var oDetail = self._getODetail();
-          var res = RecordsUtil.computeOpenOdaFromRows(aResults);
-          if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
-          var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, { oDetail: oDetail, oVm: self.getOwnerComponent().getModel("vm"), includeTemplates: !!self._bNoMatListMode });
-          var oVm = self._getOVm(), sKey = self._getExportCacheKey();
-          oVm.setProperty("/cache/dataRowsByKey/" + sKey, aResults);
-          oVm.setProperty("/cache/recordsByKey/" + sKey, aRecordsBuilt);
-          Promise.resolve(self._bindRecords(aRecordsBuilt)).then(function () { self._snapshotRecords = deepClone(aRecordsBuilt); self._clearSelectionMdc(); resolve(aResults); });
-        });
+      return Screen3SaveUtil.onSave({
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        odataModel: this.getOwnerComponent().getModel(),
+        getCacheKeySafeFn: this._getCacheKeySafe.bind(this),
+        getExportCacheKeyFn: this._getExportCacheKey.bind(this),
+        reloadDataFromBackendFn: this._reloadDataFromBackend.bind(this),
+        hydrateAndFormatFn: this._hydrateAndFormat.bind(this),
+        bindRecordsFn: this._bindRecords.bind(this),
+        setSnapshotRecordsFn: function (aRecords) { this._snapshotRecords = aRecords; }.bind(this),
+        clearSelectionFn: this._clearSelectionMdc.bind(this),
+        applyClientFiltersFn: this._applyClientFilters.bind(this),
+        ensurePostErrorRowHooksFn: function () {
+          var oTbl = this.byId("mdcTable3");
+          this._ensurePostErrorRowHooks(oTbl);
+          this._updatePostErrorRowStyles(MdcTableUtil.getInnerTableFromMdc(oTbl));
+        }.bind(this),
+        noMatListMode: !!this._bNoMatListMode
       });
     },
 

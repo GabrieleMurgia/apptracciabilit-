@@ -2,7 +2,6 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
-  "sap/m/MessageBox",
   "sap/ui/mdc/table/Column",
   "sap/ui/mdc/p13n/StateUtil",
 
@@ -17,16 +16,16 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
+  "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
+  "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil",
-  "apptracciabilita/apptracciabilita/util/saveUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
 
   "apptracciabilita/apptracciabilita/util/mockData"
 ], function (
-  BaseController, JSONModel, MessageToast, MessageBox, MdcColumn, StateUtil,
+  BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
   N, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, RecordsUtil, PostUtil, SaveUtil, TableColumnAutoSize,
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize,
   MockData
 ) {
   "use strict";
@@ -69,7 +68,7 @@ sap.ui.define([
 
     onExit: function () {
       try {
-        if (this._attachSyncInterval) { clearInterval(this._attachSyncInterval); this._attachSyncInterval = null; }
+        this._stopAttachmentSyncPolling();
         if (this._dlgSort) { this._dlgSort.destroy(); this._dlgSort = null; }
         S4Filter.resetHeaderCaches(this._hdrFilter, this._hdrSortBtns);
         this._hdrFilter = { boxesByKey: {}, seenLast: {} };
@@ -112,11 +111,7 @@ sap.ui.define([
         self._hdrFilter = { boxesByKey: {}, seenLast: {} };
         self._hdrSortBtns = {};
 
-        // Start attachment counter sync polling
-        if (self._attachSyncInterval) clearInterval(self._attachSyncInterval);
-        self._attachSyncInterval = setInterval(function () {
-          self._syncAttachmentCounters();
-        }, 500);
+        self._startAttachmentSyncPolling();
 
         self._loadSelectedRecordRows(function () { self._bindRowsAndColumns(); }.bind(self));
       });
@@ -158,71 +153,33 @@ sap.ui.define([
      * for each attachment column. This ensures all rows show the same counter.
      */
     _syncAttachmentCounters: function () {
-  if (this._bSyncingAttach) return;
-  var oD = this.getView().getModel("detail"); if (!oD) return;
-  var aRows = oD.getProperty("/RowsAll") || [];
-  if (aRows.length <= 1) return;
-
-  var aAttFields = [];
-  (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-    if (f && f.attachment && f.ui) aAttFields.push(String(f.ui).trim());
-  });
-  (oD.getProperty("/_mmct/s00") || []).forEach(function (f) {
-    if (f && f.attachment && f.ui) {
-      var sUi = String(f.ui).trim();
-      if (aAttFields.indexOf(sUi) < 0) aAttFields.push(sUi);
-    }
-  });
-  if (!aAttFields.length) return;
-
-  if (!this._attachSnapshot) this._attachSnapshot = {};
-  var bChanged = false;
-  var snap = this._attachSnapshot;
-
-  aAttFields.forEach(function (sField) {
-    var aCurr = aRows.map(function (r) {
-      return parseInt(String(r[sField] || "0"), 10) || 0;
-    });
-    var aPrev = snap[sField] || aCurr.map(function () { return aCurr[0]; });
-
-    // Find the row that changed vs snapshot
-    var iChangedIdx = -1;
-    var iNewVal = aCurr[0];
-    for (var i = 0; i < aCurr.length; i++) {
-      if (i < aPrev.length && aCurr[i] !== aPrev[i]) {
-        iChangedIdx = i;
-        iNewVal = aCurr[i];
-        break;
-      }
-    }
-
-    if (iChangedIdx < 0) {
-      var allSame = aCurr.every(function (v) { return v === aCurr[0]; });
-      if (allSame) { snap[sField] = aCurr.slice(); return; }
-      // Rows out of sync, no snapshot diff → minority value is the updated one
-      var counts = {};
-      aCurr.forEach(function (v) { counts[v] = (counts[v] || 0) + 1; });
-      var minCount = aRows.length + 1;
-      Object.keys(counts).forEach(function (k) {
-        if (counts[k] < minCount) { minCount = counts[k]; iNewVal = parseInt(k, 10); }
+      return Screen4AttachUtil.syncAttachmentCounters({
+        getDetailModel: function () { return this.getView().getModel("detail"); }.bind(this),
+        getAttachSnapshot: function () { return this._attachSnapshot; }.bind(this),
+        setAttachSnapshot: function (oSnapshot) { this._attachSnapshot = oSnapshot; }.bind(this),
+        isSyncing: function () { return !!this._bSyncingAttach; }.bind(this),
+        setSyncing: function (bVal) { this._bSyncingAttach = bVal; }.bind(this)
       });
-    }
+    },
 
-    aRows.forEach(function (r) {
-      var vCur = parseInt(String(r[sField] || "0"), 10) || 0;
-      if (vCur !== iNewVal) { r[sField] = String(iNewVal); bChanged = true; }
-    });
-    snap[sField] = aRows.map(function () { return iNewVal; });
-  });
+    _startAttachmentSyncPolling: function () {
+      return Screen4AttachUtil.startPolling({
+        intervalMs: 500,
+        syncFn: this._syncAttachmentCounters.bind(this),
+        getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
+        setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
+        setIntervalFn: setInterval,
+        clearIntervalFn: clearInterval
+      });
+    },
 
-  this._attachSnapshot = snap;
-  if (bChanged) {
-    this._bSyncingAttach = true;
-    oD.setProperty("/RowsAll", aRows);
-    oD.refresh(true);
-    this._bSyncingAttach = false;
-  }
-},
+    _stopAttachmentSyncPolling: function () {
+      return Screen4AttachUtil.stopPolling({
+        getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
+        setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
+        clearIntervalFn: clearInterval
+      });
+    },
     _hookDirtyOnEdit: function (oCtrl) {
       if (!oCtrl) return;
       try { if (oCtrl.data && oCtrl.data("dirtyHooked")) return; if (oCtrl.data) oCtrl.data("dirtyHooked", true); } catch (e) {}
@@ -801,219 +758,35 @@ sap.ui.define([
 
     // ==================== SAVE ====================
     onSaveLocal: function () {
-      try {
-        var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__dirty")) { MessageToast.show("Nessuna modifica da salvare"); return; }
-
-        if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
-
-        var aRows = oD.getProperty("/RowsAll") || [];
-        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
-        var sGuid = N.toStableString(oD.getProperty("/guidKey")), sFibra = N.toStableString(oD.getProperty("/Fibra"));
-        var aC = (oVm.getProperty("/cache/dataRowsByKey/" + sCK) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aC.concat(aRows));
-        this._updateVmRecordStatus(sCK, sGuid, sFibra,
-          String(oD.getProperty("/__role") || "").trim().toUpperCase(),
-          String(oD.getProperty("/__status") || "ST").trim().toUpperCase());
-        this._snapshotRows = N.deepClone(aRows); oD.setProperty("/__dirty", false);
-        this._applyUiPermissions(); MessageToast.show("Salvato (locale/cache)");
-      } catch (e) { console.error("[S4] onSaveLocal ERROR", e); MessageToast.show("Errore salvataggio"); }
+      return Screen4SaveUtil.onSaveLocal({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this._getOVm(),
+        cacheKey: this._getDataCacheKey(),
+        updateVmRecordStatusFn: this._updateVmRecordStatus.bind(this),
+        setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this)
+      });
     },
 
     // ==================== SAVE TO BACKEND (PostDataSet) ====================
     onSaveToBackend: function () {
-      var oD = this.getView().getModel("detail");
-      if (!oD) return;
-
-      if (oD.getProperty("/__dirty")) {
-        this.onSaveLocal();
-      }
-
-      var oVm = this._getOVm();
-      var sCK = this._getDataCacheKey();
-
-      if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
-
-      var aRecordsAll = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
-      if (!aRecordsAll.length) {
-        MessageBox.warning("Nessun record trovato. Tornare alla schermata precedente e riprovare.");
-        return;
-      }
-
-      aRecordsAll = this._assignStableGuidBeforeSave(oD, oVm, sCK);
-
-      var oBuild = this._buildSavePayload(oD, oVm, sCK, aRecordsAll);
-      if (!oBuild) return;
-
-      this._log("onSaveToBackend payload", {
-        lines: oBuild.payload.PostDataCollection ? oBuild.payload.PostDataCollection.length : 0
-      });
-
-      this._executePostAndReload(oD, oVm, sCK, oBuild.proxy, oBuild.payload);
-    },
-
-    // Se il record corrente ha ancora un Guid locale (-new, NEW_, SYNTH_) lo
-    // sostituisce con un UUID stabile e propaga la sostituzione IN PLACE sulle
-    // cache VM. Senza persistere, ogni save rigenererebbe un Guid diverso →
-    // backend rejects con "Key exists with other guid".
-    _assignStableGuidBeforeSave: function (oD, oVm, sCK) {
-      function isLocalGuid(g) {
-        var s = String(g || "");
-        return !s || s.indexOf("NEW_") >= 0 || s.indexOf("SYNTH_") >= 0 || s.indexOf("-new") >= 0;
-      }
-
-      var sOldGuid = N.toStableString(oD.getProperty("/guidKey"));
-      var sStableGuid = isLocalGuid(sOldGuid) ? N.uuidv4() : sOldGuid;
-
-      function rewriteGuid(row) {
-        if (!row) return;
-        var g = N.toStableString(row.guidKey || row.Guid || row.GUID || "");
-        if (g !== sOldGuid) return;
-        row.Guid = sStableGuid;
-        row.GUID = sStableGuid;
-        row.guidKey = sStableGuid;
-      }
-
-      oD.setProperty("/guidKey", sStableGuid);
-
-      var aRecordsCache = oVm.getProperty("/cache/recordsByKey/" + sCK) || [];
-      aRecordsCache.forEach(rewriteGuid);
-      oVm.setProperty("/cache/recordsByKey/" + sCK, aRecordsCache);
-
-      var aDetailRowsCache = oVm.getProperty("/cache/dataRowsByKey/" + sCK) || [];
-      aDetailRowsCache.forEach(rewriteGuid);
-      oVm.setProperty("/cache/dataRowsByKey/" + sCK, aDetailRowsCache);
-
-      var aCurrentRows = oD.getProperty("/RowsAll") || [];
-      aCurrentRows.forEach(rewriteGuid);
-      oD.setProperty("/RowsAll", aCurrentRows);
-
-      return aRecordsCache;
-    },
-
-    // Costruisce proxy detail + payload di save, eseguendo la validazione dei
-    // campi obbligatori. Ritorna null se la validazione fallisce (errore già
-    // mostrato all'utente).
-    _buildSavePayload: function (oD, oVm, sCK, aRecordsAll) {
-      var sCat = String(oD.getProperty("/_mmct/cat") || "").trim();
-      var aS00 = sCat ? this._cfgForScreen(sCat, "00") : [];
-      var aS01 = sCat ? this._cfgForScreen(sCat, "01") : [];
-      var aS02 = sCat ? this._cfgForScreen(sCat, "02") : [];
-
-      var oProxyDetail = new JSONModel({
-        RecordsAll: aRecordsAll,
-        _mmct: { s00: aS00, s01: aS01, s02: aS02 },
-        __deletedLinesForPost: oVm.getProperty("/cache/__deletedLinesForPost_" + sCK) || []
-      });
-
-      var vr = SaveUtil.validateRequiredBeforePost({
-        oDetail: oProxyDetail, oVm: oVm,
-        getCacheKeySafe: this._getCacheKeySafe.bind(this),
-        getExportCacheKey: this._getDataCacheKey.bind(this),
-        toStableString: N.toStableString,
-        rowGuidKey: RecordsUtil.rowGuidKey,
-        getCodAgg: N.getCodAgg,
-        fromScreen: "S4"
-      });
-      if (!vr.ok) {
-        var top = vr.errors.slice(0, 15).map(function (e) {
-          return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
-        }).join("\n");
-        MessageBox.error("Compila tutti i campi obbligatori prima di salvare.\n\n" + top +
-          (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : ""));
-        oProxyDetail.destroy();
-        return null;
-      }
-
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var sVendor10 = N.normalizeVendor10(this._sVendorId);
-      var sMaterial = String(this._sMaterial || "").trim();
-
-      var oPayload = SaveUtil.buildSavePayload({
-        oDetail: oProxyDetail, oVm: oVm,
-        userId: sUserId, vendor10: sVendor10, material: sMaterial,
-        getExportCacheKey: this._getDataCacheKey.bind(this),
-        toStableString: N.toStableString,
-        getCodAgg: N.getCodAgg,
-        getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oProxyDetail); },
-        normalizeMultiString: N.normalizeMultiString,
-        uuidv4: N.uuidv4
-      });
-
-      return { proxy: oProxyDetail, payload: oPayload };
-    },
-
-    _executePostAndReload: function (oD, oVm, sCK, oProxyDetail, oPayload) {
-      var self = this;
-      var mock = (oVm && oVm.getProperty("/mock")) || {};
-
-      SaveUtil.executePost({
-        oModel: this.getOwnerComponent().getModel(),
-        payload: oPayload,
-        mock: !!mock.mockS4,
-        onSuccess: function () {
-          oProxyDetail.destroy();
-          oVm.setProperty("/cache/__deletedLinesForPost_" + sCK, []);
-          self._reloadAfterSaveAndNavBack(oD, oVm, sCK);
-        },
-        onPartialError: function (aErr) {
-          oProxyDetail.destroy();
-          PostUtil.showPostErrorMessagePage(aErr);
-        },
-        onFullError: function (oError) {
-          oProxyDetail.destroy();
-          MessageBox.error(N.getBackendErrorMessage(oError));
-        }
-      });
-    },
-
-    // Brute-force cache resync dopo un save: ricarica l'intero dataset dal
-    // backend e sostituisce completamente le cache VM. È l'unico modo sicuro
-    // di garantire che Screen3/Screen4 vedano i record persistiti con i Guid
-    // reali — qualsiasi update in-place è fragile per via dei riferimenti
-    // multipli (recordsByKey, dataRowsByKey, selectedScreen3Record, snapshot).
-    _reloadAfterSaveAndNavBack: function (oD, oVm, sCK) {
-      var self = this;
-
-      S4Loader.reloadDataFromBackend({
-        oVm: oVm,
-        oDataModel: this.getOwnerComponent().getModel(),
+      return Screen4SaveUtil.onSaveToBackend({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this._getOVm(),
+        cacheKey: this._getDataCacheKey(),
         vendorId: this._sVendorId,
         material: this._sMaterial,
-        catMateriale: (oVm && oVm.getProperty("/__noMatListCat")) || "",
-        season: (oVm && oVm.getProperty("/__currentSeason")) || "",
-        logFn: this._log.bind(this)
-      }, function (aFreshRows) {
-        aFreshRows = aFreshRows || [];
-
-        var sCat2 = S4Loader.pickCat(aFreshRows[0] || {});
-        var aFreshRecords = S4Loader.buildRecords01ForCache(
-          aFreshRows,
-          sCat2 ? self._cfgForScreen(sCat2, "01") : [],
-          oVm
-        );
-
-        oVm.setProperty("/cache/dataRowsByKey/" + sCK, aFreshRows);
-        oVm.setProperty("/cache/recordsByKey/" + sCK, aFreshRecords);
-        oVm.setProperty("/selectedScreen3Record", null);
-        oVm.setProperty("/__skipS3BackendOnce", true);
-        // __forceS3CacheReload: altrimenti Screen3 ribinda lo snapshot salvato
-        // (con il vecchio Guid locale) invece della cache appena ricostruita.
-        oVm.setProperty("/__forceS3CacheReload", true);
-
-        if (self._attachSyncInterval) {
-          clearInterval(self._attachSyncInterval);
-          self._attachSyncInterval = null;
-        }
-
-        oD.setProperty("/__dirty", false);
-        MessageToast.show("Dati salvati con successo");
-
-        self.getOwnerComponent().getRouter().navTo("Screen3", {
-          vendorId: encodeURIComponent(self._sVendorId),
-          material: encodeURIComponent(self._sMaterial),
-          mode: self._sMode || "A"
-        }, true);
+        mode: this._sMode || "A",
+        odataModel: this.getOwnerComponent().getModel(),
+        router: this.getOwnerComponent().getRouter(),
+        cfgForScreenFn: this._cfgForScreen.bind(this),
+        getCacheKeySafeFn: this._getCacheKeySafe.bind(this),
+        getDataCacheKeyFn: this._getDataCacheKey.bind(this),
+        updateVmRecordStatusFn: this._updateVmRecordStatus.bind(this),
+        setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        logFn: this._log.bind(this),
+        stopAttachmentPollingFn: this._stopAttachmentSyncPolling.bind(this)
       });
     },
 
@@ -1027,7 +800,7 @@ sap.ui.define([
       return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
     },
     onNavBack: function () {
-      if (this._attachSyncInterval) { clearInterval(this._attachSyncInterval); this._attachSyncInterval = null; }
+      this._stopAttachmentSyncPolling();
       this._markSkipS3BackendOnce();
       this._performNavBack();
     }

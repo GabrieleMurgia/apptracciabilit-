@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/statusUtil"
-], function (Filter, FilterOperator, BusyIndicator, MessageToast, N, StatusUtil) {
+  "apptracciabilita/apptracciabilita/util/statusUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (Filter, FilterOperator, BusyIndicator, MessageToast, N, StatusUtil, I18n) {
   "use strict";
 
   var validForce = ["ST", "AP", "RJ", "CH"];
@@ -69,7 +70,7 @@ sap.ui.define([
           var a = (oData && oData.results) || [];
           done(a);
         },
-        error: function () { BusyIndicator.hide(); MessageToast.show("Errore nel caricamento dei dettagli"); done([]); }
+        error: function () { BusyIndicator.hide(); MessageToast.show(I18n.text(null, "msg.detailLoadError", [], "Errore nel caricamento dei dettagli")); done([]); }
       });
     },
 

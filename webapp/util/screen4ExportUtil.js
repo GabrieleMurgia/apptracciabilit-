@@ -1,7 +1,8 @@
 sap.ui.define([
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (MessageToast, N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (MessageToast, N, I18n) {
   "use strict";
 
   var S4Export = {
@@ -12,7 +13,7 @@ sap.ui.define([
         var aCfg02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
 
         if (!Array.isArray(aRows) || !aRows.length) {
-          MessageToast.show("Nessun dato da stampare"); return;
+          MessageToast.show(I18n.text(null, "msg.noDataToPrint", [], "Nessun dato da stampare")); return;
         }
 
         var cols = (aCfg02 || []).map(function (f) { return { key: String(f.ui), label: String(f.label || f.ui) }; });
@@ -41,7 +42,7 @@ sap.ui.define([
         html.push("</tbody></table></body></html>");
 
         var w = window.open("", "_blank");
-        if (!w) { MessageToast.show("Popup bloccato dal browser"); return; }
+        if (!w) { MessageToast.show(I18n.text(null, "msg.popupBlockedByBrowser", [], "Popup bloccato dal browser")); return; }
         w.document.open();
         w.document.write(html.join(""));
         w.document.close();
@@ -49,7 +50,7 @@ sap.ui.define([
         w.print();
       } catch (e) {
         console.error("[S4] onPrint ERROR", e);
-        MessageToast.show("Errore stampa");
+        MessageToast.show(I18n.text(null, "msg.printError", [], "Errore stampa"));
       }
     },
 
@@ -58,7 +59,7 @@ sap.ui.define([
       var aCfg02 = (oDetail && oDetail.getProperty("/_mmct/s02")) || [];
 
       if (!Array.isArray(aRows) || !aRows.length) {
-        MessageToast.show("Nessun dato da esportare"); return;
+        MessageToast.show(I18n.text(null, "msg.noDataToExport", [], "Nessun dato da esportare")); return;
       }
 
       var sVendor = String((oDetail && oDetail.getProperty("/VendorId")) || "");
@@ -81,10 +82,10 @@ sap.ui.define([
           oSheet.build().finally(function () { oSheet.destroy(); });
         } catch (e) {
           console.error("[S4] Excel export ERROR", e);
-          MessageToast.show("Errore export Excel");
+          MessageToast.show(I18n.text(null, "msg.exportExcelError", [], "Errore export Excel"));
         }
       }, function () {
-        MessageToast.show("Libreria export non disponibile");
+        MessageToast.show(I18n.text(null, "msg.exportLibraryUnavailable", [], "Libreria export non disponibile"));
       });
     }
   };

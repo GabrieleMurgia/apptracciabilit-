@@ -9,8 +9,9 @@ sap.ui.define([
   "sap/m/Button",
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
-  "apptracciabilita/apptracciabilita/util/attachmentUtil"
-], function (HBox, Button, MessageBox, VmPaths, AttachmentUtil) {
+  "apptracciabilita/apptracciabilita/util/attachmentUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (HBox, Button, MessageBox, VmPaths, AttachmentUtil, I18n) {
   "use strict";
 
   function createAttachmentCellTemplate(sKey, oMeta, opts) {
@@ -80,7 +81,7 @@ sap.ui.define([
         var oRow = oCtx.getObject();
         var sGuid = String((oRow && (oRow.guidKey || oRow.Guid || oRow.GUID)) || "").trim();
         if (!sGuid) {
-          sap.m.MessageToast.show("GUID mancante");
+          sap.m.MessageToast.show(I18n.text(null, "msg.guidMissing", [], "GUID mancante"));
           return;
         }
 
@@ -272,7 +273,7 @@ sap.ui.define([
           sFieldValue = String(oCtx.getProperty(sKey) || "").trim();
         }
         if (!sFieldValue) {
-          MessageBox.warning("Nessun valore per il campo " + sKey);
+          MessageBox.warning(I18n.text(null, "msg.noValueForField", [sKey], "Nessun valore per il campo {0}"));
           return;
         }
 
@@ -290,7 +291,7 @@ sap.ui.define([
         }
 
         if (!oODataModel) {
-          MessageBox.error("Modello OData non disponibile");
+          MessageBox.error(I18n.text(null, "msg.odataModelUnavailable", [], "Modello OData non disponibile"));
           return;
         }
 
@@ -310,7 +311,7 @@ sap.ui.define([
             var sMimeType = (oData && oData.MimeType) || "application/octet-stream";
 
             if (!sContent) {
-              MessageBox.warning("Nessun file disponibile per \"" + sFieldValue + "\"");
+              MessageBox.warning(I18n.text(null, "msg.noFileAvailableForValue", [sFieldValue], "Nessun file disponibile per \"{0}\""));
               return;
             }
 
@@ -333,13 +334,13 @@ sap.ui.define([
               URL.revokeObjectURL(sUrl);
             } catch (e) {
               console.error("[attachmentCellTemplate] Download error", e);
-              MessageBox.error("Errore nel download del file");
+              MessageBox.error(I18n.text(null, "msg.fileDownloadError", [], "Errore nel download del file"));
             }
           },
           error: function (oError) {
             sap.ui.core.BusyIndicator.hide();
             console.error("[attachmentCellTemplate] GetFieldFileSet error", oError);
-            var sMsg = "Errore nel recupero del file";
+            var sMsg = I18n.text(null, "msg.fileFetchError", [], "Errore nel recupero del file");
             try {
               var oBody = JSON.parse(oError.responseText);
               sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;

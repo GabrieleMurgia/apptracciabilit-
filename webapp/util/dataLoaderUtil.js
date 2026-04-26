@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (BusyIndicator, MessageToast, Filter, FilterOperator, MmctUtil, N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (BusyIndicator, MessageToast, Filter, FilterOperator, MmctUtil, N, I18n) {
   "use strict";
 
   return {
@@ -150,7 +151,7 @@ sap.ui.define([
         .catch(function (oError) {
           BusyIndicator.hide();
           console.error("Errore lettura DataSet o VendorBatchSet", oError);
-          MessageToast.show("Errore nel caricamento dei dati");
+          MessageToast.show(I18n.text(null, "msg.dataLoadError", [], "Errore nel caricamento dei dati"));
           done([]);
         });
     },

@@ -5,8 +5,9 @@ sap.ui.define([
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
-  "apptracciabilita/apptracciabilita/util/statusUtil"
-], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, VmPaths, StatusUtil) {
+  "apptracciabilita/apptracciabilita/util/statusUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (exportLibrary, Spreadsheet, BusyIndicator, MessageToast, N, VmPaths, StatusUtil, I18n) {
   "use strict";
 
   var EdmType = exportLibrary.EdmType;
@@ -277,7 +278,7 @@ sap.ui.define([
         });
 
         if (!aData.length) {
-          MessageToast.show("Nessun dato dopo i filtri attivi");
+          MessageToast.show(I18n.text(null, "msg.noDataAfterActiveFilters", [], "Nessun dato dopo i filtri attivi"));
           return;
         }
 
@@ -295,11 +296,11 @@ sap.ui.define([
         });
 
         await oSheet.build();
-        MessageToast.show("Excel esportato");
+        MessageToast.show(I18n.text(null, "msg.excelExported", [], "Excel esportato"));
 
       } catch (e) {
         console.error("[S3] Export Excel ERROR", e);
-        MessageToast.show("Errore export Excel (vedi Console)");
+        MessageToast.show(I18n.text(null, "msg.exportExcelErrorSeeConsole", [], "Errore export Excel (vedi Console)"));
       } finally {
         BusyIndicator.hide();
       }

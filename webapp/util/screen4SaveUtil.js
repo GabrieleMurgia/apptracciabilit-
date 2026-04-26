@@ -4,11 +4,13 @@ sap.ui.define([
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/saveUtil",
-  "apptracciabilita/apptracciabilita/util/screen4LoaderUtil"
-], function (JSONModel, MessageToast, MessageBox, N, VmPaths, RecordsUtil, PostUtil, SaveUtil, S4Loader) {
+  "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (JSONModel, MessageToast, MessageBox, N, VmPaths, ScreenFlowStateUtil, RecordsUtil, PostUtil, SaveUtil, S4Loader, I18n) {
   "use strict";
 
   function buildValidationMessage(vr) {
@@ -16,8 +18,8 @@ sap.ui.define([
       return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
     }).join("\n");
 
-    return "Compila tutti i campi obbligatori prima di salvare.\n\n" + top +
-      (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : "");
+    return I18n.text(null, "msg.fillRequiredFieldsBeforeSave", [], "Compila tutti i campi obbligatori prima di salvare.\n\n") + top +
+      (vr.errors.length > 15 ? I18n.text(null, "msg.moreValidationErrors", [vr.errors.length - 15], "\n\n... altri {0} errori") : "");
   }
 
   return {
@@ -25,7 +27,7 @@ sap.ui.define([
       try {
         var oD = opts.detailModel;
         if (!oD) return;
-        if (!oD.getProperty("/__dirty")) { MessageToast.show("Nessuna modifica da salvare"); return; }
+        if (!oD.getProperty("/__dirty")) { MessageToast.show(I18n.text(null, "msg.noChangesToSave", [], "Nessuna modifica da salvare")); return; }
         if (!RecordsUtil.validatePercBeforeSave(oD, "/RowsAll")) return;
 
         var aRows = oD.getProperty("/RowsAll") || [];
@@ -48,10 +50,10 @@ sap.ui.define([
         opts.setSnapshotRowsFn(N.deepClone(aRows));
         oD.setProperty("/__dirty", false);
         opts.applyUiPermissionsFn();
-        MessageToast.show("Salvato (locale/cache)");
+        MessageToast.show(I18n.text(null, "msg.savedLocalCache", [], "Salvato (locale/cache)"));
       } catch (e) {
         console.error("[S4] onSaveLocal ERROR", e);
-        MessageToast.show("Errore salvataggio");
+        MessageToast.show(I18n.text(null, "msg.saveError", [], "Errore salvataggio"));
       }
     },
 
@@ -171,14 +173,15 @@ sap.ui.define([
       var oVm = opts.vmModel;
       var sCK = opts.cacheKey;
       var oD = opts.detailModel;
+      var oNoMatListCtx = ScreenFlowStateUtil.getNoMatListContext(oVm);
 
       S4Loader.reloadDataFromBackend({
         oVm: oVm,
         oDataModel: opts.odataModel,
         vendorId: opts.vendorId,
         material: opts.material,
-        catMateriale: (oVm && oVm.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "",
-        season: (oVm && oVm.getProperty(VmPaths.CURRENT_SEASON)) || "",
+        catMateriale: oNoMatListCtx.catMateriale,
+        season: ScreenFlowStateUtil.getCurrentSeason(oVm),
         logFn: opts.logFn
       }, function (aFreshRows) {
         aFreshRows = aFreshRows || [];
@@ -192,13 +195,13 @@ sap.ui.define([
 
         oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aFreshRows);
         oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aFreshRecords);
-        oVm.setProperty(VmPaths.SELECTED_SCREEN3_RECORD, null);
-        oVm.setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, true);
-        oVm.setProperty(VmPaths.FORCE_S3_CACHE_RELOAD, true);
+        ScreenFlowStateUtil.clearSelectedParentForScreen4(oVm);
+        ScreenFlowStateUtil.markReturnFromScreen4(oVm);
+        ScreenFlowStateUtil.markForceScreen3CacheReload(oVm);
 
         opts.stopAttachmentPollingFn();
         oD.setProperty("/__dirty", false);
-        MessageToast.show("Dati salvati con successo");
+        MessageToast.show(I18n.text(null, "msg.dataSavedSuccessfully", [], "Dati salvati con successo"));
 
         opts.router.navTo("Screen3", {
           vendorId: encodeURIComponent(opts.vendorId),
@@ -221,7 +224,7 @@ sap.ui.define([
       var sCK = opts.cacheKey;
       var aRecordsAll = oVm.getProperty(VmPaths.recordsByKeyPath(sCK)) || [];
       if (!aRecordsAll.length) {
-        MessageBox.warning("Nessun record trovato. Tornare alla schermata precedente e riprovare.");
+        MessageBox.warning(I18n.text(null, "msg.noRecordFoundRetryPreviousScreen", [], "Nessun record trovato. Tornare alla schermata precedente e riprovare."));
         return;
       }
 

@@ -7,8 +7,9 @@ sap.ui.define([
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/vmModelPaths"
-], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, VmPaths) {
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, ScreenFlowStateUtil, I18n) {
   "use strict";
 
   // Local helpers (use N.safeStr / N.lc from normalize.js)
@@ -162,13 +163,13 @@ sap.ui.define([
           var row = oJsonModel.getProperty(sPath);
           recomputeSupportFields(row);
           oJsonModel.refresh(true);
-          MessageToast.show("Stato aggiornato con successo");
+          MessageToast.show(I18n.text(this, "msg.statusUpdatedSuccessfully", [], "Stato aggiornato con successo"));
         },
         error: function (oError) {
           BusyIndicator.hide();
           oBtn.setEnabled(true);
           console.error("[Screen2] MaterialStatusSet POST error", oError);
-          MessageToast.show("Errore aggiornamento stato: " + N.getBackendErrorMessage(oError));
+          MessageToast.show(I18n.text(this, "msg.statusUpdateError", [N.getBackendErrorMessage(oError)], "Errore aggiornamento stato: {0}"));
         }
       });
     },
@@ -242,7 +243,7 @@ onTableSelectionChange: function (oEvent) {
     if (sStatus === "DMMY") {
     if(this.getView().getModel().getData().showMatStatusCol){
     oItem.setSelected(false);
-    MessageToast.show("Non puoi selezionare materiali con stato DMMY.");
+    MessageToast.show(I18n.text(this, "msg.cannotSelectDummyMaterials", [], "Non puoi selezionare materiali con stato DMMY."));
     }
     }
 },
@@ -261,7 +262,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
   var aSelectedItems = oTable.getSelectedItems() || [];
   if (aSelectedItems.length === 0) {
-    MessageToast.show("Seleziona almeno un materiale.");
+    MessageToast.show(I18n.text(this, "msg.selectAtLeastOneMaterial", [], "Seleziona almeno un materiale."));
     return;
   }
 
@@ -283,8 +284,8 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   if (aRows.length === 0) {
     MessageToast.show(
       sTarget === "RELE"
-        ? "Nessun record BLOCCATO (LOCK) selezionato."
-        : "Nessun record SBLOCCATO (RELE) selezionato."
+        ? I18n.text(this, "msg.noLockedRecordSelected", [], "Nessun record BLOCCATO (LOCK) selezionato.")
+        : I18n.text(this, "msg.noUnlockedRecordSelected", [], "Nessun record SBLOCCATO (RELE) selezionato.")
     );
     return;
   }
@@ -340,13 +341,13 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   // ====== 4) CAPISCO HEADER + NAV + ITEM TYPE ======
   var esMass = findEntitySet("MassMaterialStatusSet");
   if (!esMass) {
-    MessageToast.show("MassMaterialStatusSet non trovato nel metadata runtime.");
+    MessageToast.show(I18n.text(this, "msg.massMaterialStatusSetNotFound", [], "MassMaterialStatusSet non trovato nel metadata runtime."));
     return;
   }
 
   var etMass = findEntityType(esMass.entityType);
   if (!etMass) {
-    MessageToast.show("EntityType di MassMaterialStatusSet non trovato nel metadata runtime.");
+    MessageToast.show(I18n.text(this, "msg.massMaterialStatusEntityTypeNotFound", [], "EntityType di MassMaterialStatusSet non trovato nel metadata runtime."));
     return;
   }
 
@@ -356,7 +357,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   var pHeaderVendor = pickProp(aHeaderProps, ["Fornitore", "Vendor", "Lifnr", "VENDOR"]);
   if (!pHeaderVendor) {
     console.warn("[Screen2] Mass header props:", aHeaderProps);
-    MessageToast.show("Metadata MassMaterialStatusSet: non trovo la property Vendor/Fornitore. Controlla console.");
+    MessageToast.show(I18n.text(this, "msg.massMaterialStatusVendorPropertyMissing", [], "Metadata MassMaterialStatusSet: non trovo la property Vendor/Fornitore. Controlla console."));
     return;
   }
 
@@ -366,7 +367,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
   if (!sNavName) {
     console.warn("[Screen2] Mass header props:", aHeaderProps, "navs:", aNavs);
-    MessageToast.show("MassMaterialStatusSet non ha navigation property per passare l'array (deep insert). Controlla console.");
+    MessageToast.show(I18n.text(this, "msg.massMaterialStatusNavigationMissing", [], "MassMaterialStatusSet non ha navigation property per passare l'array (deep insert). Controlla console."));
     return;
   }
 
@@ -374,21 +375,21 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
   var assoc = oNav && findAssociation(oNav.relationship);
   if (!assoc) {
     console.warn("[Screen2] Nav:", oNav);
-    MessageToast.show("Non riesco a risalire all'associazione della navigation property (vedi console).");
+    MessageToast.show(I18n.text(this, "msg.navigationAssociationNotResolved", [], "Non riesco a risalire all'associazione della navigation property (vedi console)."));
     return;
   }
 
   var endTo = (assoc.end || []).find(function (e) { return e.role === oNav.toRole; });
   if (!endTo || !endTo.type) {
     console.warn("[Screen2] Assoc:", assoc, "nav:", oNav);
-    MessageToast.show("Non riesco a risalire al tipo degli item della lista (vedi console).");
+    MessageToast.show(I18n.text(this, "msg.navigationItemTypeNotResolved", [], "Non riesco a risalire al tipo degli item della lista (vedi console)."));
     return;
   }
 
   var etItem = findEntityType(endTo.type);
   if (!etItem) {
     console.warn("[Screen2] Item type:", endTo.type);
-    MessageToast.show("EntityType item della lista non trovato (vedi console).");
+    MessageToast.show(I18n.text(this, "msg.navigationItemEntityTypeNotFound", [], "EntityType item della lista non trovato (vedi console)."));
     return;
   }
 
@@ -401,7 +402,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
   if (!pItemMat || !pItemStatus) {
     console.warn("[Screen2] Mass item props:", aItemProps, "itemType:", etItem.name);
-    MessageToast.show("Metadata item non compatibile: non trovo Material(e) e/o Status (vedi console).");
+    MessageToast.show(I18n.text(this, "msg.navigationItemMetadataIncompatible", [], "Metadata item non compatibile: non trovo Material(e) e/o Status (vedi console)."));
     return;
   }
 
@@ -434,7 +435,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
 
       this._loadMaterials();
 
-      MessageToast.show("Operazione massiva completata (" + aItemsPayload.length + ")");
+      MessageToast.show(I18n.text(this, "msg.massOperationCompleted", [aItemsPayload.length], "Operazione massiva completata ({0})"));
     }.bind(this),
 
     error: function (oError) {
@@ -449,7 +450,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
         navUsed: sNavName
       });
 
-      MessageToast.show("Errore operazione massiva: " + N.getBackendErrorMessage(oError));
+      MessageToast.show(I18n.text(this, "msg.massOperationError", [N.getBackendErrorMessage(oError)], "Errore operazione massiva: {0}"));
     }.bind(this)
   });
 },
@@ -472,7 +473,7 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       ];
 
       // Category filter passed from Screen1
-      var sSelectedCat = (oVm && oVm.getProperty("/__selectedCatMateriale")) || "";
+      var sSelectedCat = ScreenFlowStateUtil.getSelectedCatMateriale(oVm);
       if (sSelectedCat) {
         aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
       }
@@ -626,10 +627,7 @@ if (!oItem) return;
           bNoMatList = true;
         }
       }
-      if (oVm) {
-        oVm.setProperty(VmPaths.NO_MAT_LIST_MODE, bNoMatList);
-        oVm.setProperty(VmPaths.NO_MAT_LIST_CAT, bNoMatList ? sCatMateriale : "");
-      }
+      ScreenFlowStateUtil.setNoMatListContext(oVm, bNoMatList, sCatMateriale);
       if (bNoMatList) {
         this._log("NoMatList attivo per categoria", sCatMateriale, "-> Screen3 con filtro categoria");
       }

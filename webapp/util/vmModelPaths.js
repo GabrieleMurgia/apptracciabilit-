@@ -20,6 +20,8 @@ sap.ui.define([], function () {
     NO_MAT_LIST_MODE: "/__noMatListMode",
     NO_MAT_LIST_CAT: "/__noMatListCat",
     CURRENT_SEASON: "/__currentSeason",
+    SELECTED_CAT_MATERIALE: "/__selectedCatMateriale",
+    VENDOR_CACHE_STALE: "/__vendorCacheStale",
 
     dataRowsByKeyPath: function (sCacheKey) {
       return DATA_ROWS_BY_KEY_ROOT + sCacheKey;

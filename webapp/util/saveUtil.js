@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/m/MessageBox",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
-  "apptracciabilita/apptracciabilita/util/postUtil"
-], function (BusyIndicator, MessageToast, MessageBox, N, VmPaths, PostUtil) {
+  "apptracciabilita/apptracciabilita/util/postUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (BusyIndicator, MessageToast, MessageBox, N, VmPaths, PostUtil, I18n) {
   "use strict";
 
   return {
@@ -462,7 +463,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
       var onFullError = opts.onFullError;
 
       if (!oPayload.PostDataCollection || !oPayload.PostDataCollection.length) {
-        MessageToast.show("Nessuna riga da salvare");
+        MessageToast.show(I18n.text(null, "msg.noRowsToSave", [], "Nessuna riga da salvare"));
         return;
       }
 
@@ -485,7 +486,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
             return;
           }
 
-          MessageToast.show("Salvataggio completato");
+          MessageToast.show(I18n.text(null, "msg.saveCompleted", [], "Salvataggio completato"));
           if (onSuccess) onSuccess(oData);
         },
 

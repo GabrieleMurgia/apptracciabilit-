@@ -1,7 +1,8 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/statusUtil"
-], function (N, StatusUtil) {  
+  "apptracciabilita/apptracciabilita/util/statusUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (N, StatusUtil, I18n) {  
   "use strict";
 
   var toStableString = N.toStableString;
@@ -415,8 +416,8 @@ sap.ui.define([
       if (!result.ok) {
         var lines = result.errors.map(function (e) { return "- " + e.field + ": " + e.sum + "%"; });
         sap.m.MessageBox.error(
-          "La somma percentuale supera il 100%.\nCorreggi i valori prima di salvare.\n\n" + lines.join("\n"),
-          { title: "Errore Validazione" }
+          I18n.text(null, "msg.percentageSumOver100Error", [], "La somma percentuale supera il 100%.\nCorreggi i valori prima di salvare.\n\n") + lines.join("\n"),
+          { title: I18n.text(null, "title.validationError", [], "Errore Validazione") }
         );
         return false;
       }
@@ -503,7 +504,7 @@ sap.ui.define([
       }
       if (!result.ok && opts.showToast !== false) {
         var parts = result.errors.map(function (e) { return "\"" + e.field + "\": " + e.sum + "%"; });
-        sap.m.MessageToast.show("Attenzione: somma percentuale supera 100% (" + parts.join(", ") + ")", { duration: 3000, width: "25em" });
+        sap.m.MessageToast.show(I18n.text(null, "msg.percentageSumOver100Toast", [parts.join(", ")], "Attenzione: somma percentuale supera 100% ({0})"), { duration: 3000, width: "25em" });
       }
       return result;
     },

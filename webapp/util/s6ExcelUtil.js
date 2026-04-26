@@ -45,6 +45,158 @@ sap.ui.define([
     "DescMat", "MatCatDesc", "DestUso", "QtaFibra", "UmFibra"
   ];
 
+  function getNumericFieldNames() {
+    return NUMERIC_FIELDS.slice();
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Screen6 UI-facing pure helpers
+  // ──────────────────────────────────────────────────────────────────────
+
+  function buildCategoryList(mCats, aMmct) {
+    var aCatKeys = Object.keys(mCats || {});
+
+    if (!aCatKeys.length) {
+      var aSeen = {};
+      (aMmct || []).forEach(function (cat) {
+        var sCat = String(cat && (cat.CatMateriale || cat.CATMATERIALE || cat.Categoria || "") || "").trim();
+        if (!sCat || aSeen[sCat]) return;
+        aSeen[sCat] = true;
+        aCatKeys.push(sCat);
+      });
+    }
+
+    return aCatKeys.map(function (k) {
+      var sDesc = "";
+      (aMmct || []).some(function (cat) {
+        var sCat = String(cat && (cat.CatMateriale || cat.CATMATERIALE || "") || "").trim();
+        if (sCat !== k) return false;
+        sDesc = String(cat.CatMaterialeDesc || cat.DescCatMateriale || cat.MatCatDesc || cat.Description || "").trim();
+        return true;
+      });
+      return { key: k, text: sDesc ? (k + " – " + sDesc) : k };
+    }).sort(function (a, b) {
+      return a.text.localeCompare(b.text);
+    });
+  }
+
+  function decorateUploadedRows(aRows, fnGenGuid) {
+    var iNow = Date.now();
+    return (aRows || []).map(function (r, i) {
+      r.__readOnly = false;
+      r.__isNew = true;
+      r.CodAgg = "I";
+      r.Stato = "ST";
+      r.idx = i;
+      r.guidKey = fnGenGuid ? fnGenGuid() : ("EXCEL-" + iNow + "-" + i);
+      return r;
+    });
+  }
+
+  function extractCheckResponseLines(oData) {
+    if (oData && oData.PostDataCollection && oData.PostDataCollection.results) {
+      return oData.PostDataCollection.results;
+    }
+    if (oData && oData.PostDataCollection && Array.isArray(oData.PostDataCollection)) {
+      return oData.PostDataCollection;
+    }
+    return [];
+  }
+
+  function applyCheckResponse(aRows, oData) {
+    var aRespLines = extractCheckResponseLines(oData);
+    var iErrors = 0;
+
+    (aRows || []).forEach(function (row, idx) {
+      var oResp = aRespLines[idx] || {};
+      var sEsito = String(oResp.Esito || oResp.esito || oResp.ESITO || "").trim().toUpperCase();
+      var sMessage = String(oResp.Message || oResp.message || oResp.MESSAGE || oResp.Messaggio || "").trim();
+
+      if (sEsito === "E" || sEsito === "ERROR" || sEsito === "KO") {
+        row.__checkEsito = "Errore";
+        row.__checkMessage = sMessage || "Errore";
+        row.__checkHasError = true;
+        iErrors++;
+        return;
+      }
+
+      if (sEsito === "W" || sEsito === "WARNING") {
+        row.__checkEsito = "Attenzione";
+        row.__checkMessage = sMessage || "Attenzione";
+        row.__checkHasError = false;
+        return;
+      }
+
+      if (sEsito === "S" || sEsito === "OK" || sEsito === "SUCCESS" || sEsito === "") {
+        row.__checkEsito = "OK";
+        row.__checkMessage = sMessage || "OK";
+        row.__checkHasError = false;
+        return;
+      }
+
+      row.__checkEsito = sEsito || "Errore";
+      row.__checkMessage = sMessage || "Esito sconosciuto: " + sEsito;
+      row.__checkHasError = true;
+      iErrors++;
+    });
+
+    return {
+      errorCount: iErrors,
+      checkPassed: iErrors === 0,
+      checkDone: true
+    };
+  }
+
+  function buildPreviewConfig(aRawFields) {
+    var aNums = getNumericFieldNames();
+    var mSeen = Object.create(null);
+    var aCfgAll = [];
+
+    (aRawFields || []).forEach(function (f) {
+      var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
+      if (!sUi) return;
+
+      var sKey = sUi.toUpperCase();
+      if (mSeen[sKey]) return;
+      mSeen[sKey] = true;
+
+      var sImp = String(f.Impostazione || "").trim().toUpperCase();
+      if (sImp === "N") return;
+
+      aCfgAll.push({
+        ui: sUi,
+        label: String(f.UiFieldLabel || f.Descrizione || sUi).trim(),
+        domain: String(f.Dominio || "").trim(),
+        required: sImp === "O",
+        locked: sImp === "B",
+        attachment: sImp === "A",
+        download: sImp === "D",
+        multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X",
+        order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999,
+        numeric: aNums.indexOf(sUi) >= 0
+      });
+    });
+
+    aCfgAll.sort(function (a, b) {
+      return (a.order || 9999) - (b.order || 9999);
+    });
+
+    return {
+      cfgAll: aCfgAll,
+      props: aCfgAll.map(function (f) {
+        var sName = String(f.ui || "").trim();
+        if (sName.toUpperCase() === "STATO") sName = "Stato";
+        return {
+          name: sName,
+          label: f.label || sName,
+          dataType: "String",
+          domain: f.domain || "",
+          required: !!f.required
+        };
+      })
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────────────
   // Excel → MMCT mapping
   // ──────────────────────────────────────────────────────────────────────
@@ -306,10 +458,32 @@ sap.ui.define([
     return aErrors;
   }
 
+  function validateRequiredRows(aRows, aRawFields) {
+    var aRequired = collectRequiredFields(aRawFields);
+    var aErrors = findMissingRequiredPerRow(aRows, aRequired);
+    return {
+      required: aRequired,
+      errors: aErrors,
+      ok: aErrors.length === 0
+    };
+  }
+
+  function filterRowsWithoutCheckErrors(aRows) {
+    return (aRows || []).filter(function (r) {
+      return !r.__checkHasError;
+    });
+  }
+
   return {
+    buildCategoryList: buildCategoryList,
+    decorateUploadedRows: decorateUploadedRows,
     mapExcelToMmctFields: mapExcelToMmctFields,
     buildPayloadLines: buildPayloadLines,
+    applyCheckResponse: applyCheckResponse,
+    buildPreviewConfig: buildPreviewConfig,
     collectRequiredFields: collectRequiredFields,
-    findMissingRequiredPerRow: findMissingRequiredPerRow
+    findMissingRequiredPerRow: findMissingRequiredPerRow,
+    validateRequiredRows: validateRequiredRows,
+    filterRowsWithoutCheckErrors: filterRowsWithoutCheckErrors
   };
 });

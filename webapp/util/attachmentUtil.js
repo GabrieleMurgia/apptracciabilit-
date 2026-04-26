@@ -26,11 +26,12 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "sap/ui/core/BusyIndicator",
-  "sap/ui/model/json/JSONModel"
+  "sap/ui/model/json/JSONModel",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
 ], function (
   Dialog, Button, List, CustomListItem,
   HBox, VBox, Text, Link, Label, TextArea,
-  MessageToast, MessageBox, BusyIndicator, JSONModel
+  MessageToast, MessageBox, BusyIndicator, JSONModel, I18n
 ) {
   "use strict";
 
@@ -147,7 +148,7 @@ sap.ui.define([
       success: function (oData) {
         BusyIndicator.hide();
         if (!oData) {
-          MessageToast.show("Nessun dato ricevuto per l'allegato");
+          MessageToast.show(I18n.text(null, "msg.noAttachmentDataReceived", [], "Nessun dato ricevuto per l'allegato"));
           return;
         }
 
@@ -157,7 +158,7 @@ sap.ui.define([
         var sName = oData.FileName || sFileName || "download";
 
         if (!sContent) {
-          MessageToast.show("Il file non contiene dati");
+          MessageToast.show(I18n.text(null, "msg.attachmentFileContainsNoData", [], "Il file non contiene dati"));
           return;
         }
 
@@ -182,13 +183,13 @@ sap.ui.define([
           setTimeout(function () { URL.revokeObjectURL(sUrl); }, 5000);
         } catch (e) {
           console.error("[AttachmentUtil] download decode error", e);
-          MessageToast.show("Errore durante il download del file");
+          MessageToast.show(I18n.text(null, "msg.fileDownloadError", [], "Errore durante il download del file"));
         }
       },
       error: function (oError) {
         BusyIndicator.hide();
         console.error("[AttachmentUtil] downloadAttachment error", oError);
-        MessageToast.show("Errore durante il download dell'allegato");
+        MessageToast.show(I18n.text(null, "msg.attachmentDownloadError", [], "Errore durante il download dell'allegato"));
       }
     });
   }
@@ -224,12 +225,12 @@ sap.ui.define([
     return new Promise(function (resolve, reject) {
       oModel.create("/AttachmentSet", oPayload, {
         success: function (oData) {
-          MessageToast.show("Allegato caricato: " + (opts.fileName || ""));
+          MessageToast.show(I18n.text(null, "msg.attachmentUploaded", [opts.fileName || ""], "Allegato caricato: {0}"));
           resolve(oData);
         },
         error: function (oError) {
           console.error("[AttachmentUtil] uploadAttachment error", oError);
-          MessageBox.error("Errore durante il caricamento dell'allegato.");
+          MessageBox.error(I18n.text(null, "msg.attachmentUploadError", [], "Errore durante il caricamento dell'allegato."));
           reject(oError);
         }
       });
@@ -251,12 +252,12 @@ sap.ui.define([
     return new Promise(function (resolve, reject) {
       oModel.remove(sPath, {
         success: function () {
-          MessageToast.show("Allegato eliminato: " + (opts.fileName || ""));
+          MessageToast.show(I18n.text(null, "msg.attachmentDeleted", [opts.fileName || ""], "Allegato eliminato: {0}"));
           resolve();
         },
         error: function (oError) {
           console.error("[AttachmentUtil] deleteAttachment error", oError);
-          MessageBox.error("Errore durante l'eliminazione dell'allegato.");
+          MessageBox.error(I18n.text(null, "msg.attachmentDeleteError", [], "Errore durante l'eliminazione dell'allegato."));
           reject(oError);
         }
       });
@@ -366,7 +367,7 @@ sap.ui.define([
 
 
     if (!sGuid) {
-      MessageToast.show("GUID mancante, impossibile caricare gli allegati");
+      MessageToast.show(I18n.text(null, "msg.guidMissingCannotLoadAttachments", [], "GUID mancante, impossibile caricare gli allegati"));
       return;
     }
 
@@ -454,7 +455,7 @@ sap.ui.define([
                     if (!oCtx) return;
                     var oAtt = oCtx.getObject();
                     MessageBox.confirm(
-                      "Eliminare \"" + (oAtt.FileName || "") + "\"?",
+                      I18n.text(null, "msg.confirmDeleteAttachment", [oAtt.FileName || ""], "Eliminare \"{0}\"?"),
                       {
                         onClose: function (sAction) {
                           if (sAction !== MessageBox.Action.OK) return;

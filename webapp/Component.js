@@ -1,9 +1,10 @@
 sap.ui.define([
         "sap/ui/core/UIComponent",
+        "sap/ui/core/Core",
         "sap/ui/Device",
         "apptracciabilita/apptracciabilita/model/models"
     ],
-    function (UIComponent, Device, models) {
+    function (UIComponent, Core, Device, models) {
         "use strict";
 
         return UIComponent.extend("apptracciabilita.apptracciabilita.Component", {
@@ -18,6 +19,10 @@ sap.ui.define([
             
             init: function () {
                 UIComponent.prototype.init.apply(this, arguments);
+
+                if (this.getModel("i18n")) {
+                    Core.setModel(this.getModel("i18n"), "i18n");
+                }
 
                 // ── Dynamic year for legal footer ──
                 var sYear = String(new Date().getFullYear());

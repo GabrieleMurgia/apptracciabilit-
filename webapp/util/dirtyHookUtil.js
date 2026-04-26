@@ -6,8 +6,9 @@
  * suggestions, uniqueness check per vendor batch.
  */
 sap.ui.define([
-  "sap/m/MessageBox"
-], function (MessageBox) {
+  "sap/m/MessageBox",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (MessageBox, I18n) {
   "use strict";
 
   function hookDirtyOnEdit(oCtrl, hookOpts) {
@@ -198,7 +199,7 @@ sap.ui.define([
           if (bDuplicate) {
             var oldValDup = _normStr(src.data("__oldVal"));
             MessageBox.error(
-              "Il Vendor Batch \"" + newVal + "\" è già presente in un altro record.\nInserisci un valore univoco."
+              I18n.text(null, "msg.vendorBatchAlreadyPresent", [newVal], "Il Vendor Batch \"{0}\" è già presente in un altro record.\nInserisci un valore univoco.")
             );
             try {
               if (src.data) src.data("__skipConfirmOnce", true);
@@ -213,7 +214,7 @@ sap.ui.define([
           var oldVal = _normStr(src.data("__oldVal"));
 
           MessageBox.confirm(
-            "Il valore \"" + newVal + "\" non è presente nei valori previsti per \"" + rel + "\".\nVuoi inserirlo comunque?",
+            I18n.text(null, "msg.valueNotInExpectedList", [newVal, rel], "Il valore \"{0}\" non è presente nei valori previsti per \"{1}\".\nVuoi inserirlo comunque?"),
             {
               actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
               emphasizedAction: MessageBox.Action.OK,

@@ -2,8 +2,9 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "sap/ui/core/BusyIndicator"
-], function (BaseController, Filter, FilterOperator, BusyIndicator) {
+  "sap/ui/core/BusyIndicator",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil"
+], function (BaseController, Filter, FilterOperator, BusyIndicator, ScreenFlowStateUtil) {
   "use strict";
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen1", {
@@ -53,7 +54,7 @@ sap.ui.define([
           oVm.setProperty("/UserInfosVend", aVend);
 
           // Invalidate Screen0's cached promise so it reloads too
-          oVm.setProperty("/__vendorCacheStale", true);
+          ScreenFlowStateUtil.markVendorCacheStale(oVm);
 
           // Build categories list with descriptions for ComboBox
           self._buildCategoriesList(aVend);
@@ -133,9 +134,7 @@ sap.ui.define([
       // Save CatMateriale from the clicked row to pass to Screen2
       var sCatFromRow = String(oCtx.getProperty("CatMateriale") || "").trim();
       var oVm = this.getOwnerComponent().getModel("vm");
-      if (oVm) {
-        oVm.setProperty("/__selectedCatMateriale", sCatFromRow);
-      }
+      ScreenFlowStateUtil.setSelectedCatMateriale(oVm, sCatFromRow);
 
       var oRouter = this.getOwnerComponent().getRouter();
       oRouter.navTo("Screen2", {

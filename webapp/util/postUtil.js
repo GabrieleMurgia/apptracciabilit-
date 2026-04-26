@@ -7,8 +7,9 @@
  * → import directly from "apptracciabilita/apptracciabilita/util/normalize"
  */
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (N, I18n) {
   "use strict";
 
   return {
@@ -200,9 +201,9 @@ sap.ui.define([
       }
       var sHead = parts.length ? (" (" + parts.join(" - ") + ")") : "";
 
-      var sToast = "Salvataggio NON completato: " + sMsg0 + sHead;
+      var sToast = I18n.text(null, "msg.saveNotCompleted", [sMsg0 + sHead], "Salvataggio NON completato: {0}");
       if (aErr.length > 1) {
-        sToast += " (+ altri " + (aErr.length - 1) + ")";
+        sToast += I18n.text(null, "msg.morePostErrors", [aErr.length - 1], " (+ altri {0})");
       }
 
       sap.m.MessageToast.show(sToast, { duration: 6000, width: "30em" });

@@ -24,14 +24,15 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
   BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
   Filter, FilterOperator, MdcColumn, HBox, ObjectStatus, StateUtil,
   N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, ExportUtil, RecordsUtil, DataLoaderUtil,
-  FilterSortUtil, MmctUtil, TableColumnAutoSize
+  FilterSortUtil, MmctUtil, TableColumnAutoSize, I18n
 ) {
   "use strict";
 
@@ -130,7 +131,7 @@ sap.ui.define([
       var oDetail = this.getView().getModel("detail");
       var sCat = String(oDetail.getProperty("/selectedCat") || "").trim();
       if (!sCat) {
-        MessageToast.show("Seleziona una Categoria Materiale");
+        MessageToast.show(I18n.text(this, "msg.selectMaterialCategory", [], "Seleziona una Categoria Materiale"));
         return;
       }
 
@@ -165,7 +166,6 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S5] DataSet read ERROR", oError);
-          /* MessageBox.error("Errore nel caricamento dati per categoria " + sCat); */
           MessageBox.error(N.getBackendErrorMessage(oError));
         }
       });
@@ -507,10 +507,10 @@ _bindTable: async function (aRows) {
     // ==================== EXPORT ====================
     onExportExcel: async function () {
       var oDetail = this.getView().getModel("detail");
-      if (!oDetail.getProperty("/__loaded")) { MessageToast.show("Nessun dato da esportare"); return; }
+      if (!oDetail.getProperty("/__loaded")) { MessageToast.show(I18n.text(this, "msg.noDataToExport", [], "Nessun dato da esportare")); return; }
 
       var aRows = oDetail.getProperty("/Rows") || [];
-      if (!aRows.length) { MessageToast.show("Nessuna riga da esportare (controlla i filtri)"); return; }
+      if (!aRows.length) { MessageToast.show(I18n.text(this, "msg.noRowsToExportCheckFilters", [], "Nessuna riga da esportare (controlla i filtri)")); return; }
 
       try {
         BusyIndicator.show(0);
@@ -612,10 +612,10 @@ _bindTable: async function (aRows) {
         var oSheet = new Spreadsheet(oSettings);
         await oSheet.build();
         oSheet.destroy();
-        MessageToast.show("Excel esportato");
+        MessageToast.show(I18n.text(this, "msg.excelExported", [], "Excel esportato"));
       } catch (e) {
         console.error("[S5] Export error", e);
-        MessageToast.show("Errore export Excel");
+        MessageToast.show(I18n.text(this, "msg.exportExcelError", [], "Errore export Excel"));
       } finally {
         BusyIndicator.hide();
       }

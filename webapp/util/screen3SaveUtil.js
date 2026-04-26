@@ -5,8 +5,9 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/saveUtil",
-  "apptracciabilita/apptracciabilita/util/rowErrorUtil"
-], function (MessageBox, N, VmPaths, RecordsUtil, PostUtil, SaveUtil, RowErrorUtil) {
+  "apptracciabilita/apptracciabilita/util/rowErrorUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (MessageBox, N, VmPaths, RecordsUtil, PostUtil, SaveUtil, RowErrorUtil, I18n) {
   "use strict";
 
   function buildValidationMessage(vr) {
@@ -14,8 +15,8 @@ sap.ui.define([
       return "- [" + e.page + "] " + e.label + " (Riga: " + (e.row || "?") + ")";
     }).join("\n");
 
-    return "Compila tutti i campi obbligatori prima di salvare.\n\n" + top +
-      (vr.errors.length > 15 ? "\n\n... altri " + (vr.errors.length - 15) + " errori" : "");
+    return I18n.text(null, "msg.fillRequiredFieldsBeforeSave", [], "Compila tutti i campi obbligatori prima di salvare.\n\n") + top +
+      (vr.errors.length > 15 ? I18n.text(null, "msg.moreValidationErrors", [vr.errors.length - 15], "\n\n... altri {0} errori") : "");
   }
 
   return {

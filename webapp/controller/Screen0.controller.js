@@ -3,8 +3,10 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/core/BusyIndicator",
   "sap/m/MessageToast",
-  "apptracciabilita/apptracciabilita/util/normalize"
-], function (Controller, JSONModel, BusyIndicator, MessageToast, N) {
+  "apptracciabilita/apptracciabilita/util/normalize",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (Controller, JSONModel, BusyIndicator, MessageToast, N, ScreenFlowStateUtil, I18n) {
   "use strict";
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.Screen0", {
@@ -261,9 +263,8 @@ sap.ui.define([
 
     _ensureVendorsLoaded: function () {
       var oVm = this.getOwnerComponent().getModel("vm");
-      if (oVm && oVm.getProperty("/__vendorCacheStale")) {
+      if (ScreenFlowStateUtil.consumeVendorCacheStale(oVm)) {
         this._vendorPromise = null;
-        oVm.setProperty("/__vendorCacheStale", false);
       }
 
       if (this._vendorPromise) return this._vendorPromise;
@@ -314,7 +315,7 @@ sap.ui.define([
           var sVendorId = oV && (oV.Fornitore || oV.VENDOR || oV.Lifnr);
 
           if (!sVendorId) {
-            MessageToast.show("Nessun fornitore trovato per navigare a Screen2");
+            MessageToast.show(I18n.text(this, "msg.noVendorForScreen2", [], "Nessun fornitore trovato per navigare a Screen2"));
             console.error("[Screen0] Fornitore senza userVendors/UserInfosVend");
             oRouter.navTo("Screen1", { mode: "A" });
             return;
@@ -331,7 +332,7 @@ sap.ui.define([
       }).catch(function (err) {
         console.error("[Screen0] onPressFlowA vendor load failed", err);
         MessageToast.show(N.getBackendErrorMessage(err));
-      });
+      }.bind(this));
     },
 
     onPressFlowB: function () {

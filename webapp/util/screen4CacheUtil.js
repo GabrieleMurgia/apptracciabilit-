@@ -1,17 +1,18 @@
 sap.ui.define([
-  "apptracciabilita/apptracciabilita/util/vmModelPaths"
-], function (VmPaths) {
+  "apptracciabilita/apptracciabilita/util/vmModelPaths",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil"
+], function (VmPaths, ScreenFlowStateUtil) {
   "use strict";
 
   var Screen4CacheUtil = {
 
     setSelectedParentForScreen4: function (oParentOrNull, oVm, oComponent) {
-      oVm.setProperty(VmPaths.SELECTED_SCREEN3_RECORD, oParentOrNull || null);
+      ScreenFlowStateUtil.setSelectedParentForScreen4(oVm, oParentOrNull || null);
       oComponent.setModel(oVm, "vm");
     },
 
     getSelectedParentForScreen4: function (oVm) {
-      return oVm ? oVm.getProperty(VmPaths.SELECTED_SCREEN3_RECORD) : null;
+      return ScreenFlowStateUtil.getSelectedParentForScreen4(oVm);
     },
 
     ensureScreen4CacheForParentIdx: function (iIdx, sGuid, oVm, sCacheKeySafe) {

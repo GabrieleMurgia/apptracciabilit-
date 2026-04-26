@@ -20,11 +20,13 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize"
+  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
 ], function (
   BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
   N, VmPaths, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize
+  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
@@ -318,11 +320,12 @@ sap.ui.define([
         return;
       }
 
+      var oNoMatListCtx = ScreenFlowStateUtil.getNoMatListContext(oVm);
       S4Loader.reloadDataFromBackend({
         oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
         vendorId: this._sVendorId, material: this._sMaterial,
-        catMateriale: (oVm && oVm.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "",
-        season: (oVm && oVm.getProperty(VmPaths.CURRENT_SEASON)) || "",
+        catMateriale: oNoMatListCtx.catMateriale,
+        season: ScreenFlowStateUtil.getCurrentSeason(oVm),
         logFn: this._log.bind(this)
       }, function (aRes) {
         aAllRows = Array.isArray(aRes) ? aRes : [];
@@ -341,7 +344,7 @@ sap.ui.define([
       var iIdx = parseInt(this._sRecordKey, 10);
       if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
 
-      var oSel = oVm.getProperty(VmPaths.SELECTED_SCREEN3_RECORD) || null;
+      var oSel = ScreenFlowStateUtil.getSelectedParentForScreen4(oVm);
       if (oSel) aRecords[iIdx] = oSel;
       oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecords);
 
@@ -557,7 +560,7 @@ sap.ui.define([
       if (oMdc && oMdc.initialized) oMdc.initialized().then(function () { self._injectHeaderFilters("toggle"); });
       else self._injectHeaderFilters("toggle");
       MdcTableUtil.setInnerHeaderHeight(MdcTableUtil.getInnerTableFromMdc(oMdc), bNew);
-      MessageToast.show(bNew ? "Filtri colonna mostrati" : "Filtri colonna nascosti");
+      MessageToast.show(I18n.text(this, bNew ? "msg.columnFiltersShown" : "msg.columnFiltersHidden", [], bNew ? "Filtri colonna mostrati" : "Filtri colonna nascosti"));
     },
     onResetFiltersAndSort: function () {
       var self = this;
@@ -566,7 +569,7 @@ sap.ui.define([
         table: this.byId("mdcTable4"),
         forceP13nFn: function (t, r) { P13nUtil.forceP13nAllVisible(t, StateUtil, self._log.bind(self), r); }
       });
-      MessageToast.show("Filtri/ordinamento resettati");
+      MessageToast.show(I18n.text(this, "msg.filtersAndSortReset", [], "Filtri/ordinamento resettati"));
     },
     _getCfg02Map: function () {
       var m = {}; (this.getView().getModel("detail").getProperty("/_mmct/s02") || []).forEach(function (f) { if (f && f.ui) m[f.ui.trim()] = f; }); return m;
@@ -600,12 +603,12 @@ sap.ui.define([
     onDeleteRows: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canEdit")) { MessageToast.show("Non hai permessi per eliminare righe"); return; }
-        var aSel = this._getSelectedRowObjects(); if (!aSel.length) { MessageToast.show("Seleziona almeno una riga"); return; }
+        if (!oD.getProperty("/__canEdit")) { MessageToast.show(I18n.text(this, "msg.noPermissionDeleteRows", [], "Non hai permessi per eliminare righe")); return; }
+        var aSel = this._getSelectedRowObjects(); if (!aSel.length) { MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRow", [], "Seleziona almeno una riga")); return; }
         var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) return;
         var mSel = {}; aSel.forEach(function (r) { if (r && r.__localId) mSel[r.__localId] = true; });
         var aRem = aAll.filter(function (r) { if (r && r.__localId && mSel[r.__localId]) return false; return aSel.indexOf(r) < 0; });
-        if (!aRem.length) { MessageToast.show("Non puoi eliminare tutte le righe"); return; }
+        if (!aRem.length) { MessageToast.show(I18n.text(this, "msg.cannotDeleteAllRows", [], "Non puoi eliminare tutte le righe")); return; }
 
         var sRole = String(oD.getProperty("/__role") || "").trim().toUpperCase();
         if (sRole === "E" && String(oD.getProperty("/__status") || "").toUpperCase() !== "AP") {
@@ -619,15 +622,15 @@ sap.ui.define([
         oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC.concat(aRem));
         this._applyUiPermissions(); this._applyFiltersAndSort();
         var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
-        MessageToast.show("Righe eliminate");
-      } catch (e) { console.error("[S4] onDeleteRows ERROR", e); MessageToast.show("Errore eliminazione righe"); }
+        MessageToast.show(I18n.text(this, "msg.rowsDeleted", [], "Righe eliminate"));
+      } catch (e) { console.error("[S4] onDeleteRows ERROR", e); MessageToast.show(I18n.text(this, "msg.deleteRowsError", [], "Errore eliminazione righe")); }
     },
 
     onAddRow: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per aggiungere righe"); return; }
-        var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show("Nessuna riga di base"); return; }
+        if (!oD.getProperty("/__canAddRow")) { MessageToast.show(I18n.text(this, "msg.noPermissionAddRows", [], "Non hai permessi per aggiungere righe")); return; }
+        var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show(I18n.text(this, "msg.noBaseRow", [], "Nessuna riga di base")); return; }
 
         var oBase = aAll[0] || {};
         var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
@@ -689,19 +692,19 @@ sap.ui.define([
         MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
 
         this._syncAttachmentCounters();
-        MessageToast.show("Riga aggiunta");
-      } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show("Errore aggiunta riga"); }
+        MessageToast.show(I18n.text(this, "msg.rowAdded", [], "Riga aggiunta"));
+      } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show(I18n.text(this, "msg.addRowError", [], "Errore aggiunta riga")); }
     },
 
     // ==================== COPY ROW ====================
     onCopyRow: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canAddRow")) { MessageToast.show("Non hai permessi per copiare righe"); return; }
+        if (!oD.getProperty("/__canAddRow")) { MessageToast.show(I18n.text(this, "msg.noPermissionCopyRows", [], "Non hai permessi per copiare righe")); return; }
 
         var aSel = this._getSelectedRowObjects();
-        if (!aSel.length) { MessageToast.show("Seleziona una riga da copiare"); return; }
-        if (aSel.length > 1) { MessageToast.show("Seleziona una sola riga da copiare"); return; }
+        if (!aSel.length) { MessageToast.show(I18n.text(this, "msg.selectRowToCopy", [], "Seleziona una riga da copiare")); return; }
+        if (aSel.length > 1) { MessageToast.show(I18n.text(this, "msg.selectSingleRowToCopy", [], "Seleziona una sola riga da copiare")); return; }
 
         var oSource = aSel[0];
         var oNew = N.deepClone(oSource) || {};
@@ -747,8 +750,8 @@ sap.ui.define([
         MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
 
         this._syncAttachmentCounters();
-        MessageToast.show("Riga copiata");
-      } catch (e) { console.error("[S4] onCopyRow ERROR", e); MessageToast.show("Errore copia riga"); }
+        MessageToast.show(I18n.text(this, "msg.rowCopied", [], "Riga copiata"));
+      } catch (e) { console.error("[S4] onCopyRow ERROR", e); MessageToast.show(I18n.text(this, "msg.copyRowError", [], "Errore copia riga")); }
     },
 
     // ==================== SAVE ====================
@@ -790,7 +793,7 @@ sap.ui.define([
     onExportExcel: function () { S4Export.onExportExcel(this.getView().getModel("detail")); },
 
     // ==================== NAVIGATION ====================
-    _markSkipS3BackendOnce: function () { this._getOVm().setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, true); },
+    _markSkipS3BackendOnce: function () { ScreenFlowStateUtil.markReturnFromScreen4(this._getOVm()); },
     _getNavBackFallback: function () {
       return { route: "Screen3", params: { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), mode: this._sMode || "A" } };
     },

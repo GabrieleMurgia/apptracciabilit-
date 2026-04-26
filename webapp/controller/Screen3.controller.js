@@ -27,6 +27,8 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4CacheUtil",
   "apptracciabilita/apptracciabilita/util/touchCodAggUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
   BaseController, JSONModel, MessageToast,
@@ -34,7 +36,7 @@ sap.ui.define([
   N, VmPaths, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
   Screen3SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
-  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize
+  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
@@ -83,9 +85,10 @@ __noMatListMode: false
 
       // ── NoMatList: rileva flag impostato da Screen2 ──
       var oVmNM = this.getOwnerComponent().getModel("vm");
-      this._bNoMatListMode = !!(oVmNM && oVmNM.getProperty(VmPaths.NO_MAT_LIST_MODE));
-      this._sNoMatListCat = (oVmNM && oVmNM.getProperty(VmPaths.NO_MAT_LIST_CAT)) || "";
-      if (oVmNM) oVmNM.setProperty(VmPaths.CURRENT_SEASON, this._sSeason || "");
+      var oNoMatListCtx = ScreenFlowStateUtil.getNoMatListContext(oVmNM);
+      this._bNoMatListMode = oNoMatListCtx.enabled;
+      this._sNoMatListCat = oNoMatListCtx.catMateriale;
+      ScreenFlowStateUtil.setCurrentSeason(oVmNM, this._sSeason || "");
       if (this._bNoMatListMode) {
         this._log("NoMatList MODE attivo -> mostro anche template, add/copy/delete disabilitati, filtro per categoria:", this._sNoMatListCat);
       }
@@ -95,8 +98,8 @@ __noMatListMode: false
         self._log("_onRouteMatched args", oArgs);
 
 var oVm = self.getOwnerComponent().getModel("vm");
-        var bReturningFromS4 = !!oVm.getProperty(VmPaths.SKIP_S3_BACKEND_ONCE);
-        var bForceCacheReload = !!oVm.getProperty(VmPaths.FORCE_S3_CACHE_RELOAD);
+        var bReturningFromS4 = ScreenFlowStateUtil.shouldSkipScreen3BackendOnce(oVm);
+        var bForceCacheReload = ScreenFlowStateUtil.shouldForceScreen3CacheReload(oVm);
 
         // If Screen4 just saved, the snapshot contains stale data with old
         // local Guids. Ignore it and use the fresh VM cache instead.
@@ -107,7 +110,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
         if (bForceCacheReload) {
           self._snapshotRecords = null;
           self._originalSnapshot = null;
-          oVm.setProperty(VmPaths.FORCE_S3_CACHE_RELOAD, false);
+          ScreenFlowStateUtil.consumeForceScreen3CacheReload(oVm);
         } else {
           self._snapshotRecords = null;
           if (!bReturningFromS4) {
@@ -156,8 +159,7 @@ var oVm = self.getOwnerComponent().getModel("vm");
       var sKey = this._getExportCacheKey();
       var aRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || null;
       var aRecs = oVm.getProperty(VmPaths.recordsByKeyPath(sKey)) || null;
-      var bSkip = !!oVm.getProperty(VmPaths.SKIP_S3_BACKEND_ONCE);
-      if (bSkip) oVm.setProperty(VmPaths.SKIP_S3_BACKEND_ONCE, false);
+      var bSkip = ScreenFlowStateUtil.consumeSkipScreen3BackendOnce(oVm);
       var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
 
       if (bHasCache) {
@@ -629,8 +631,8 @@ var oVm = self.getOwnerComponent().getModel("vm");
     // ==================== ADD ROW ====================
     onAddRow: function () {
       var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-      if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show("Non hai permessi per aggiungere righe");
+      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
+      if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show(I18n.text(this, "msg.noPermissionAddRows", [], "Non hai permessi per aggiungere righe"));
 
       var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
      
@@ -638,7 +640,7 @@ var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: 
 var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
 
       if (!aTplRows || !aTplRows.length) {
-        MessageToast.show("Template mancante: non esiste una riga con CodAgg = \"N\" da usare come modello");
+        MessageToast.show(I18n.text(this, "msg.templateRowMissingForAdd", [], "Template mancante: non esiste una riga con CodAgg = \"N\" da usare come modello"));
         return;
       }
 
@@ -672,22 +674,22 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
         MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
       }
 
-      MessageToast.show("Riga aggiunta");
+      MessageToast.show(I18n.text(this, "msg.rowAdded", [], "Riga aggiunta"));
     },
 
     // ==================== COPY ROW ====================
     onCopyRow: function () {
       var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
-      if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show("Non hai permessi per copiare righe");
+      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
+      if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show(I18n.text(this, "msg.noPermissionCopyRows", [], "Non hai permessi per copiare righe"));
 
       var aSel = this._getSelectedParentObjectsFromMdc();
-      if (!aSel.length) return MessageToast.show("Seleziona un record da copiare");
-      if (aSel.length > 1) return MessageToast.show("Seleziona un solo record da copiare");
+      if (!aSel.length) return MessageToast.show(I18n.text(this, "msg.selectRecordToCopy", [], "Seleziona un record da copiare"));
+      if (aSel.length > 1) return MessageToast.show(I18n.text(this, "msg.selectSingleRecordToCopy", [], "Seleziona un solo record da copiare"));
 
       var oSource = aSel[0];
       var sSourceGuid = N.toStableString(oSource.guidKey || oSource.Guid || oSource.GUID || "");
-      if (!sSourceGuid) return MessageToast.show("Record senza Guid, impossibile copiare");
+      if (!sSourceGuid) return MessageToast.show(I18n.text(this, "msg.recordWithoutGuidCannotCopy", [], "Record senza Guid, impossibile copiare"));
 
       var oVm = this._getOVm();
       var sCacheKey = this._getExportCacheKey();
@@ -696,7 +698,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var aSourceRaws = aRawAll.filter(function (r) {
         return N.toStableString(RecordsUtil.rowGuidKey(r)) === sSourceGuid;
       });
-      if (!aSourceRaws.length) return MessageToast.show("Nessuna riga dettaglio trovata per questo record");
+      if (!aSourceRaws.length) return MessageToast.show(I18n.text(this, "msg.noDetailRowsForRecord", [], "Nessuna riga dettaglio trovata per questo record"));
 
       var aAll = oDetail.getProperty("/RecordsAll") || [];
       var iMax = -1;
@@ -733,18 +735,18 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
       var iNewRowIndex = aFiltered.length - 1;
       if (iNewRowIndex >= 0) MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
 
-      MessageToast.show("Record copiato (" + oClone.raws.length + " righe dettaglio)");
+      MessageToast.show(I18n.text(this, "msg.recordCopiedWithDetailRows", [oClone.raws.length], "Record copiato ({0} righe dettaglio)"));
     },
 
     // ==================== DELETE ROWS ====================
     onDeleteRows: function () {
       var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show("Model 'detail' non trovato");
+      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
       var aSel = this._getSelectedParentObjectsFromMdc();
-      if (!aSel.length) return MessageToast.show("Seleziona almeno una riga da eliminare");
-      if (!RowManagementUtil.canDeleteSelectedRows(aSel).canDelete) return MessageToast.show("Non puoi eliminare partita fornitore approvati");
+      if (!aSel.length) return MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRowToDelete", [], "Seleziona almeno una riga da eliminare"));
+      if (!RowManagementUtil.canDeleteSelectedRows(aSel).canDelete) return MessageToast.show(I18n.text(this, "msg.cannotDeleteApprovedVendorBatch", [], "Non puoi eliminare partita fornitore approvati"));
       var aIdxToRemove = RowManagementUtil.getIdxToRemove(aSel);
-      if (!aIdxToRemove.length) return MessageToast.show("Nessun idx valido nelle righe selezionate");
+      if (!aIdxToRemove.length) return MessageToast.show(I18n.text(this, "msg.noValidIdxInSelectedRows", [], "Nessun idx valido nelle righe selezionate"));
 
       var aDeletedParents = oDetail.getProperty("/__deletedParents") || [];
       aSel.forEach(function (r) { var g = (r && (r.GUID || r.Guid || r.guidKey)) || ""; if (g && String(g).indexOf("-new") < 0) aDeletedParents.push(r); });
@@ -766,7 +768,7 @@ var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
 
       this._applyClientFilters();
       this._clearSelectionMdc();
-      MessageToast.show("Righe eliminate");
+      MessageToast.show(I18n.text(this, "msg.rowsDeleted", [], "Righe eliminate"));
     },
 
     // ==================== SAVE ====================

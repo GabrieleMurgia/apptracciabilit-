@@ -24,8 +24,9 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
-  "apptracciabilita/apptracciabilita/util/p13nUtil"
-], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, VmPaths, MdcTableUtil, FilterSortUtil, P13nUtil) {
+  "apptracciabilita/apptracciabilita/util/p13nUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
+], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, VmPaths, MdcTableUtil, FilterSortUtil, P13nUtil, I18n) {
   "use strict";
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.BaseController", {
@@ -235,9 +236,9 @@ sap.ui.define([
       if (typeof this._hasUnsavedChanges === "function" && this._hasUnsavedChanges()) {
         var self = this;
         sap.m.MessageBox.warning(
-          "Hai modificato i dati. Sei sicuro di voler uscire senza salvare?",
+          I18n.text(this, "msg.unsavedChangesWarning", [], "Hai modificato i dati. Sei sicuro di voler uscire senza salvare?"),
           {
-            title: "Modifiche non salvate",
+            title: I18n.text(this, "title.unsavedChanges", [], "Modifiche non salvate"),
             actions: [sap.m.MessageBox.Action.OK, sap.m.MessageBox.Action.CANCEL],
             emphasizedAction: sap.m.MessageBox.Action.CANCEL,
             onClose: function (s) {
@@ -298,15 +299,15 @@ sap.ui.define([
     onApprove: function () {
       var aSelected = this._getSelectedRowsForApproval();
       if (!aSelected.length) {
-        sap.m.MessageToast.show("Seleziona almeno un record da approvare");
+        sap.m.MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRecordToApprove", [], "Seleziona almeno un record da approvare"));
         return;
       }
 
       var self = this;
       sap.m.MessageBox.confirm(
-        "Vuoi approvare " + aSelected.length + " record selezionati?",
+        I18n.text(this, "msg.confirmApproveRecords", [aSelected.length], "Vuoi approvare {0} record selezionati?"),
         {
-          title: "Conferma Approvazione",
+          title: I18n.text(this, "title.confirmApprove", [], "Conferma Approvazione"),
           onClose: function (sAction) {
             if (sAction === sap.m.MessageBox.Action.OK) {
               self._applyStatusChange(aSelected, "AP", "");
@@ -322,7 +323,7 @@ sap.ui.define([
     onReject: function () {
       var aSelected = this._getSelectedRowsForApproval();
       if (!aSelected.length) {
-        sap.m.MessageToast.show("Seleziona almeno un record da rifiutare");
+        sap.m.MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRecordToReject", [], "Seleziona almeno un record da rifiutare"));
         return;
       }
 
@@ -335,12 +336,12 @@ sap.ui.define([
         this._oRejectNoteTA = new sap.m.TextArea({
           width: "100%",
           rows: 4,
-          placeholder: "Descrivi il motivo del rifiuto...",
+          placeholder: I18n.text(this, "placeholder.rejectReason", [], "Descrivi il motivo del rifiuto..."),
           valueLiveUpdate: true
         });
 
         this._oRejectDialog = new sap.m.Dialog({
-          title: "Rifiuta Record",
+          title: I18n.text(this, "title.rejectRecord", [], "Rifiuta Record"),
           type: "Message",
           state: "Warning",
           content: [
@@ -352,12 +353,12 @@ sap.ui.define([
             })
           ],
           beginButton: new sap.m.Button({
-            text: "Rifiuta",
+            text: I18n.text(this, "action.reject", [], "Rifiuta"),
             type: "Reject",
             press: function () {
               var sNote = (self._oRejectNoteTA.getValue() || "").trim();
               if (!sNote) {
-                sap.m.MessageToast.show("Il motivo del rifiuto è obbligatorio");
+                sap.m.MessageToast.show(I18n.text(self, "msg.rejectReasonRequired", [], "Il motivo del rifiuto è obbligatorio"));
                 return;
               }
               self._oRejectDialog.close();
@@ -368,7 +369,7 @@ sap.ui.define([
             }
           }),
           endButton: new sap.m.Button({
-            text: "Annulla",
+            text: I18n.text(this, "action.cancel", [], "Annulla"),
             press: function () {
               self._oRejectDialog.close();
               self._pendingRejectSelection = null;
@@ -501,7 +502,12 @@ sap.ui.define([
       }
 
       sap.m.MessageToast.show(
-        aSelected.length + " record " + (sNewStatus === "AP" ? "approvati" : "rifiutati") + ". Premi Salva per confermare."
+        I18n.text(
+          this,
+          "msg.statusAppliedSavePrompt",
+          [aSelected.length, (sNewStatus === "AP" ? "approvati" : "rifiutati")],
+          "{0} record {1}. Premi Salva per confermare."
+        )
       );
     },
 

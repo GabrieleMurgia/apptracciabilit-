@@ -21,14 +21,15 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/s6ExcelUtil"
+  "apptracciabilita/apptracciabilita/util/s6ExcelUtil",
+  "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
   BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
   Filter, FilterOperator, MdcColumn, HBox, Text, StateUtil,
   N, Domains, MdcTableUtil, P13nUtil,
   FilterSortUtil, MmctUtil, TableColumnAutoSize,
-  PostUtil, RecordsUtil, S6Excel
+  PostUtil, RecordsUtil, S6Excel, I18n
 ) {
   "use strict";
 
@@ -72,35 +73,8 @@ sap.ui.define([
 
     _buildCategoriesList: function () {
       var oVm = this.getOwnerComponent().getModel("vm");
-      var mCats = oVm.getProperty("/mmctFieldsByCat") || {};
-      var aCatKeys = Object.keys(mCats);
-
-      if (!aCatKeys.length) {
-        var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
-        var catSeen = {};
-        (aMMCT || []).forEach(function (cat) {
-          var c = String(cat && (cat.CatMateriale || cat.CATMATERIALE || cat.Categoria || "") || "").trim();
-          if (c && !catSeen[c]) { catSeen[c] = true; aCatKeys.push(c); }
-        });
-      }
-
-      var aCatList = aCatKeys.map(function (k) {
-        var sDesc = "";
-        try {
-          var aMMCTSrc = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
-          (aMMCTSrc || []).some(function (cat) {
-            var c = String(cat && (cat.CatMateriale || cat.CATMATERIALE || "") || "").trim();
-            if (c === k) {
-              sDesc = String(cat.CatMaterialeDesc || cat.DescCatMateriale || cat.MatCatDesc || cat.Description || "").trim();
-              return true;
-            }
-            return false;
-          });
-        } catch (e) {}
-        return { key: k, text: sDesc ? (k + " – " + sDesc) : k };
-      });
-
-      aCatList.sort(function (a, b) { return a.text.localeCompare(b.text); });
+      var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
+      var aCatList = S6Excel.buildCategoryList(oVm.getProperty("/mmctFieldsByCat") || {}, aMMCT);
       oVm.setProperty("/userCategoriesList", aCatList);
     },
 
@@ -113,7 +87,7 @@ sap.ui.define([
     onDownloadTemplate: function () {
       var sCat = this._getSelectedCat();
       if (!sCat) {
-        MessageToast.show("Seleziona una categoria materiale");
+        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
         return;
       }
 
@@ -133,7 +107,7 @@ sap.ui.define([
           var sMimeType = (oData && oData.MimeType) || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
           if (!sContent) {
-            MessageBox.warning("Nessun template disponibile per la categoria \"" + sCat + "\"");
+            MessageBox.warning(I18n.text(this, "msg.noTemplateForCategory", [sCat], "Nessun template disponibile per la categoria \"{0}\""));
             return;
           }
 
@@ -153,10 +127,10 @@ sap.ui.define([
             oLink.click();
             document.body.removeChild(oLink);
             URL.revokeObjectURL(sUrl);
-            MessageToast.show("Template scaricato: " + sFileName);
+            MessageToast.show(I18n.text(this, "msg.templateDownloaded", [sFileName], "Template scaricato: {0}"));
           } catch (e) {
             console.error("[S6] Download template error", e);
-            MessageBox.error("Errore nel download del template");
+            MessageBox.error(I18n.text(this, "msg.templateDownloadError", [], "Errore nel download del template"));
           }
         },
         error: function (oError) {
@@ -171,7 +145,7 @@ sap.ui.define([
     onDownloadMaterialList: function () {
       var sCat = this._getSelectedCat();
       if (!sCat) {
-        MessageToast.show("Seleziona una categoria materiale");
+        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
         return;
       }
 
@@ -186,7 +160,7 @@ sap.ui.define([
           var aResults = (oData && oData.results) || [];
           if (!aResults.length) {
             BusyIndicator.hide();
-            MessageToast.show("Nessun materiale nuovo trovato per la categoria " + sCat);
+            MessageToast.show(I18n.text(this, "msg.noNewMaterialForCategory", [sCat], "Nessun materiale nuovo trovato per la categoria {0}"));
             return;
           }
 
@@ -196,9 +170,9 @@ sap.ui.define([
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] ExcelMaterialListSet error", oError);
-          MessageBox.error("Errore nel caricamento della lista materiali");
+          MessageBox.error(I18n.text(this, "msg.materialListLoadError", [], "Errore nel caricamento della lista materiali"));
         }
-      });
+      }.bind(this));
     },
 
     _exportMaterialListToExcel: async function (aResults, sCat) {
@@ -292,10 +266,10 @@ sap.ui.define([
 
         await oSheet.build();
         oSheet.destroy();
-        MessageToast.show("Lista materiali esportata (" + aData.length + " righe)");
+        MessageToast.show(I18n.text(this, "msg.materialListExported", [aData.length], "Lista materiali esportata ({0} righe)"));
       } catch (e) {
         console.error("[S6] Export material list error", e);
-        MessageBox.error("Errore nell'esportazione della lista materiali");
+        MessageBox.error(I18n.text(this, "msg.materialListExportError", [], "Errore nell'esportazione della lista materiali"));
       } finally {
         BusyIndicator.hide();
       }
@@ -307,7 +281,7 @@ sap.ui.define([
 
       var sCat = this._getSelectedCat();
       if (!sCat) {
-        MessageToast.show("Seleziona una categoria materiale prima di caricare il file");
+        MessageToast.show(I18n.text(this, "msg.selectCategoryBeforeUpload", [], "Seleziona una categoria materiale prima di caricare il file"));
         this.byId("fileUploader6").clear();
         return;
       }
@@ -319,8 +293,8 @@ sap.ui.define([
         self._parseExcelFile(oFile, sCat);
       }).catch(function (err) {
         console.error("[S6] XLSX load error", err);
-        MessageBox.error("Errore nel caricamento della libreria XLSX. Assicurarsi che xlsx.full.min.js sia disponibile.");
-      });
+        MessageBox.error(I18n.text(this, "msg.xlsxLibraryLoadError", [], "Errore nel caricamento della libreria XLSX. Assicurarsi che xlsx.full.min.js sia disponibile."));
+      }.bind(this));
     },
 
     _ensureXlsxLoaded: function () {
@@ -374,14 +348,14 @@ sap.ui.define([
           var sFirstSheet = workbook.SheetNames[0];
           if (!sFirstSheet) {
             BusyIndicator.hide();
-            MessageBox.error("Il file Excel non contiene fogli");
+            MessageBox.error(I18n.text(this, "msg.excelHasNoSheets", [], "Il file Excel non contiene fogli"));
             return;
           }
 
           var aJsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[sFirstSheet], { defval: "" });
           if (!aJsonRows.length) {
             BusyIndicator.hide();
-            MessageToast.show("Nessuna riga trovata nel file");
+            MessageToast.show(I18n.text(this, "msg.noRowsFoundInFile", [], "Nessuna riga trovata nel file"));
             return;
           }
 
@@ -391,14 +365,7 @@ sap.ui.define([
           var aMapped = self._mapExcelToMmctFields(aJsonRows, sCat);
 
           // Mark all rows as new + editable
-          aMapped.forEach(function (r, i) {
-            r.__readOnly = false;
-            r.__isNew = true;
-            r.CodAgg = "I";
-            r.Stato = "ST";
-            r.idx = i;
-            r.guidKey = N.genGuidNew ? N.genGuidNew() : ("EXCEL-" + Date.now() + "-" + i);
-          });
+          S6Excel.decorateUploadedRows(aMapped, N.genGuidNew);
 
           // ── Auto-check via CheckDataSet, then populate ──
           self._executeCheck(aMapped, sCat);
@@ -406,14 +373,14 @@ sap.ui.define([
         } catch (ex) {
           BusyIndicator.hide();
           console.error("[S6] Excel parse error", ex);
-          MessageBox.error("Errore nella lettura del file Excel:\n" + ex.message);
+          MessageBox.error(I18n.text(this, "msg.excelReadErrorWithMessage", [ex.message], "Errore nella lettura del file Excel:\n{0}"));
         }
-      };
+      }.bind(this);
 
       oReader.onerror = function () {
         BusyIndicator.hide();
-        MessageBox.error("Errore nella lettura del file");
-      };
+        MessageBox.error(I18n.text(this, "msg.fileReadError", [], "Errore nella lettura del file"));
+      }.bind(this);
 
       oReader.readAsArrayBuffer(oFile);
     },
@@ -468,24 +435,24 @@ sap.ui.define([
           var iTotal = aRows.length;
 
           if (iErrors === 0) {
-            MessageToast.show(iTotal + " righe verificate: tutte OK");
+            MessageToast.show(I18n.text(this, "msg.checkAllOk", [iTotal], "{0} righe verificate: tutte OK"));
           } else {
             // Build per-row error detail like Screen3/4
             var aErrDetails = [];
             aRows.forEach(function (r, idx) {
               if (r.__checkHasError) {
-                aErrDetails.push("Riga " + (idx + 1) + ": " + (r.__checkMessage || "Errore"));
+                aErrDetails.push(I18n.text(this, "msg.rowErrorDetail", [idx + 1, (r.__checkMessage || I18n.text(this, "msg.errorGenericShort", [], "Errore"))], "Riga {0}: {1}"));
               }
-            });
-            var sMsg = "Verifica completata: " + iErrors + " righe con errori su " + iTotal + " totali.\n\n";
+            }.bind(this));
+            var sMsg = I18n.text(this, "msg.checkCompletedWithErrorsHeader", [iErrors, iTotal], "Verifica completata: {0} righe con errori su {1} totali.\n\n");
             sMsg += aErrDetails.slice(0, 15).join("\n");
             if (aErrDetails.length > 15) {
-              sMsg += "\n\n... e altre " + (aErrDetails.length - 15) + " righe con errori.";
+              sMsg += I18n.text(this, "msg.moreErrorRows", [aErrDetails.length - 15], "\n\n... e altre {0} righe con errori.");
             }
-            sMsg += "\n\nCorreggere gli errori e ricaricare il file, oppure procedere con le sole righe valide.";
+            sMsg += I18n.text(this, "msg.checkCompletedWithErrorsFooter", [], "\n\nCorreggere gli errori e ricaricare il file, oppure procedere con le sole righe valide.");
             MessageBox.warning(sMsg);
           }
-        },
+        }.bind(this),
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] CHECK error", oError);
@@ -506,46 +473,11 @@ sap.ui.define([
 
     _processCheckResponse: function (aRows, oData) {
       var oDetail = this.getView().getModel("detail");
-      var aRespLines = [];
+      var oCheckState = S6Excel.applyCheckResponse(aRows, oData);
 
-      if (oData && oData.PostDataCollection && oData.PostDataCollection.results) {
-        aRespLines = oData.PostDataCollection.results;
-      } else if (oData && oData.PostDataCollection && Array.isArray(oData.PostDataCollection)) {
-        aRespLines = oData.PostDataCollection;
-      }
-
-      var iErrors = 0;
-
-      aRows.forEach(function (row, idx) {
-        var oResp = aRespLines[idx] || {};
-        var sEsito = String(oResp.Esito || oResp.esito || oResp.ESITO || "").trim().toUpperCase();
-        var sMessage = String(oResp.Message || oResp.message || oResp.MESSAGE || oResp.Messaggio || "").trim();
-
-        if (sEsito === "E" || sEsito === "ERROR" || sEsito === "KO") {
-          row.__checkEsito = "Errore";
-          row.__checkMessage = sMessage || "Errore";
-          row.__checkHasError = true;
-          iErrors++;
-        } else if (sEsito === "W" || sEsito === "WARNING") {
-          row.__checkEsito = "Attenzione";
-          row.__checkMessage = sMessage || "Attenzione";
-          row.__checkHasError = false;
-        } else if (sEsito === "S" || sEsito === "OK" || sEsito === "SUCCESS" || sEsito === "") {
-          row.__checkEsito = "OK";
-          row.__checkMessage = sMessage || "OK";
-          row.__checkHasError = false;
-        } else {
-          // Unknown esito: treat as error to be safe
-          row.__checkEsito = sEsito || "Errore";
-          row.__checkMessage = sMessage || "Esito sconosciuto: " + sEsito;
-          row.__checkHasError = true;
-          iErrors++;
-        }
-      });
-
-      oDetail.setProperty("/checkErrorCount", iErrors);
-      oDetail.setProperty("/checkPassed", iErrors === 0);
-      oDetail.setProperty("/checkDone", true);
+      oDetail.setProperty("/checkErrorCount", oCheckState.errorCount);
+      oDetail.setProperty("/checkPassed", oCheckState.checkPassed);
+      oDetail.setProperty("/checkDone", oCheckState.checkDone);
     },
 
     // ==================== CHECK ERROR ROW HIGHLIGHTING ====================
@@ -608,40 +540,8 @@ sap.ui.define([
       // Set category and hydrate MMCT
       oDetail.setProperty("/_mmct/cat", sCat);
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-
-      // Build column config from raw MMCT fields (same logic as Screen5)
-      var seen = Object.create(null);
-      var aCfgAll = [];
-
-      aRawFields.forEach(function (f) {
-        var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-        if (!ui) return;
-        var k = ui.toUpperCase();
-        if (seen[k]) return;
-        seen[k] = true;
-        var imp = String(f.Impostazione || "").trim().toUpperCase();
-        if (imp === "N") return; // hidden
-        aCfgAll.push({
-          ui: ui,
-          label: String(f.UiFieldLabel || f.Descrizione || ui).trim(),
-          domain: String(f.Dominio || "").trim(),
-          required: imp === "O",
-          locked: imp === "B",
-          attachment: imp === "A",
-          download: imp === "D",
-          multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X",
-          order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999,
-          numeric: (function () {
-            var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-            var aNum = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
-                        "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
-            return aNum.indexOf(sUi) >= 0;
-          })()
-        });
-      });
-
-      // Sort by Ordinamento
-      aCfgAll.sort(function (a, b) { return (a.order || 9999) - (b.order || 9999); });
+      var oPreviewCfg = S6Excel.buildPreviewConfig(aRawFields);
+      var aCfgAll = oPreviewCfg.cfgAll;
 
       // Set rows
       oDetail.setProperty("/RowsAll", aRows);
@@ -649,12 +549,7 @@ sap.ui.define([
       oDetail.setProperty("/RowsCount", aRows.length);
 
       // Set MDC config
-      var aProps = aCfgAll.map(function (f) {
-        var name = String(f.ui || "").trim();
-        if (name.toUpperCase() === "STATO") name = "Stato";
-        return { name: name, label: f.label || name, dataType: "String", domain: f.domain || "", required: !!f.required };
-      });
-      oVm.setProperty("/mdcCfg/screen6", { modelName: "detail", collectionPath: "/Rows", properties: aProps });
+      oVm.setProperty("/mdcCfg/screen6", { modelName: "detail", collectionPath: "/Rows", properties: oPreviewCfg.props });
 
       // Rebuild table columns
       var oTbl = this.byId("mdcTable6");
@@ -734,7 +629,7 @@ sap.ui.define([
       oDetail.setProperty("/checkErrorCount", 0);
       this._s6ErrorScrollHooked = false;
       this.byId("fileUploader6").clear();
-      MessageToast.show("Dati caricati rimossi");
+      MessageToast.show(I18n.text(this, "msg.uploadedDataCleared", [], "Dati caricati rimossi"));
     },
 
     // ==================== EXPORT PREVIEW ====================
@@ -743,7 +638,7 @@ sap.ui.define([
         BusyIndicator.show(0);
         var oDetail = this.getView().getModel("detail");
         var aRows = oDetail.getProperty("/Rows") || [];
-        if (!aRows.length) { MessageToast.show("Nessun dato da esportare"); return; }
+        if (!aRows.length) { MessageToast.show(I18n.text(this, "msg.noDataToExport", [], "Nessun dato da esportare")); return; }
 
         var Spreadsheet, EdmType;
         await new Promise(function (res, rej) {
@@ -768,10 +663,10 @@ sap.ui.define([
         var oSheet = new Spreadsheet({ workbook: { columns: aCols }, dataSource: aData, fileName: "Preview_Upload.xlsx" });
         await oSheet.build();
         oSheet.destroy();
-        MessageToast.show("Excel esportato");
+        MessageToast.show(I18n.text(this, "msg.excelExported", [], "Excel esportato"));
       } catch (e) {
         console.error("[S6] Export error", e);
-        MessageToast.show("Errore export");
+        MessageToast.show(I18n.text(this, "msg.exportError", [], "Errore export"));
       } finally {
         BusyIndicator.hide();
       }
@@ -782,13 +677,13 @@ sap.ui.define([
       var oDetail = this.getView().getModel("detail");
       var aRows = oDetail.getProperty("/RowsAll") || [];
       if (!aRows.length) {
-        MessageToast.show("Nessun dato da inviare");
+        MessageToast.show(I18n.text(this, "msg.noDataToSend", [], "Nessun dato da inviare"));
         return;
       }
 
       var sCat = this._getSelectedCat();
       if (!sCat) {
-        MessageToast.show("Seleziona una categoria materiale");
+        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
         return;
       }
 
@@ -799,11 +694,11 @@ sap.ui.define([
 
       var self = this;
       var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
-      var sConfirmMsg = "Stai per inviare " + aRowsToSend.length + " righe al sistema.";
+      var sConfirmMsg = I18n.text(this, "msg.confirmSendRowsHeader", [aRowsToSend.length], "Stai per inviare {0} righe al sistema.");
       if (iCheckErrors > 0) {
-        sConfirmMsg += "\n(" + iCheckErrors + " righe con errori saranno escluse)";
+        sConfirmMsg += I18n.text(this, "msg.confirmSendRowsExcludedErrors", [iCheckErrors], "\n({0} righe con errori saranno escluse)");
       }
-      sConfirmMsg += "\nProseguire?";
+      sConfirmMsg += I18n.text(this, "msg.confirmContinue", [], "\nProseguire?");
 
       MessageBox.confirm(sConfirmMsg, {
         actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
@@ -819,18 +714,16 @@ sap.ui.define([
     _validateRequiredFieldsForRows: function (aRows, sCat) {
       var oVm = this.getOwnerComponent().getModel("vm");
       var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var aRequired = S6Excel.collectRequiredFields(aRawFields);
-      if (!aRequired.length) return true;
-
-      var aErrors = S6Excel.findMissingRequiredPerRow(aRows, aRequired);
+      var oValidation = S6Excel.validateRequiredRows(aRows, aRawFields);
+      var aErrors = oValidation.errors;
       if (!aErrors.length) return true;
 
-      var sMsg = "Campi obbligatori mancanti:\n\n";
+      var sMsg = I18n.text(this, "msg.requiredFieldsMissingHeader", [], "Campi obbligatori mancanti:\n\n");
       sMsg += aErrors.slice(0, 10).join("\n");
       if (aErrors.length > 10) {
-        sMsg += "\n\n... e altre " + (aErrors.length - 10) + " righe con errori.";
+        sMsg += I18n.text(this, "msg.moreErrorRows", [aErrors.length - 10], "\n\n... e altre {0} righe con errori.");
       }
-      sMsg += "\n\nTotale righe con errori: " + aErrors.length + " su " + aRows.length;
+      sMsg += I18n.text(this, "msg.requiredFieldsMissingTotal", [aErrors.length, aRows.length], "\n\nTotale righe con errori: {0} su {1}");
       MessageBox.warning(sMsg);
       return false;
     },
@@ -839,9 +732,9 @@ sap.ui.define([
       var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
       if (iCheckErrors <= 0) return aRows;
 
-      var aFiltered = aRows.filter(function (r) { return !r.__checkHasError; });
+      var aFiltered = S6Excel.filterRowsWithoutCheckErrors(aRows);
       if (!aFiltered.length) {
-        MessageBox.error("Tutte le righe hanno errori di verifica. Correggere e ricaricare il file.");
+        MessageBox.error(I18n.text(this, "msg.allRowsHaveCheckErrors", [], "Tutte le righe hanno errori di verifica. Correggere e ricaricare il file."));
         return null;
       }
       return aFiltered;
@@ -867,9 +760,9 @@ sap.ui.define([
         urlParameters: { "sap-language": "IT" },
         success: function (oData) {
           BusyIndicator.hide();
-          MessageBox.success("Dati inviati con successo (" + aLines.length + " righe)");
+          MessageBox.success(I18n.text(this, "msg.dataSentSuccessfully", [aLines.length], "Dati inviati con successo ({0} righe)"));
           self.onClearUpload();
-        },
+        }.bind(this),
         error: function (oError) {
           BusyIndicator.hide();
           console.error("[S6] POST error", oError);

@@ -8,7 +8,7 @@
   xmlns:mdc="sap.ui.mdc"
   displayBlock="true"> 
 
-  <Page id="page6" title="Caricamento da Excel" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
+  <Page id="page6" title="{i18n>screen6.pageTitle}" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar6" class="appCustomHeader">
@@ -18,7 +18,7 @@
             <Button id="buttonBack6" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
-            <Title id="title6" text="Caricamento Dati da Excel" level="H3"/>
+            <Title id="title6" text="{i18n>screen6.headerTitle}" level="H3"/>
           </contentMiddle>
           <contentRight>
             <ToolbarSpacer id="bar6SpacerRight"/>
@@ -32,11 +32,11 @@
       <!-- Filter bar: desktop=one row, mobile=2 rows -->
       <VBox id="vboxFilters6" class="mobileFilterBar">
         <HBox id="filterRow6A" alignItems="Center" class="filterRow">
-          <Label id="lblCatMat6" text="Categoria Materiale:" class="sapUiTinyMarginEnd"/>
+          <Label id="lblCatMat6" text="{i18n>common.categoryMaterialLabel}" class="sapUiTinyMarginEnd"/>
           <ComboBox
             id="comboCatMat6"
             width="250px"
-            placeholder="Seleziona categoria..."
+            placeholder="{i18n>common.categoryPlaceholder}"
             items="{vm>/userCategoriesList}"
             selectedKey="{detail>/selectedCat}">
             <items>
@@ -45,14 +45,14 @@
           </ComboBox>
           <Button
             id="btnDownloadTemplate6"
-            text="Scarica Template"
+            text="{i18n>screen6.downloadTemplate}"
             icon="sap-icon://download"
             type="Emphasized"
             press=".onDownloadTemplate"
             class="sapUiSmallMarginBegin"/>
           <Button
             id="btnDownloadMaterials6"
-            text="Scarica Lista Materiali"
+            text="{i18n>screen6.downloadMaterialList}"
             icon="sap-icon://excel-attachment"
             type="Default"
             press=".onDownloadMaterialList"
@@ -63,19 +63,19 @@
             id="fileUploader6"
             name="excelUpload"
             fileType="xlsx,xls"
-            placeholder="Seleziona file Excel compilato..."
+            placeholder="{i18n>screen6.uploadPlaceholder}"
             width="350px"
             change=".onFileSelected"
-            buttonText="Scegli file"/>
+            buttonText="{i18n>common.chooseFile}"/>
           <ObjectStatus
             id="osRowCount6"
-            text="{= 'Righe caricate: ' + (${detail>/RowsCount} || 0) }"
+            text="{= ${i18n>screen6.loadedRowsLabel} + ': ' + (${detail>/RowsCount} || 0) }"
             state="None"
             class="sapUiSmallMarginBegin"/>
           <ObjectStatus
             id="osCheckStatus6"
             visible="{detail>/checkDone}"
-            text="{= ${detail>/checkErrorCount} === 0 ? 'Verifica OK' : ('Errori: ' + ${detail>/checkErrorCount}) }"
+            text="{= ${detail>/checkErrorCount} === 0 ? ${i18n>screen6.checkOk} : (${i18n>screen6.errorsLabel} + ': ' + ${detail>/checkErrorCount}) }"
             state="{= ${detail>/checkErrorCount} === 0 ? 'Success' : 'Error' }"
             icon="{= ${detail>/checkErrorCount} === 0 ? 'sap-icon://status-completed' : 'sap-icon://alert' }"
             class="sapUiSmallMarginBegin"/>
@@ -93,18 +93,18 @@
 
         <HBox id="hboxToolbarTable6-1" wrap="Wrap" alignItems="Center" class="filterGroup">
           <HBox id="hboxFilter6" alignItems="Center" class="searchFilterBox">
-            <Label id="lblFilter6" text="Cercare:" labelFor="inputFilter6" class="sapUiTinyMarginEnd filterLabel"/>
-            <Input id="inputFilter6" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
-            <Button id="btnColFilters6" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
-            <Button id="btnSort6" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
-            <Button id="btnResetFS6" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
+            <Label id="lblFilter6" text="{i18n>common.searchLabel}" labelFor="inputFilter6" class="sapUiTinyMarginEnd filterLabel"/>
+            <Input id="inputFilter6" width="100%" liveChange=".onGlobalFilter" placeholder="{i18n>common.searchAllFieldsPlaceholder}" class="searchInput"/>
+            <Button id="btnColFilters6" icon="sap-icon://filter" tooltip="{i18n>common.columnFiltersTooltip}" press=".onOpenColumnFilters" type="Transparent"/>
+            <Button id="btnSort6" icon="sap-icon://sort" tooltip="{i18n>common.sortTooltip}" press=".onOpenSort" type="Transparent"/>
+            <Button id="btnResetFS6" icon="sap-icon://reset" tooltip="{i18n>common.resetFiltersTooltip}" press=".onResetFiltersAndSort" type="Transparent"/>
           </HBox>
         </HBox>
 
         <Toolbar id="tblToolbar6" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar6sp"/>
-          <Button id="btnClearUpload6" text="Pulisci" icon="sap-icon://delete" type="Default" press=".onClearUpload"/>
-          <Button id="tbExcel6" icon="sap-icon://excel-attachment" tooltip="Esporta preview in Excel" press=".onExportExcel" type="Transparent"/>
+          <Button id="btnClearUpload6" text="{i18n>common.clear}" icon="sap-icon://delete" type="Default" press=".onClearUpload"/>
+          <Button id="tbExcel6" icon="sap-icon://excel-attachment" tooltip="{i18n>screen6.exportPreviewTooltip}" press=".onExportExcel" type="Transparent"/>
         </Toolbar>
 
       </HBox>
@@ -136,7 +136,7 @@
         <ToolbarSpacer id="footerSpacer6"/>
         <Button
           id="btnSendData6"
-          text="Invia Dati"
+          text="{i18n>common.sendData}"
           icon="sap-icon://upload-to-cloud"
           type="Emphasized"
           enabled="{= ${detail>/RowsCount} > 0 &amp;&amp; ${detail>/checkDone} === true &amp;&amp; ${detail>/checkErrorCount} === 0 }"

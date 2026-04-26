@@ -22,6 +22,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/s6ExcelUtil",
+  "apptracciabilita/apptracciabilita/util/screen6FlowUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
@@ -29,7 +30,7 @@ sap.ui.define([
   Filter, FilterOperator, MdcColumn, HBox, Text, StateUtil,
   N, Domains, MdcTableUtil, P13nUtil,
   FilterSortUtil, MmctUtil, TableColumnAutoSize,
-  PostUtil, RecordsUtil, S6Excel, I18n
+  PostUtil, RecordsUtil, S6Excel, Screen6FlowUtil, I18n
 ) {
   "use strict";
 
@@ -72,10 +73,9 @@ sap.ui.define([
     },
 
     _buildCategoriesList: function () {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
-      var aCatList = S6Excel.buildCategoryList(oVm.getProperty("/mmctFieldsByCat") || {}, aMMCT);
-      oVm.setProperty("/userCategoriesList", aCatList);
+      return Screen6FlowUtil.buildCategoriesList({
+        vmModel: this.getOwnerComponent().getModel("vm")
+      });
     },
 
     _getSelectedCat: function () {
@@ -85,216 +85,37 @@ sap.ui.define([
 
     // ==================== DOWNLOAD TEMPLATE ====================
     onDownloadTemplate: function () {
-      var sCat = this._getSelectedCat();
-      if (!sCat) {
-        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
-        return;
-      }
-
-      var oODataModel = this.getOwnerComponent().getModel();
-      var sPath = "/" + oODataModel.createKey("GetFieldFileSet", {
-        FieldName: "ExcelTemplate",
-        FieldValue: sCat
-      });
-
-      BusyIndicator.show(0);
-      oODataModel.read(sPath, {
-        success: function (oData) {
-          BusyIndicator.hide();
-
-          var sContent = oData && oData.FileContent;
-          var sFileName = (oData && oData.FileName) || ("Template_" + sCat + ".xlsx");
-          var sMimeType = (oData && oData.MimeType) || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-          if (!sContent) {
-            MessageBox.warning(I18n.text(this, "msg.noTemplateForCategory", [sCat], "Nessun template disponibile per la categoria \"{0}\""));
-            return;
-          }
-
-          // B64 → Blob → download
-          try {
-            var byteChars = atob(sContent);
-            var byteNumbers = new Array(byteChars.length);
-            for (var i = 0; i < byteChars.length; i++) {
-              byteNumbers[i] = byteChars.charCodeAt(i);
-            }
-            var oBlob = new Blob([new Uint8Array(byteNumbers)], { type: sMimeType });
-            var sUrl = URL.createObjectURL(oBlob);
-            var oLink = document.createElement("a");
-            oLink.href = sUrl;
-            oLink.download = sFileName;
-            document.body.appendChild(oLink);
-            oLink.click();
-            document.body.removeChild(oLink);
-            URL.revokeObjectURL(sUrl);
-            MessageToast.show(I18n.text(this, "msg.templateDownloaded", [sFileName], "Template scaricato: {0}"));
-          } catch (e) {
-            console.error("[S6] Download template error", e);
-            MessageBox.error(I18n.text(this, "msg.templateDownloadError", [], "Errore nel download del template"));
-          }
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S6] GetFieldFileSet error", oError);
-          MessageBox.error(N.getBackendErrorMessage(oError));
-        }
+      return Screen6FlowUtil.onDownloadTemplate({
+        getSelectedCatFn: this._getSelectedCat.bind(this),
+        odataModel: this.getOwnerComponent().getModel()
       });
     },
 
     // ==================== DOWNLOAD MATERIAL LIST ====================
     onDownloadMaterialList: function () {
-      var sCat = this._getSelectedCat();
-      if (!sCat) {
-        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
-        return;
-      }
-
-      var oODataModel = this.getOwnerComponent().getModel();
-      var self = this;
-      BusyIndicator.show(0);
-
-      oODataModel.read("/ExcelMaterialListSet", {
-        filters: [new Filter("CatMateriale", FilterOperator.EQ, sCat)],
-        urlParameters: { "$top": "99999" },
-        success: function (oData) {
-          var aResults = (oData && oData.results) || [];
-          if (!aResults.length) {
-            BusyIndicator.hide();
-            MessageToast.show(I18n.text(this, "msg.noNewMaterialForCategory", [sCat], "Nessun materiale nuovo trovato per la categoria {0}"));
-            return;
-          }
-
-          // Convert to Excel using sap/ui/export/Spreadsheet
-          self._exportMaterialListToExcel(aResults, sCat);
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S6] ExcelMaterialListSet error", oError);
-          MessageBox.error(I18n.text(this, "msg.materialListLoadError", [], "Errore nel caricamento della lista materiali"));
-        }
-      }.bind(this));
+      return Screen6FlowUtil.onDownloadMaterialList({
+        getSelectedCatFn: this._getSelectedCat.bind(this),
+        odataModel: this.getOwnerComponent().getModel(),
+        exportMaterialListToExcelFn: this._exportMaterialListToExcel.bind(this)
+      });
     },
 
     _exportMaterialListToExcel: async function (aResults, sCat) {
-      try {
-        var Spreadsheet, EdmType;
-        await new Promise(function (res, rej) {
-          sap.ui.require([
-            "sap/ui/export/Spreadsheet",
-            "sap/ui/export/library"
-          ], function (S, expLib) {
-            Spreadsheet = S;
-            EdmType = expLib.EdmType;
-            res();
-          }, function (err) { rej(err); });
-        });
-
-        // Build columns dynamically from MMCT config using the SortExcel field:
-        //   - SortExcel = 0  → column excluded from export
-        //   - SortExcel > 0  → column included, sorted by ascending value
-        // Fallback to a hardcoded list if no field has SortExcel configured
-        // (e.g. during MMCT migration or for categories not yet configured).
-        var oVm = this.getOwnerComponent().getModel("vm");
-        var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-
-        var aCols = [];
-        var aSortable = (aRawFields || [])
-          .filter(function (f) {
-            var n = parseInt(String(f.SortExcel != null ? f.SortExcel : 0), 10);
-            return !isNaN(n) && n > 0;
-          })
-          .sort(function (a, b) {
-            var nA = parseInt(String(a.SortExcel || 0), 10) || 0;
-            var nB = parseInt(String(b.SortExcel || 0), 10) || 0;
-            return nA - nB;
-          });
-
-        if (aSortable.length) {
-          aCols = aSortable.map(function (f) {
-            var sProp = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-            var sLabel = String(f.UiFieldLabel || f.Descrizione || sProp).trim();
-            return { label: sLabel, property: sProp };
-          }).filter(function (c) { return !!c.property; });
-
-          var mSeenCols = Object.create(null);
-          aCols = aCols.filter(function (c) {
-            var sKey = String(c.property || "").trim().toUpperCase();
-            if (!sKey || mSeenCols[sKey]) return false;
-            mSeenCols[sKey] = true;
-            return true; /*  */
-          });
-        } else {
-          // Fallback: hardcoded legacy list
-          aCols = [
-            { label: "Categoria Materiale", property: "CatMateriale" },
-            { label: "Desc. Categoria", property: "MatCatDesc" },
-            { label: "Fornitore", property: "Fornitore" },
-            { label: "Materiale", property: "Materiale" },
-            { label: "Descrizione Materiale", property: "DescMat" },
-            { label: "Stagione", property: "Stagione" },
-            { label: "Collezione", property: "Collezione" },
-            { label: "Linea", property: "Linea" },
-            { label: "Uscita", property: "Uscita" },
-            { label: "Fibra", property: "Fibra" },
-            { label: "Qtà Fibra", property: "QtaFibra" },
-            { label: "Unità Misura Fibra", property: "UmFibra" },
-            { label: "UdM", property: "UdM" },
-            { label: "Plant", property: "Plant" },
-            { label: "Dest. Uso", property: "DestUso" },
-            { label: "Famiglia", property: "Famiglia" }
-          ];
-        }
-
-        // Clean data: remove __metadata
-        var aData = aResults.map(function (r) {
-          var o = {};
-          aCols.forEach(function (c) {
-            o[c.property] = String(r[c.property] != null ? r[c.property] : "");
-          });
-          return o;
-        });
-
-        var oSheet = new Spreadsheet({
-          workbook: {
-            columns: aCols.map(function (c) {
-              return { label: c.label, property: c.property, type: EdmType.String };
-            })
-          },
-          dataSource: aData,
-          fileName: "ListaMateriali_" + sCat + ".xlsx"
-        });
-
-        await oSheet.build();
-        oSheet.destroy();
-        MessageToast.show(I18n.text(this, "msg.materialListExported", [aData.length], "Lista materiali esportata ({0} righe)"));
-      } catch (e) {
-        console.error("[S6] Export material list error", e);
-        MessageBox.error(I18n.text(this, "msg.materialListExportError", [], "Errore nell'esportazione della lista materiali"));
-      } finally {
-        BusyIndicator.hide();
-      }
+      return Screen6FlowUtil.exportMaterialListToExcel({
+        results: aResults,
+        cat: sCat,
+        vmModel: this.getOwnerComponent().getModel("vm")
+      });
     },
     // ==================== UPLOAD FILE ====================
     onFileSelected: function (oEvt) {
-      var aFiles = oEvt.getParameter("files") || [];
-      if (!aFiles.length) return;
-
-      var sCat = this._getSelectedCat();
-      if (!sCat) {
-        MessageToast.show(I18n.text(this, "msg.selectCategoryBeforeUpload", [], "Seleziona una categoria materiale prima di caricare il file"));
-        this.byId("fileUploader6").clear();
-        return;
-      }
-
-      var self = this;
-      var oFile = aFiles[0];
-
-      this._ensureXlsxLoaded().then(function () {
-        self._parseExcelFile(oFile, sCat);
-      }).catch(function (err) {
-        console.error("[S6] XLSX load error", err);
-        MessageBox.error(I18n.text(this, "msg.xlsxLibraryLoadError", [], "Errore nel caricamento della libreria XLSX. Assicurarsi che xlsx.full.min.js sia disponibile."));
-      }.bind(this));
+      return Screen6FlowUtil.onFileSelected({
+        event: oEvt,
+        getSelectedCatFn: this._getSelectedCat.bind(this),
+        clearFileUploaderFn: function () { this.byId("fileUploader6").clear(); }.bind(this),
+        ensureXlsxLoadedFn: this._ensureXlsxLoaded.bind(this),
+        parseExcelFileFn: this._parseExcelFile.bind(this)
+      });
     },
 
     _ensureXlsxLoaded: function () {
@@ -335,149 +156,53 @@ sap.ui.define([
     },
 
     _parseExcelFile: function (oFile, sCat) {
-      var self = this;
-      BusyIndicator.show(0);
-
-      var oReader = new FileReader();
-      oReader.onload = function (e) {
-        try {
-          var data = new Uint8Array(e.target.result);
-          var workbook = XLSX.read(data, { type: "array" });
-
-          // Read first sheet
-          var sFirstSheet = workbook.SheetNames[0];
-          if (!sFirstSheet) {
-            BusyIndicator.hide();
-            MessageBox.error(I18n.text(this, "msg.excelHasNoSheets", [], "Il file Excel non contiene fogli"));
-            return;
-          }
-
-          var aJsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[sFirstSheet], { defval: "" });
-          if (!aJsonRows.length) {
-            BusyIndicator.hide();
-            MessageToast.show(I18n.text(this, "msg.noRowsFoundInFile", [], "Nessuna riga trovata nel file"));
-            return;
-          }
-
-          self._log("Parsed Excel", { rows: aJsonRows.length, headers: Object.keys(aJsonRows[0]) });
-
-          // Map Excel headers to MMCT field names
-          var aMapped = self._mapExcelToMmctFields(aJsonRows, sCat);
-
-          // Mark all rows as new + editable
-          S6Excel.decorateUploadedRows(aMapped, N.genGuidNew);
-
-          // ── Auto-check via CheckDataSet, then populate ──
-          self._executeCheck(aMapped, sCat);
-
-        } catch (ex) {
-          BusyIndicator.hide();
-          console.error("[S6] Excel parse error", ex);
-          MessageBox.error(I18n.text(this, "msg.excelReadErrorWithMessage", [ex.message], "Errore nella lettura del file Excel:\n{0}"));
-        }
-      }.bind(this);
-
-      oReader.onerror = function () {
-        BusyIndicator.hide();
-        MessageBox.error(I18n.text(this, "msg.fileReadError", [], "Errore nella lettura del file"));
-      }.bind(this);
-
-      oReader.readAsArrayBuffer(oFile);
+      return Screen6FlowUtil.parseExcelFile({
+        file: oFile,
+        cat: sCat,
+        logFn: this._log.bind(this),
+        genGuidFn: N.genGuidNew,
+        mapExcelToMmctFieldsFn: this._mapExcelToMmctFields.bind(this),
+        executeCheckFn: this._executeCheck.bind(this)
+      });
     },
 
     // ==================== MAP EXCEL HEADERS → MMCT FIELDS ====================
     _mapExcelToMmctFields: function (aJsonRows, sCat) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      return S6Excel.mapExcelToMmctFields(aJsonRows, sCat, aRawFields);
+      return Screen6FlowUtil.mapExcelToMmctFields({
+        jsonRows: aJsonRows,
+        cat: sCat,
+        vmModel: this.getOwnerComponent().getModel("vm")
+      });
     },
 
     // ==================== CHECK DATA (auto after upload) ====================
     _buildPayloadLines: function (aRows, sCat) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var oDetail = this.getView().getModel("detail");
-      return S6Excel.buildPayloadLines(aRows, sCat, {
-        sUserId: (oVm && oVm.getProperty("/userId")) || "",
-        mMulti: PostUtil.getMultiFieldsMap(oDetail),
-        aRawFields: (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [],
-        getDomainValues: function (sDom) {
-          return oVm.getProperty("/domainsByName/" + sDom) || [];
-        }
+      return Screen6FlowUtil.buildPayloadLines({
+        rows: aRows,
+        cat: sCat,
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        detailModel: this.getView().getModel("detail")
       });
     },
 
     _executeCheck: function (aRows, sCat) {
-      var oODataModel = this.getOwnerComponent().getModel();
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-      var self = this;
-
-      var aLines = this._buildPayloadLines(aRows, sCat);
-
-      var oPayload = {
-        UserID: sUserId,
-        PostDataCollection: aLines
-      };
-
-      oODataModel.setHeaders({ "sap-language": "IT" });
-      oODataModel.create("/CheckDataSet", oPayload, {
-        urlParameters: { "sap-language": "IT" },
-        success: function (oData) {
-          BusyIndicator.hide();
-          self._processCheckResponse(aRows, oData);
-          self._populatePreviewTable(aRows, sCat);
-
-          // Highlight error rows after table renders
-          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
-
-          var oDetail = self.getView().getModel("detail");
-          var iErrors = oDetail.getProperty("/checkErrorCount") || 0;
-          var iTotal = aRows.length;
-
-          if (iErrors === 0) {
-            MessageToast.show(I18n.text(this, "msg.checkAllOk", [iTotal], "{0} righe verificate: tutte OK"));
-          } else {
-            // Build per-row error detail like Screen3/4
-            var aErrDetails = [];
-            aRows.forEach(function (r, idx) {
-              if (r.__checkHasError) {
-                aErrDetails.push(I18n.text(this, "msg.rowErrorDetail", [idx + 1, (r.__checkMessage || I18n.text(this, "msg.errorGenericShort", [], "Errore"))], "Riga {0}: {1}"));
-              }
-            }.bind(this));
-            var sMsg = I18n.text(this, "msg.checkCompletedWithErrorsHeader", [iErrors, iTotal], "Verifica completata: {0} righe con errori su {1} totali.\n\n");
-            sMsg += aErrDetails.slice(0, 15).join("\n");
-            if (aErrDetails.length > 15) {
-              sMsg += I18n.text(this, "msg.moreErrorRows", [aErrDetails.length - 15], "\n\n... e altre {0} righe con errori.");
-            }
-            sMsg += I18n.text(this, "msg.checkCompletedWithErrorsFooter", [], "\n\nCorreggere gli errori e ricaricare il file, oppure procedere con le sole righe valide.");
-            MessageBox.warning(sMsg);
-          }
-        }.bind(this),
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S6] CHECK error", oError);
-          MessageBox.error(N.getBackendErrorMessage(oError));
-
-          // Still populate preview even if check fails
-          console.log("[S6] CHECK failed with HTTP error, populating preview anyway. Rows:", aRows.length);
-          aRows.forEach(function (r) {
-            r.__checkEsito = "Attenzione";
-            r.__checkMessage = "Verifica non riuscita";
-            r.__checkHasError = false;
-          });
-          self._populatePreviewTable(aRows, sCat);
-          setTimeout(function () { self._updateCheckErrorRowStyles(); }, 1500); setTimeout(function () { self._updateCheckErrorRowStyles(); }, 3000);
-        }
+      return Screen6FlowUtil.executeCheck({
+        rows: aRows,
+        cat: sCat,
+        odataModel: this.getOwnerComponent().getModel(),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        detailModel: this.getView().getModel("detail"),
+        populatePreviewTableFn: this._populatePreviewTable.bind(this),
+        updateCheckErrorRowStylesFn: this._updateCheckErrorRowStyles.bind(this)
       });
     },
 
     _processCheckResponse: function (aRows, oData) {
+      S6Excel.applyCheckResponse(aRows, oData);
       var oDetail = this.getView().getModel("detail");
-      var oCheckState = S6Excel.applyCheckResponse(aRows, oData);
-
-      oDetail.setProperty("/checkErrorCount", oCheckState.errorCount);
-      oDetail.setProperty("/checkPassed", oCheckState.checkPassed);
-      oDetail.setProperty("/checkDone", oCheckState.checkDone);
+      oDetail.setProperty("/checkErrorCount", (aRows || []).filter(function (r) { return !!r.__checkHasError; }).length);
+      oDetail.setProperty("/checkPassed", !((aRows || []).some(function (r) { return !!r.__checkHasError; })));
+      oDetail.setProperty("/checkDone", true);
     },
 
     // ==================== CHECK ERROR ROW HIGHLIGHTING ====================
@@ -620,154 +345,54 @@ sap.ui.define([
 
     // ==================== CLEAR UPLOAD ====================
     onClearUpload: function () {
-      var oDetail = this.getView().getModel("detail");
-      oDetail.setProperty("/RowsAll", []);
-      oDetail.setProperty("/Rows", []);
-      oDetail.setProperty("/RowsCount", 0);
-      oDetail.setProperty("/checkDone", false);
-      oDetail.setProperty("/checkPassed", false);
-      oDetail.setProperty("/checkErrorCount", 0);
-      this._s6ErrorScrollHooked = false;
-      this.byId("fileUploader6").clear();
-      MessageToast.show(I18n.text(this, "msg.uploadedDataCleared", [], "Dati caricati rimossi"));
+      return Screen6FlowUtil.onClearUpload({
+        detailModel: this.getView().getModel("detail"),
+        clearFileUploaderFn: function () { this.byId("fileUploader6").clear(); }.bind(this),
+        setErrorScrollHookedFn: function (bVal) { this._s6ErrorScrollHooked = bVal; }.bind(this)
+      });
     },
 
     // ==================== EXPORT PREVIEW ====================
     onExportExcel: async function () {
-      try {
-        BusyIndicator.show(0);
-        var oDetail = this.getView().getModel("detail");
-        var aRows = oDetail.getProperty("/Rows") || [];
-        if (!aRows.length) { MessageToast.show(I18n.text(this, "msg.noDataToExport", [], "Nessun dato da esportare")); return; }
-
-        var Spreadsheet, EdmType;
-        await new Promise(function (res, rej) {
-          sap.ui.require([
-            "sap/ui/export/Spreadsheet",
-            "sap/ui/export/library"
-          ], function (S, expLib) {
-            Spreadsheet = S;
-            EdmType = expLib.EdmType;
-            res();
-          }, function (err) { rej(err); });
-        });
-
-        var aKeys = Object.keys(aRows[0] || {}).filter(function (k) { return k.charAt(0) !== "_"; });
-        var aCols = aKeys.map(function (k) { return { label: k, property: k, type: EdmType.String }; });
-        var aData = aRows.map(function (r) {
-          var o = {};
-          aKeys.forEach(function (k) { o[k] = String(r[k] != null ? r[k] : ""); });
-          return o;
-        });
-
-        var oSheet = new Spreadsheet({ workbook: { columns: aCols }, dataSource: aData, fileName: "Preview_Upload.xlsx" });
-        await oSheet.build();
-        oSheet.destroy();
-        MessageToast.show(I18n.text(this, "msg.excelExported", [], "Excel esportato"));
-      } catch (e) {
-        console.error("[S6] Export error", e);
-        MessageToast.show(I18n.text(this, "msg.exportError", [], "Errore export"));
-      } finally {
-        BusyIndicator.hide();
-      }
+      return Screen6FlowUtil.onExportExcel({
+        detailModel: this.getView().getModel("detail")
+      });
     },
 
     // ==================== SEND DATA (POST) ====================
     onSendData: function () {
-      var oDetail = this.getView().getModel("detail");
-      var aRows = oDetail.getProperty("/RowsAll") || [];
-      if (!aRows.length) {
-        MessageToast.show(I18n.text(this, "msg.noDataToSend", [], "Nessun dato da inviare"));
-        return;
-      }
-
-      var sCat = this._getSelectedCat();
-      if (!sCat) {
-        MessageToast.show(I18n.text(this, "msg.selectMaterialCategoryLowercase", [], "Seleziona una categoria materiale"));
-        return;
-      }
-
-      if (!this._validateRequiredFieldsForRows(aRows, sCat)) return;
-
-      var aRowsToSend = this._filterOutCheckErrorRows(aRows, oDetail);
-      if (!aRowsToSend) return;
-
-      var self = this;
-      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
-      var sConfirmMsg = I18n.text(this, "msg.confirmSendRowsHeader", [aRowsToSend.length], "Stai per inviare {0} righe al sistema.");
-      if (iCheckErrors > 0) {
-        sConfirmMsg += I18n.text(this, "msg.confirmSendRowsExcludedErrors", [iCheckErrors], "\n({0} righe con errori saranno escluse)");
-      }
-      sConfirmMsg += I18n.text(this, "msg.confirmContinue", [], "\nProseguire?");
-
-      MessageBox.confirm(sConfirmMsg, {
-        actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-        emphasizedAction: MessageBox.Action.OK,
-        onClose: function (sAction) {
-          if (sAction === MessageBox.Action.OK) {
-            self._executePost(aRowsToSend, sCat);
-          }
-        }
+      return Screen6FlowUtil.onSendData({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        odataModel: this.getOwnerComponent().getModel(),
+        getSelectedCatFn: this._getSelectedCat.bind(this),
+        clearUploadFn: this.onClearUpload.bind(this)
       });
     },
 
     _validateRequiredFieldsForRows: function (aRows, sCat) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-      var oValidation = S6Excel.validateRequiredRows(aRows, aRawFields);
-      var aErrors = oValidation.errors;
-      if (!aErrors.length) return true;
-
-      var sMsg = I18n.text(this, "msg.requiredFieldsMissingHeader", [], "Campi obbligatori mancanti:\n\n");
-      sMsg += aErrors.slice(0, 10).join("\n");
-      if (aErrors.length > 10) {
-        sMsg += I18n.text(this, "msg.moreErrorRows", [aErrors.length - 10], "\n\n... e altre {0} righe con errori.");
-      }
-      sMsg += I18n.text(this, "msg.requiredFieldsMissingTotal", [aErrors.length, aRows.length], "\n\nTotale righe con errori: {0} su {1}");
-      MessageBox.warning(sMsg);
-      return false;
+      return Screen6FlowUtil.validateRequiredFieldsForRows({
+        rows: aRows,
+        cat: sCat,
+        vmModel: this.getOwnerComponent().getModel("vm")
+      });
     },
 
     _filterOutCheckErrorRows: function (aRows, oDetail) {
-      var iCheckErrors = oDetail.getProperty("/checkErrorCount") || 0;
-      if (iCheckErrors <= 0) return aRows;
-
-      var aFiltered = S6Excel.filterRowsWithoutCheckErrors(aRows);
-      if (!aFiltered.length) {
-        MessageBox.error(I18n.text(this, "msg.allRowsHaveCheckErrors", [], "Tutte le righe hanno errori di verifica. Correggere e ricaricare il file."));
-        return null;
-      }
-      return aFiltered;
+      return Screen6FlowUtil.filterOutCheckErrorRows({
+        rows: aRows,
+        detailModel: oDetail
+      });
     },
 
     _executePost: function (aRows, sCat) {
-      var oODataModel = this.getOwnerComponent().getModel();
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-
-      var aLines = this._buildPayloadLines(aRows, sCat);
-
-      var oPayload = {
-        UserID: sUserId,
-        PostDataCollection: aLines
-      };
-
-      BusyIndicator.show(0);
-      var self = this;
-
-      oODataModel.setHeaders({ "sap-language": "IT" });
-      oODataModel.create("/PostDataSet", oPayload, {
-        urlParameters: { "sap-language": "IT" },
-        success: function (oData) {
-          BusyIndicator.hide();
-          MessageBox.success(I18n.text(this, "msg.dataSentSuccessfully", [aLines.length], "Dati inviati con successo ({0} righe)"));
-          self.onClearUpload();
-        }.bind(this),
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S6] POST error", oError);
-          MessageBox.error(N.getBackendErrorMessage(oError));
-        }
+      return Screen6FlowUtil.executePost({
+        rows: aRows,
+        cat: sCat,
+        odataModel: this.getOwnerComponent().getModel(),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        detailModel: this.getView().getModel("detail"),
+        clearUploadFn: this.onClearUpload.bind(this)
       });
     },
     // ==================== NAV ====================

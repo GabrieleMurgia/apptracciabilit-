@@ -13,12 +13,12 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil",
   "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
-  "apptracciabilita/apptracciabilita/util/touchCodAggUtil",
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
+  "apptracciabilita/apptracciabilita/util/screen4RowsUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
@@ -26,7 +26,7 @@ sap.ui.define([
 ], function (
   BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
   N, VmPaths, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, TouchCodAggUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, RecordsUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
+  CellTemplateUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, Screen4RowsUtil, RecordsUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
@@ -178,75 +178,23 @@ sap.ui.define([
       });
     },
     _hookDirtyOnEdit: function (oCtrl) {
-      if (!oCtrl) return;
-      try { if (oCtrl.data && oCtrl.data("dirtyHooked")) return; if (oCtrl.data) oCtrl.data("dirtyHooked", true); } catch (e) {}
-      try { if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) oCtrl.setValueLiveUpdate(true); } catch (e) {}
-      var self = this;
-      var fn = function (oEvt) {
-        self._markDirty();
-        var src = (oEvt && oEvt.getSource) ? oEvt.getSource() : oCtrl;
-        var ctx = (src.getBindingContext && (src.getBindingContext("detail") || src.getBindingContext())) || null;
-        var row = ctx && ctx.getObject && ctx.getObject(); if (!row) return;
-        var before = TouchCodAggUtil.getCodAgg(row);
-        TouchCodAggUtil.touchCodAggRow(row);
-        if (before !== TouchCodAggUtil.getCodAgg(row) && ctx.getPath)
-          self.getView().getModel("detail").setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
-        self._checkRowDirtyRevert(row, ctx);
-      };
-      if (oCtrl.attachLiveChange) oCtrl.attachLiveChange(fn);
-      if (oCtrl.attachChange) oCtrl.attachChange(fn);
-      if (oCtrl.attachSelectionChange) oCtrl.attachSelectionChange(fn);
-      if (oCtrl.attachSelectionFinish) oCtrl.attachSelectionFinish(fn);
-      if (oCtrl.attachSubmit) oCtrl.attachSubmit(fn);
+      return Screen4RowsUtil.hookDirtyOnEdit({
+        control: oCtrl,
+        detailModel: this.getView().getModel("detail"),
+        markDirtyFn: this._markDirty.bind(this),
+        snapshotRowsFn: function () { return this._snapshotRows; }.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this)
+      });
     },
 
     _checkRowDirtyRevert: function (row, ctx) {
-      var snap = this._snapshotRows;
-      if (!snap || !row || row.__isNew) return;
-
-      var oD = this.getView().getModel("detail");
-      var aKeys = (oD.getProperty("/_mmct/s02") || []).map(function (f) { return f && f.ui; }).filter(Boolean);
-      if (!aKeys.length) return;
-
-      function vMatch(v1, v2) {
-        if (Array.isArray(v1) && Array.isArray(v2)) return JSON.stringify(v1) === JSON.stringify(v2);
-        return String(v1 == null ? "" : v1) === String(v2 == null ? "" : v2);
-      }
-
-      var sGuid = N.toStableString(row.guidKey || "");
-      var sLId = String(row.__localId || "");
-      var snapRow = null;
-      snap.forEach(function (s) {
-        if (snapRow) return;
-        if (sGuid && N.toStableString(s.guidKey || "") === sGuid) { snapRow = s; return; }
-        if (sLId && String(s.__localId || "") === sLId) snapRow = s;
+      return Screen4RowsUtil.checkRowDirtyRevert({
+        row: row,
+        context: ctx,
+        detailModel: this.getView().getModel("detail"),
+        snapshotRows: this._snapshotRows,
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this)
       });
-      if (!snapRow) return;
-
-      if (!aKeys.every(function (k) { return vMatch(row[k], snapRow[k]); })) return;
-
-      row.CodAgg = snapRow.CodAgg || "";
-      if (ctx && ctx.getPath) oD.setProperty(ctx.getPath() + "/CodAgg", row.CodAgg);
-
-      var aRows = oD.getProperty("/RowsAll") || [];
-      var allClean = aRows.every(function (r) {
-        if (!r || r.__isNew) return false;
-        var rGuid = N.toStableString(r.guidKey || "");
-        var rLId = String(r.__localId || "");
-        var sn = null;
-        snap.forEach(function (s) {
-          if (sn) return;
-          if (rGuid && N.toStableString(s.guidKey || "") === rGuid) { sn = s; return; }
-          if (rLId && String(s.__localId || "") === rLId) sn = s;
-        });
-        if (!sn) return false;
-        return aKeys.every(function (k) { return vMatch(r[k], sn[k]); });
-      });
-
-      if (allClean) {
-        oD.setProperty("/__dirty", false);
-        this._applyUiPermissions();
-      }
     },
 
     _createCellTemplate: function (sKey, oMeta) {
@@ -259,20 +207,14 @@ sap.ui.define([
 
     // ==================== STATUS ====================
     _updateVmRecordStatus: function (sCK, sGuid, sFibra, sRole, sStatus) {
-      var oVm = this._getOVm();
-      var aRecs = oVm.getProperty(VmPaths.recordsByKeyPath(sCK)) || [];
-      if (!Array.isArray(aRecs) || !aRecs.length) return;
-      var idx = aRecs.findIndex(function (r) {
-        if (String(r && r.guidKey || "") !== String(sGuid || "")) return false;
-        return !sFibra || String(r && r.Fibra || "") === String(sFibra || "");
+      return Screen4RowsUtil.updateVmRecordStatus({
+        vmModel: this._getOVm(),
+        cacheKey: sCK,
+        guid: sGuid,
+        fibra: sFibra,
+        role: sRole,
+        status: sStatus
       });
-      if (idx < 0) return;
-      var rec = aRecs[idx], st = String(sStatus || "ST").trim().toUpperCase();
-      rec.__status = st; rec.Stato = st;
-      rec.__canEdit = StatusUtil.canEdit(sRole, st); rec.__canApprove = StatusUtil.canApprove(sRole, st);
-      rec.__canReject = StatusUtil.canReject(sRole, st); rec.__readOnly = !rec.__canEdit;
-      aRecs = aRecs.slice(); aRecs[idx] = rec;
-      oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aRecs);
     },
 
     // ==================== HEADER ====================
@@ -587,171 +529,45 @@ sap.ui.define([
 
     // ==================== ROW CRUD ====================
     _getSelectedRowObjects: function () {
-      var oTbl = this.byId("mdcTable4"); if (!oTbl) return [];
-      var aCtx = [];
-      try { aCtx = (typeof oTbl.getSelectedContexts === "function") ? (oTbl.getSelectedContexts() || []) : []; } catch (e) { }
-      if (!aCtx.length && typeof oTbl.getTable === "function") {
-        try {
-          var t = oTbl.getTable();
-          if (t && t.getSelectedIndices) aCtx = (t.getSelectedIndices() || []).map(function (i) { return t.getContextByIndex(i); }).filter(Boolean);
-          else if (t && t.getSelectedItems) aCtx = (t.getSelectedItems() || []).map(function (x) { return (x.getBindingContext && (x.getBindingContext("detail") || x.getBindingContext())) || null; }).filter(Boolean);
-        } catch (e) { }
-      }
-      return aCtx.map(function (c) { return c && c.getObject ? c.getObject() : null; }).filter(Boolean);
+      return Screen4RowsUtil.getSelectedRowObjects({ table: this.byId("mdcTable4") });
     },
 
     onDeleteRows: function () {
-      try {
-        var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canEdit")) { MessageToast.show(I18n.text(this, "msg.noPermissionDeleteRows", [], "Non hai permessi per eliminare righe")); return; }
-        var aSel = this._getSelectedRowObjects(); if (!aSel.length) { MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRow", [], "Seleziona almeno una riga")); return; }
-        var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) return;
-        var mSel = {}; aSel.forEach(function (r) { if (r && r.__localId) mSel[r.__localId] = true; });
-        var aRem = aAll.filter(function (r) { if (r && r.__localId && mSel[r.__localId]) return false; return aSel.indexOf(r) < 0; });
-        if (!aRem.length) { MessageToast.show(I18n.text(this, "msg.cannotDeleteAllRows", [], "Non puoi eliminare tutte le righe")); return; }
-
-        var sRole = String(oD.getProperty("/__role") || "").trim().toUpperCase();
-        if (sRole === "E" && String(oD.getProperty("/__status") || "").toUpperCase() !== "AP") {
-          oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
-          oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false);
-        }
-        oD.setProperty("/RowsAll", aRem); oD.setProperty("/__dirty", true);
-        var oVm = this._getOVm(), sCK = this._getDataCacheKey(), sGuid = N.toStableString(oD.getProperty("/guidKey"));
-        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).filter(function (r) { return S4Loader.rowGuidKey(r) !== sGuid; });
-        aRem.forEach(function (l) { if (!l.CodAgg) l.CodAgg = "U"; });
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC.concat(aRem));
-        this._applyUiPermissions(); this._applyFiltersAndSort();
-        var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
-        MessageToast.show(I18n.text(this, "msg.rowsDeleted", [], "Righe eliminate"));
-      } catch (e) { console.error("[S4] onDeleteRows ERROR", e); MessageToast.show(I18n.text(this, "msg.deleteRowsError", [], "Errore eliminazione righe")); }
+      return Screen4RowsUtil.onDeleteRows({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this._getOVm(),
+        cacheKey: this._getDataCacheKey(),
+        table: this.byId("mdcTable4"),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        applyFiltersAndSortFn: this._applyFiltersAndSort.bind(this)
+      });
     },
 
     onAddRow: function () {
-      try {
-        var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canAddRow")) { MessageToast.show(I18n.text(this, "msg.noPermissionAddRows", [], "Non hai permessi per aggiungere righe")); return; }
-        var aAll = oD.getProperty("/RowsAll") || []; if (!aAll.length) { MessageToast.show(I18n.text(this, "msg.noBaseRow", [], "Nessuna riga di base")); return; }
-
-        var oBase = aAll[0] || {};
-        var sGuid = N.toStableString(oD.getProperty("/guidKey")) || oBase.Guid || oBase.GUID || "";
-
-        var oFullRow = aAll.reduce(function (best, r) {
-          return (Object.keys(r).length > Object.keys(best).length) ? r : best;
-        }, oBase);
-        var oNew = N.deepClone(oFullRow) || {};
-
-        Object.keys(oNew).forEach(function (k) {
-          if (k.indexOf("__") === 0 || k === "__metadata") { delete oNew[k]; return; }
-          if (["Guid", "GUID", "guidKey", "Fornitore", "Materiale", "CatMateriale", "Stagione", "Plant"].indexOf(k) >= 0) return;
-          oNew[k] = Array.isArray(oNew[k]) ? [] : "";
-        });
-
-        oNew.Guid = sGuid;
-        oNew.GUID = sGuid;
-        oNew.guidKey = sGuid;
-        oNew.Fornitore = oBase.Fornitore || "";
-        oNew.Materiale = oBase.Materiale || "";
-        oNew.CatMateriale = oBase.CatMateriale || oD.getProperty("/_mmct/cat") || "";
-        oNew.Stagione = oBase.Stagione || "";
-        oNew.Plant = oBase.Plant || "";
-        oNew.Fibra = "";
-        oNew.Stato = "ST";
-        oNew.Note = "";
-
-        var self = this;
-        (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-          if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
-        });
-
-        var shouldUpd = false;
-        try {
-          shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
-            .filter(function (i) { return i.Guid === oNew.Guid; })
-            .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
-        } catch (e) { }
-
-        oNew.CodAgg = shouldUpd ? "U" : "I";
-        oNew.__isNew = true;
-        oNew.__readOnly = false;
-        oNew.__localId = "NEW_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-
-        aAll = aAll.slice(); aAll.push(oNew);
-        oD.setProperty("/RowsAll", aAll);
-        oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
-        oD.setProperty("/__dirty", true);
-
-        var oVm = this.getOwnerComponent().getModel("vm"), sCK = this._getDataCacheKey();
-        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).slice();
-        aC.push(oNew);
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC);
-
-        this._applyUiPermissions(); this._applyFiltersAndSort();
-        var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
-
-        var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
-        MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
-
-        this._syncAttachmentCounters();
-        MessageToast.show(I18n.text(this, "msg.rowAdded", [], "Riga aggiunta"));
-      } catch (e) { console.error("[S4] onAddRow ERROR", e); MessageToast.show(I18n.text(this, "msg.addRowError", [], "Errore aggiunta riga")); }
+      return Screen4RowsUtil.onAddRow({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this._getOVm(),
+        cacheKey: this._getDataCacheKey(),
+        table: this.byId("mdcTable4"),
+        toArrayMultiFn: this._toArrayMulti.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        applyFiltersAndSortFn: this._applyFiltersAndSort.bind(this),
+        syncAttachmentCountersFn: this._syncAttachmentCounters.bind(this)
+      });
     },
 
     // ==================== COPY ROW ====================
     onCopyRow: function () {
-      try {
-        var oD = this.getView().getModel("detail"); if (!oD) return;
-        if (!oD.getProperty("/__canAddRow")) { MessageToast.show(I18n.text(this, "msg.noPermissionCopyRows", [], "Non hai permessi per copiare righe")); return; }
-
-        var aSel = this._getSelectedRowObjects();
-        if (!aSel.length) { MessageToast.show(I18n.text(this, "msg.selectRowToCopy", [], "Seleziona una riga da copiare")); return; }
-        if (aSel.length > 1) { MessageToast.show(I18n.text(this, "msg.selectSingleRowToCopy", [], "Seleziona una sola riga da copiare")); return; }
-
-        var oSource = aSel[0];
-        var oNew = N.deepClone(oSource) || {};
-
-        ["/_mmct/s01", "/_mmct/s02"].forEach(function (sPath) {
-          (oD.getProperty(sPath) || []).forEach(function (f) {
-            if (f && f.ui && f.attachment) oNew[f.ui.trim()] = "0";
-          });
-        });
-
-        var shouldUpd = false;
-        try { shouldUpd = Object.values(this.getOwnerComponent().getModel("vm").getData().cache.dataRowsByKey)[0]
-          .filter(function (i) { return i.Guid === oNew.Guid; })
-          .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0; } catch (e) { }
-        oNew.CodAgg = shouldUpd ? "U" : "I";
-        oNew.__isNew = true;
-        oNew.__readOnly = false;
-        oNew.__localId = "COPY_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-        oNew.Stato = "ST";
-        oNew.Note = "";
-        delete oNew.__metadata;
-
-        var self = this;
-        (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {
-          if (f && f.ui && f.multiple) oNew[f.ui.trim()] = self._toArrayMulti(oNew[f.ui.trim()]);
-        });
-
-        var aAll = (oD.getProperty("/RowsAll") || []).slice();
-        aAll.push(oNew);
-        oD.setProperty("/RowsAll", aAll);
-        oD.setProperty("/__dirty", true);
-
-        var oVm = this._getOVm(), sCK = this._getDataCacheKey();
-        var aC = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCK)) || []).slice();
-        aC.push(oNew);
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aC);
-
-        this._applyUiPermissions();
-        this._applyFiltersAndSort();
-        var oTbl = this.byId("mdcTable4"); if (oTbl && oTbl.rebind) oTbl.rebind();
-
-        var aFiltered = oD.getProperty("/Rows") || oD.getProperty("/RowsAll") || [];
-        MdcTableUtil.scrollToRow(this.byId("mdcTable4"), aFiltered.length - 1);
-
-        this._syncAttachmentCounters();
-        MessageToast.show(I18n.text(this, "msg.rowCopied", [], "Riga copiata"));
-      } catch (e) { console.error("[S4] onCopyRow ERROR", e); MessageToast.show(I18n.text(this, "msg.copyRowError", [], "Errore copia riga")); }
+      return Screen4RowsUtil.onCopyRow({
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this._getOVm(),
+        cacheKey: this._getDataCacheKey(),
+        table: this.byId("mdcTable4"),
+        toArrayMultiFn: this._toArrayMulti.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        applyFiltersAndSortFn: this._applyFiltersAndSort.bind(this),
+        syncAttachmentCountersFn: this._syncAttachmentCounters.bind(this)
+      });
     },
 
     // ==================== SAVE ====================

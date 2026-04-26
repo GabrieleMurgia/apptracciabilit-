@@ -7,7 +7,7 @@
   xmlns:mdc="sap.ui.mdc"
   displayBlock="true">
 
-  <Page id="page5" title="Dati in Tabella" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
+  <Page id="page5" title="{i18n>screen5.title}" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage">
 
     <customHeader>
       <Toolbar id="toolbar5" class="appCustomHeader">
@@ -18,7 +18,7 @@
             <Button id="buttonBack5" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
-            <Title id="title5" text="Dati in Tabella" level="H3"/>
+            <Title id="title5" text="{i18n>screen5.title}" level="H3"/>
           </contentMiddle>
           <contentRight>
             <ToolbarSpacer id="bar5SpacerRight"/>
@@ -32,18 +32,18 @@
 
         <!-- Search mask: Category selection -->
         <HBox id="hboxSearchMask5" alignItems="Center" class="searchFilterBox">
-          <Label id="lblCatMat5" text="Categoria Materiale:" class="sapUiSmallMarginEnd filterLabel"/>
+          <Label id="lblCatMat5" text="{i18n>common.categoryMaterialLabel}" class="sapUiSmallMarginEnd filterLabel"/>
           <ComboBox
             id="comboCatMat5"
             width="250px"
-            placeholder="Seleziona categoria..."
+            placeholder="{i18n>common.categoryPlaceholder}"
             items="{vm>/userCategoriesList}"
             selectedKey="{detail>/selectedCat}">
             <items>
               <core:Item id="catItem5" key="{vm>key}" text="{vm>text}"/>
             </items>
           </ComboBox>
-          <Button id="btnLoadData5" text="Cerca" type="Emphasized" icon="sap-icon://search" press=".onLoadData" class="sapUiSmallMarginBegin"/>
+          <Button id="btnLoadData5" text="{i18n>action.search}" type="Emphasized" icon="sap-icon://search" press=".onLoadData" class="sapUiSmallMarginBegin"/>
         </HBox>
 
         <ToolbarSpacer id="hdr5Spacer"/>
@@ -51,7 +51,7 @@
         <!-- Record count -->
         <ObjectStatus
           id="osRecordCount5"
-          text="{= 'Righe: ' + (${detail>/RowsCount} || 0) }"
+          text="{= ${i18n>screen5.rowsLabel} + ': ' + (${detail>/RowsCount} || 0) }"
           state="None"/>
 
       </OverflowToolbar>
@@ -71,37 +71,37 @@
         <HBox id="hboxToolbarTable5-1" wrap="Wrap" alignItems="Center" class="filterGroup">
 
           <HBox id="hboxStatusFilter5" class="statusFilterBox" alignItems="Center" wrap="Wrap">
-            <Label id="lblStatus5" text="Stato:" class="sapUiTinyMarginEnd filterLabel"/>
-            <ObjectStatus id="stAll5" text="TUTTI" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="statusChip">
+            <Label id="lblStatus5" text="{i18n>common.statusLabel}" class="sapUiTinyMarginEnd filterLabel"/>
+            <ObjectStatus id="stAll5" text="{i18n>common.statusAll}" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStAll5" key="status" value=""/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stST5" text="In attesa" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stST5" text="{i18n>common.statusPending}" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStST5" key="status" value="ST"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stAP5" text="Approvato" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stAP5" text="{i18n>common.statusApproved}" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStAP5" key="status" value="AP"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stRJ5" text="Respinto" icon="sap-icon://alert" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stRJ5" text="{i18n>common.statusRejected}" icon="sap-icon://alert" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStRJ5" key="status" value="RJ"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stCH5" text="Modificato" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stCH5" text="{i18n>common.statusModified}" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStCH5" key="status" value="CH"/></customData>
             </ObjectStatus>
           </HBox>
 
           <HBox id="hboxFilter5" alignItems="Center" class="searchFilterBox">
-            <Label id="lblFilter5" text="Cercare:" labelFor="inputFilter5" class="sapUiTinyMarginEnd filterLabel"/>
-            <Input id="inputFilter5" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
-            <Button id="btnColFilters5x" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
-            <Button id="btnSort5x" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
-            <Button id="btnResetFS5x" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
+            <Label id="lblFilter5" text="{i18n>common.searchLabel}" labelFor="inputFilter5" class="sapUiTinyMarginEnd filterLabel"/>
+            <Input id="inputFilter5" width="100%" liveChange=".onGlobalFilter" placeholder="{i18n>common.searchAllFieldsPlaceholder}" class="searchInput"/>
+            <Button id="btnColFilters5x" icon="sap-icon://filter" tooltip="{i18n>common.columnFiltersTooltip}" press=".onOpenColumnFilters" type="Transparent"/>
+            <Button id="btnSort5x" icon="sap-icon://sort" tooltip="{i18n>common.sortTooltip}" press=".onOpenSort" type="Transparent"/>
+            <Button id="btnResetFS5x" icon="sap-icon://reset" tooltip="{i18n>common.resetFiltersTooltip}" press=".onResetFiltersAndSort" type="Transparent"/>
           </HBox>
 
         </HBox>
 
         <Toolbar id="tblToolbar5" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar5sp"/>
-          <Button id="tbExcel5" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
+          <Button id="tbExcel5" icon="sap-icon://excel-attachment" tooltip="{i18n>screen5.exportExcelTooltip}" press=".onExportExcel" type="Transparent"/>
         </Toolbar>
 
       </HBox>
@@ -129,8 +129,8 @@
     </content>
 
       <VBox id="legalFooter5" class="appLegalFooter appLegalFooter56" alignItems="Center">
-          <Text id="legalTitle5" text="VALENTINO.COM" class="legalFooterTitle"/>
-          <Text id="legalCopy5" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+          <Text id="legalTitle5" text="{i18n>legal.site}" class="legalFooterTitle"/>
+          <Text id="legalCopy5" text="{= ${i18n>legal.copyPrefix} + ${vm>/legalYear} + ${i18n>legal.copySuffix} }" class="legalFooterText"/>
       </VBox>
 
   </Page>

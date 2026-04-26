@@ -1,7 +1,6 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
-  "sap/m/MessageToast",
   "sap/m/Button",
   "sap/ui/mdc/table/Column",
   "sap/m/HBox",
@@ -21,22 +20,20 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/exportUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/screen3SaveUtil",
+  "apptracciabilita/apptracciabilita/util/screen3CrudUtil",
   "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
-  "apptracciabilita/apptracciabilita/util/rowManagementUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
-  "apptracciabilita/apptracciabilita/util/screen4CacheUtil",
-  "apptracciabilita/apptracciabilita/util/touchCodAggUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
-  BaseController, JSONModel, MessageToast,
+  BaseController, JSONModel,
   Button, MdcColumn, HBox, ObjectStatus, StateUtil,
   N, VmPaths, Domains, StatusUtil, MdcTableUtil, P13nUtil,
   CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
-  Screen3SaveUtil, DataLoaderUtil, RowManagementUtil, FilterSortUtil,
-  Screen4CacheUtil, TouchCodAggUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
+  Screen3SaveUtil, Screen3CrudUtil, DataLoaderUtil, FilterSortUtil,
+  TableColumnAutoSize, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
@@ -541,86 +538,43 @@ var oVm = self.getOwnerComponent().getModel("vm");
 
     // ==================== TOUCH CODAGG ====================
     _touchCodAggParent: function (p, sPath) {
-      TouchCodAggUtil.touchCodAggParent(p, sPath, { oDetail: this._getODetail(), oVm: this._getOVm(), cacheKey: this._getExportCacheKey() });
-      this._checkParentDirtyRevert(p, sPath);
-      /* RecordsUtil.checkPercAndApply(this.byId("mdcTable3"), this._getODetail(), { rowsPath: "/RecordsAll" }); */
+      return Screen3CrudUtil.touchCodAggParent({
+        parent: p,
+        path: sPath,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        snapshotRecords: this._snapshotRecords,
+        originalSnapshot: this._originalSnapshot
+      });
     },
 
     _checkParentDirtyRevert: function (p, sPath) {
-      var snap = this._snapshotRecords;
-      if (!snap || !p || p.__isNew) return;
-
-      var oDetail = this._getODetail();
-      var aKeys = (oDetail.getProperty("/_mmct/s01") || []).map(function (f) { return f && f.ui; }).filter(Boolean);
-      if (!aKeys.length) return;
-
-      var iIdx = (p.idx != null) ? parseInt(p.idx, 10) : NaN;
-      if (isNaN(iIdx)) return;
-      var snapRow = null;
-      snap.forEach(function (s) { if (!snapRow && parseInt(s.idx, 10) === iIdx) snapRow = s; });
-      if (!snapRow) return;
-
-      function vMatch(v1, v2) {
-        if (Array.isArray(v1) && Array.isArray(v2)) return JSON.stringify(v1) === JSON.stringify(v2);
-        return String(v1 == null ? "" : v1) === String(v2 == null ? "" : v2);
-      }
-
-      if (!aKeys.every(function (k) { return vMatch(p[k], snapRow[k]); })) return;
-
-      var sOrigCa = snapRow.CodAgg || "";
-      p.CodAgg = sOrigCa;
-      if (sPath) oDetail.setProperty(sPath + "/CodAgg", sOrigCa);
-
-      var idx = iIdx;
-      var aAll = oDetail.getProperty("/RecordsAll") || [];
-      for (var i = 0; i < aAll.length; i++) {
-        if (parseInt(aAll[i] && aAll[i].idx, 10) === idx) {
-          oDetail.setProperty("/RecordsAll/" + i + "/CodAgg", sOrigCa);
-          break;
-        }
-      }
-
-      var g = N.toStableString(N.getGuid(p));
-      if (g) {
-        var oVm = this._getOVm();
-        var sKey = this._getExportCacheKey();
-        var aRaw = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || [];
-        aRaw.forEach(function (r) { if (N.rowGuidKey(r) === g) r.CodAgg = sOrigCa; });
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aRaw);
-      }
-
-      if (Array.isArray(this._originalSnapshot)) {
-        for (var j = 0; j < this._originalSnapshot.length; j++) {
-          if (parseInt(this._originalSnapshot[j] && this._originalSnapshot[j].idx, 10) === idx) {
-            this._originalSnapshot[j] = N.deepClone(p);
-            break;
-          }
-        }
-      }
+      return Screen3CrudUtil.checkParentDirtyRevert({
+        parent: p,
+        path: sPath,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        snapshotRecords: this._snapshotRecords,
+        originalSnapshot: this._originalSnapshot
+      });
     },
 
     // ==================== NAV SCREEN4 ====================
     onGoToScreen4FromRow: function (oEvent) {
-      try {
-        var oBtn = oEvent.getSource();
-        var oCtx = oBtn && oBtn.getBindingContext && (oBtn.getBindingContext("detail") || oBtn.getBindingContext());
-        if (!oCtx) return;
-        var oRow = oCtx.getObject && oCtx.getObject();
-        var iIdx = (oRow && oRow.idx != null) ? parseInt(oRow.idx, 10) : NaN;
-        if (isNaN(iIdx) && oCtx.getPath) { var mm = String(oCtx.getPath() || "").match(/\/(\d+)\s*$/); if (mm) iIdx = parseInt(mm[1], 10); }
-        if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
-
-        var oDetail = this._getODetail();
-        var aCurrent = oDetail.getProperty("/RecordsAll") || [];
-        if (aCurrent.length) {
-          this._snapshotRecords = deepClone(aCurrent);
-        }
-
-        Screen4CacheUtil.setSelectedParentForScreen4(oRow, this._getOVm(), this.getOwnerComponent());
-        Screen4CacheUtil.ensureScreen4CacheForParentIdx(iIdx, N.toStableString(oRow.guidKey || oRow.GUID || oRow.Guid), this._getOVm(), this._getCacheKeySafe());
-
-        this.getOwnerComponent().getRouter().navTo("Screen4", { vendorId: encodeURIComponent(this._sVendorId), material: encodeURIComponent(this._sMaterial), recordKey: encodeURIComponent(String(iIdx)), mode: this._sMode || "A" });
-      } catch (e) { console.error("onGoToScreen4FromRow ERROR", e); }
+      return Screen3CrudUtil.onGoToScreen4FromRow({
+        event: oEvent,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        component: this.getOwnerComponent(),
+        router: this.getOwnerComponent().getRouter(),
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        mode: this._sMode || "A",
+        cacheKeySafe: this._getCacheKeySafe(),
+        setSnapshotRecordsFn: function (aSnapshot) { this._snapshotRecords = aSnapshot; }.bind(this)
+      });
     },
 
     // ==================== MDC SELECTION ====================
@@ -630,145 +584,45 @@ var oVm = self.getOwnerComponent().getModel("vm");
 
     // ==================== ADD ROW ====================
     onAddRow: function () {
-      var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
-      if (!oDetail.getProperty("/__canAddRow")) return MessageToast.show(I18n.text(this, "msg.noPermissionAddRows", [], "Non hai permessi per aggiungere righe"));
-
-      var oVm = this._getOVm(), sCacheKey = this._getExportCacheKey();
-     
-var guidTpl = RowManagementUtil.pickTemplateGuidForNewParent({ selectedObjects: [], oVm: oVm, cacheKey: sCacheKey, toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey, getCodAgg: N.getCodAgg });
-var aTplRows = RowManagementUtil.getTemplateRowsByGuid(guidTpl, { oVm: oVm, cacheKey: sCacheKey, rowGuidKey: RecordsUtil.rowGuidKey, isBaseCodAgg: N.isBaseCodAgg });
-
-      if (!aTplRows || !aTplRows.length) {
-        MessageToast.show(I18n.text(this, "msg.templateRowMissingForAdd", [], "Template mancante: non esiste una riga con CodAgg = \"N\" da usare come modello"));
-        return;
-      }
-
-      var result = RowManagementUtil.createNewParentRow({ oDetail: oDetail, template: aTplRows[0] || {}, cfg01: oDetail.getProperty("/_mmct/s01") || [], vendorId: this._sVendorId, material: this._sMaterial, normalizeVendor10: N.normalizeVendor10, toArrayMulti: RecordsUtil.toArrayMulti, statusText: RecordsUtil.statusText, genGuidNew: N.genGuidNew });
-
-var aNewDetails = RowManagementUtil.createNewDetailRows(aTplRows, {
-  template: aTplRows[0] || {},
-  cfg02: oDetail.getProperty("/_mmct/s02") || [],
-  cfgStruct: oDetail.getProperty("/_mmct/s00") || [],  // ← Prendiamo gli strutturali dinamicamente
-  guid: result.guid,
-  vendorId: this._sVendorId,
-  material: this._sMaterial,
-  cat: oDetail.getProperty("/_mmct/cat") || "",
-  normalizeVendor10: N.normalizeVendor10,
-  toArrayMulti: RecordsUtil.toArrayMulti
-});
-
-
-      var aAll = (oDetail.getProperty("/RecordsAll") || []).slice(); aAll.push(result.row); oDetail.setProperty("/RecordsAll", aAll);
-      var aRC = (oVm.getProperty(VmPaths.recordsByKeyPath(sCacheKey)) || []).slice(); aRC.push(result.row); oVm.setProperty(VmPaths.recordsByKeyPath(sCacheKey), aRC);
-      var aRW = (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || []).slice(); oVm.setProperty(VmPaths.dataRowsByKeyPath(sCacheKey), aRW.concat(aNewDetails));
-
-      Screen4CacheUtil.setSelectedParentForScreen4(result.row, oVm, this.getOwnerComponent());
-      Screen4CacheUtil.ensureScreen4CacheForParentIdx(result.idx, result.guid, oVm, this._getCacheKeySafe());
-      this._applyClientFilters();
-
-      var oTbl = this.byId("mdcTable3");
-      var aFiltered = oDetail.getProperty("/Records") || [];
-      var iNewRowIndex = aFiltered.length - 1;
-      if (iNewRowIndex >= 0) {
-        MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
-      }
-
-      MessageToast.show(I18n.text(this, "msg.rowAdded", [], "Riga aggiunta"));
+      return Screen3CrudUtil.onAddRow({
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        cacheKeySafe: this._getCacheKeySafe(),
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        component: this.getOwnerComponent(),
+        table: this.byId("mdcTable3"),
+        applyClientFiltersFn: this._applyClientFilters.bind(this)
+      });
     },
 
     // ==================== COPY ROW ====================
     onCopyRow: function () {
-      var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
-      if (!oDetail.getProperty("/__canCopyRow")) return MessageToast.show(I18n.text(this, "msg.noPermissionCopyRows", [], "Non hai permessi per copiare righe"));
-
-      var aSel = this._getSelectedParentObjectsFromMdc();
-      if (!aSel.length) return MessageToast.show(I18n.text(this, "msg.selectRecordToCopy", [], "Seleziona un record da copiare"));
-      if (aSel.length > 1) return MessageToast.show(I18n.text(this, "msg.selectSingleRecordToCopy", [], "Seleziona un solo record da copiare"));
-
-      var oSource = aSel[0];
-      var sSourceGuid = N.toStableString(oSource.guidKey || oSource.Guid || oSource.GUID || "");
-      if (!sSourceGuid) return MessageToast.show(I18n.text(this, "msg.recordWithoutGuidCannotCopy", [], "Record senza Guid, impossibile copiare"));
-
-      var oVm = this._getOVm();
-      var sCacheKey = this._getExportCacheKey();
-
-      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || [];
-      var aSourceRaws = aRawAll.filter(function (r) {
-        return N.toStableString(RecordsUtil.rowGuidKey(r)) === sSourceGuid;
+      return Screen3CrudUtil.onCopyRow({
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        cacheKeySafe: this._getCacheKeySafe(),
+        component: this.getOwnerComponent(),
+        table: this.byId("mdcTable3"),
+        getSelectedParentObjectsFn: this._getSelectedParentObjectsFromMdc.bind(this),
+        applyClientFiltersFn: this._applyClientFilters.bind(this)
       });
-      if (!aSourceRaws.length) return MessageToast.show(I18n.text(this, "msg.noDetailRowsForRecord", [], "Nessuna riga dettaglio trovata per questo record"));
-
-      var aAll = oDetail.getProperty("/RecordsAll") || [];
-      var iMax = -1;
-      aAll.forEach(function (r) {
-        var n = parseInt(r && r.idx, 10);
-        if (!isNaN(n) && n > iMax) iMax = n;
-      });
-
-      var oClone = RowManagementUtil.cloneRecordForCopy({
-        source: oSource,
-        sourceRaws: aSourceRaws,
-        newIdx: iMax + 1,
-        newGuid: N.genGuidNew(),
-        attachmentUiKeys: RowManagementUtil.collectAttachmentUiKeys(oDetail),
-        statusText: RecordsUtil.statusText
-      });
-
-      oDetail.setProperty("/RecordsAll", aAll.concat([oClone.parent]));
-      oVm.setProperty(
-        VmPaths.recordsByKeyPath(sCacheKey),
-        (oVm.getProperty(VmPaths.recordsByKeyPath(sCacheKey)) || []).concat([oClone.parent])
-      );
-      oVm.setProperty(
-        VmPaths.dataRowsByKeyPath(sCacheKey),
-        (oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)) || []).concat(oClone.raws)
-      );
-
-      Screen4CacheUtil.setSelectedParentForScreen4(oClone.parent, oVm, this.getOwnerComponent());
-      Screen4CacheUtil.ensureScreen4CacheForParentIdx(oClone.idx, oClone.guid, oVm, this._getCacheKeySafe());
-      this._applyClientFilters();
-
-      var oTbl = this.byId("mdcTable3");
-      var aFiltered = oDetail.getProperty("/Records") || [];
-      var iNewRowIndex = aFiltered.length - 1;
-      if (iNewRowIndex >= 0) MdcTableUtil.scrollToRow(oTbl, iNewRowIndex);
-
-      MessageToast.show(I18n.text(this, "msg.recordCopiedWithDetailRows", [oClone.raws.length], "Record copiato ({0} righe dettaglio)"));
     },
 
     // ==================== DELETE ROWS ====================
     onDeleteRows: function () {
-      var oDetail = this._getODetail();
-      if (!oDetail) return MessageToast.show(I18n.text(this, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
-      var aSel = this._getSelectedParentObjectsFromMdc();
-      if (!aSel.length) return MessageToast.show(I18n.text(this, "msg.selectAtLeastOneRowToDelete", [], "Seleziona almeno una riga da eliminare"));
-      if (!RowManagementUtil.canDeleteSelectedRows(aSel).canDelete) return MessageToast.show(I18n.text(this, "msg.cannotDeleteApprovedVendorBatch", [], "Non puoi eliminare partita fornitore approvati"));
-      var aIdxToRemove = RowManagementUtil.getIdxToRemove(aSel);
-      if (!aIdxToRemove.length) return MessageToast.show(I18n.text(this, "msg.noValidIdxInSelectedRows", [], "Nessun idx valido nelle righe selezionate"));
-
-      var aDeletedParents = oDetail.getProperty("/__deletedParents") || [];
-      aSel.forEach(function (r) { var g = (r && (r.GUID || r.Guid || r.guidKey)) || ""; if (g && String(g).indexOf("-new") < 0) aDeletedParents.push(r); });
-      oDetail.setProperty("/__deletedParents", aDeletedParents);
-      oDetail.setProperty("/RecordsAll", (oDetail.getProperty("/RecordsAll") || []).filter(function (r) { return aIdxToRemove.indexOf(parseInt(r && r.idx, 10)) < 0; }));
-
-      var oVm = this._getOVm(), sKeyCache = this._getExportCacheKey();
-      var mDelPair = {}, mDelGuid = {};
-      aSel.forEach(function (p) { var g = N.toStableString(p && (p.guidKey || p.GUID || p.Guid)), f = N.toStableString(p && p.Fibra); if (g && f) mDelPair[g + "||" + f] = true; else if (g) mDelGuid[g] = true; });
-      oVm.setProperty(VmPaths.recordsByKeyPath(sKeyCache), (oVm.getProperty(VmPaths.recordsByKeyPath(sKeyCache)) || []).filter(function (r) { return aIdxToRemove.indexOf(parseInt(r && r.idx, 10)) < 0; }));
-
-      var aRowsCacheBefore = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKeyCache)) || [];
-      aSel.forEach(function (p) { PostUtil.stashDeleteForPostFromCache(p, aRowsCacheBefore, oDetail, { toStableString: N.toStableString, rowGuidKey: RecordsUtil.rowGuidKey }); }.bind(this));
-      oVm.setProperty(VmPaths.dataRowsByKeyPath(sKeyCache), (oVm.getProperty(VmPaths.dataRowsByKeyPath(sKeyCache)) || []).filter(function (r) { var g = RecordsUtil.rowGuidKey(r), f = RecordsUtil.rowFibra(r); return !(mDelPair[g + "||" + f] || mDelGuid[g]); }));
-
-      Screen4CacheUtil.purgeScreen4CacheByParentIdx(aIdxToRemove, oVm, this._getCacheKeySafe());
-      var oSel = Screen4CacheUtil.getSelectedParentForScreen4(this.getOwnerComponent().getModel("vm"));
-      if (oSel && aIdxToRemove.indexOf(parseInt(oSel.idx, 10)) >= 0) Screen4CacheUtil.setSelectedParentForScreen4(null, oVm, this.getOwnerComponent());
-
-      this._applyClientFilters();
-      this._clearSelectionMdc();
-      MessageToast.show(I18n.text(this, "msg.rowsDeleted", [], "Righe eliminate"));
+      return Screen3CrudUtil.onDeleteRows({
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        cacheKeySafe: this._getCacheKeySafe(),
+        component: this.getOwnerComponent(),
+        getSelectedParentObjectsFn: this._getSelectedParentObjectsFromMdc.bind(this),
+        applyClientFiltersFn: this._applyClientFilters.bind(this),
+        clearSelectionFn: this._clearSelectionMdc.bind(this)
+      });
     },
 
     // ==================== SAVE ====================

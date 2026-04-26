@@ -6,7 +6,7 @@
   xmlns:core="sap.ui.core"
   xmlns:mdc="sap.ui.mdc">
 
-  <Page id="page4" title="Dettaglio" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
+  <Page id="page4" title="{i18n>common.detail}" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar4" class="appCustomHeader">
@@ -17,7 +17,7 @@
             <Button id="buttonBack4" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
-            <Title id="title4" text="Dettaglio" level="H3"/>
+            <Title id="title4" text="{i18n>common.detail}" level="H3"/>
           </contentMiddle>
           <contentRight>
             <ToolbarSpacer id="bar4SpacerRight"/>
@@ -59,22 +59,22 @@
         wrap="Wrap">
 
         <HBox id="hboxFilter4" alignItems="Center" class="searchFilterBox">
-          <Label id="lblFilter4" text="Cercare:" labelFor="inputFilter4" class="sapUiTinyMarginEnd filterLabel"/>
-          <Input id="inputFilter4" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
-          <Button id="btnColFilters4" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
-          <Button id="btnSort4" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
-          <Button id="btnResetFS4" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
+          <Label id="lblFilter4" text="{i18n>common.searchLabel}" labelFor="inputFilter4" class="sapUiTinyMarginEnd filterLabel"/>
+          <Input id="inputFilter4" width="100%" liveChange=".onGlobalFilter" placeholder="{i18n>common.searchAllFieldsPlaceholder}" class="searchInput"/>
+          <Button id="btnColFilters4" icon="sap-icon://filter" tooltip="{i18n>common.columnFiltersTooltip}" press=".onOpenColumnFilters" type="Transparent"/>
+          <Button id="btnSort4" icon="sap-icon://sort" tooltip="{i18n>common.sortTooltip}" press=".onOpenSort" type="Transparent"/>
+          <Button id="btnResetFS4" icon="sap-icon://reset" tooltip="{i18n>common.resetFiltersTooltip}" press=".onResetFiltersAndSort" type="Transparent"/>
         </HBox>
 
         <Toolbar id="tblToolbar4" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar4sp"/>
-          <Button id="btnAddRow02" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
-          <Button id="btnCopyRow02" text="Copia riga" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
-          <Button id="btnDeleteRows02" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/>
+          <Button id="btnAddRow02" text="{i18n>common.addRow}" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
+          <Button id="btnCopyRow02" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
+          <Button id="btnDeleteRows02" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep4"/>
           <ToolbarSeparator id="tbSep4b"/>
-          <Button id="tbPrint4" icon="sap-icon://print" tooltip="Stampa" press=".onPrint" type="Transparent"/>
-          <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
+          <Button id="tbPrint4" icon="sap-icon://print" tooltip="{i18n>common.print}" press=".onPrint" type="Transparent"/>
+          <Button id="tbExcel4" icon="sap-icon://excel-attachment" tooltip="{i18n>common.excel}" press=".onExportExcel" type="Transparent"/>
         </Toolbar>
 
       </HBox>
@@ -106,7 +106,7 @@
         <ToolbarSpacer id="footerSpacer4"/>
         <Button
           id="btnSaveToBackend4"
-          text="Salva"
+          text="{i18n>action.save}"
           icon="sap-icon://save"
           type="Emphasized"
           press=".onSaveToBackend"/>

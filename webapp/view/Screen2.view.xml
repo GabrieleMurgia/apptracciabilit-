@@ -7,7 +7,7 @@
 
     <Page
         id="page2"
-        title="Materiali fornitore">
+        title="{i18n>screen2.pageTitle}">
 
         <customHeader>
             <Toolbar id="toolbar2">
@@ -24,7 +24,7 @@
                     <contentMiddle>
                         <Title
                             id="title2"
-                            text="Dati aggregati per materiale" />
+                            text="{i18n>screen2.headerTitle}" />
                     </contentMiddle>
 
                     <contentRight>
@@ -38,49 +38,49 @@
             <!-- Filter bar: desktop=one row, mobile=3 rows -->
             <VBox id="vboxFilters2" class="mobileFilterBar">
                 <HBox id="filterRow2A" alignItems="Center" class="filterRow">
-                    <Label id="labelVendor2" text="Fornitore:" class="sapUiTinyMarginEnd"/>
+                    <Label id="labelVendor2" text="{i18n>screen2.vendorLabel}" class="sapUiTinyMarginEnd"/>
                     <Text id="textVendor2" text="{/CurrentVendorName}" class="sapUiSmallMarginEnd"/>
-                    <Label id="labelOnlyIncomplete2" text="Solo incompleti" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <Label id="labelOnlyIncomplete2" text="{i18n>screen2.onlyIncomplete}" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
                     <Switch
                         id="switchOnlyIncomplete2"
                         state="true"
                         change=".onFilterChanged" />
                 </HBox>
                 <HBox id="filterRow2B" alignItems="Center" class="filterRow">
-                    <Label id="labelDescCatFilter2" text="Cat. Materiale" class="sapUiTinyMarginEnd"/>
+                    <Label id="labelDescCatFilter2" text="{i18n>common.categoryMaterialShort}" class="sapUiTinyMarginEnd"/>
                     <MultiComboBox
                         id="inputDescCatFilter2"
                         width="14rem"
                         items="{ path: '/DescCatMaterialeValues', sorter: { path: 'text' } }"
                         selectionChange=".onFilterChanged"
-                        placeholder="Es. Pelle, Tessuto...">
+                        placeholder="{i18n>screen2.categoryPlaceholder}">
                         <core:Item id="random1" key="{key}" text="{text}" />
                     </MultiComboBox>
-                    <Label id="labelSeasonFilter2" text="Stagione" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <Label id="labelSeasonFilter2" text="{i18n>common.season}" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
                     <MultiComboBox
                         id="inputSeasonFilter2"
                         width="10rem"
                         items="{ path: '/StagioneValues', sorter: { path: 'text' } }"
                         selectionChange=".onFilterChanged"
-                        placeholder="Es. 44...">
+                        placeholder="{i18n>screen2.seasonPlaceholder}">
                         <core:Item id="random2" key="{key}" text="{text}" />
                     </MultiComboBox>
                 </HBox>
                 <HBox id="filterRow2C" alignItems="Center" class="filterRow">
-                    <Label id="labelMaterialOnly2" text="Materiale" class="sapUiTinyMarginEnd"/>
+                    <Label id="labelMaterialOnly2" text="{i18n>common.material}" class="sapUiTinyMarginEnd"/>
                     <SearchField
                         id="inputMaterialOnly2"
                         width="12rem"
                         liveChange=".onFilterChanged"
                         search=".onFilterChanged"
-                        placeholder="Codice materiale..." />
-                    <Label id="labelGeneralFilter2" text="Filtro generale" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                        placeholder="{i18n>screen2.materialCodePlaceholder}" />
+                    <Label id="labelGeneralFilter2" text="{i18n>screen2.generalFilterLabel}" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
                     <SearchField
                         id="inputMaterialFilter2"
                         width="15rem"
                         liveChange=".onFilterChanged"
                         search=".onFilterChanged"
-                        placeholder="Cerca in tutte le colonne..." />
+                        placeholder="{i18n>screen2.generalSearchPlaceholder}" />
                 </HBox>
             </VBox>
 
@@ -99,31 +99,31 @@
                     <Toolbar id="toolbarTableHeader2">
                         <Title
                             id="titleTable2"
-                            text="Materiali"
+                            text="{i18n>screen2.tableTitle}"
                             level="H2" />
                         <Button
                             id="btnSortMaterials2"
                             icon="sap-icon://sort"
-                            tooltip="Ordina"
+                            tooltip="{i18n>screen2.sortTooltip}"
                             type="Transparent"
                             press=".onOpenSortDialog" />
                         <Button
                             id="btnMassApprove"
-                            text="Rilascio Massivo"
+                            text="{i18n>screen2.massApprove}"
                             icon="sap-icon://accept"
                             type="Accept"
                             press=".onMassApprovePress"
                             visible="{/showMatStatusCol}" />
                         <Button
                             id="btnMassReject"
-                            text="Blocco Massivo"
+                            text="{i18n>screen2.massReject}"
                             icon="sap-icon://decline"
                             type="Reject"
                             press=".onMassRejectPress"
                             visible="{/showMatStatusCol}" />
                         <Button
                             id="btnDeselectAll"
-                            text="Deseleziona Tutto"
+                            text="{i18n>screen2.deselectAll}"
                             icon="sap-icon://reset"
                             type="Transparent"
                             press=".onDeselectAll"
@@ -133,34 +133,34 @@
 
                 <columns>
                     <Column id="columnMaterial2">
-                        <Text id="textColumnMaterial2" text="Materiale" />
+                        <Text id="textColumnMaterial2" text="{i18n>common.material}" />
                     </Column>
                     <Column id="columnMaterialDesc2">
-                        <Text id="textColumnMaterialDesc2" text="Descrizione" />
+                        <Text id="textColumnMaterialDesc2" text="{i18n>common.description}" />
                     </Column>
                     <Column id="DescCatMateriale">
-                        <Text id="TextDescCatMateriale" text="Desc.Cat.Materiale" />
+                        <Text id="TextDescCatMateriale" text="{i18n>screen2.columnCategoryMaterialDesc}" />
                     </Column>
                     <Column id="columnSeason2">
-                        <Text id="textColumnSeason2" text="Stagione" />
+                        <Text id="textColumnSeason2" text="{i18n>common.season}" />
                     </Column>
                     <Column id="columnOpenPo2">
-                        <Text id="textColumnOpenPo2" text="Aperti" />
+                        <Text id="textColumnOpenPo2" text="{i18n>common.open}" />
                     </Column>
                     <Column id="columnRejected2">
-                        <Text id="textColumnRejected2" text="Rifiutati" />
+                        <Text id="textColumnRejected2" text="{i18n>common.rejected}" />
                     </Column>
                     <Column id="columnPending2">
-                        <Text id="textColumnPending2" text="In attesa approvazione" />
+                        <Text id="textColumnPending2" text="{i18n>common.pendingApproval}" />
                     </Column>
                     <Column id="columnApproved2">
-                        <Text id="textColumnApproved2" text="Approvati" />
+                        <Text id="textColumnApproved2" text="{i18n>common.approved}" />
                     </Column>
                     <Column id="columnModified2" hAlign="Center">
-                        <Text id="textColumnModified2" text="Modificati" />
+                        <Text id="textColumnModified2" text="{i18n>common.modified}" />
                     </Column>
                     <Column id="columnMatStatus2" hAlign="Center" visible="{/showMatStatusCol}">
-                        <Text id="textColumnMatStatus2" text="Stato" />
+                        <Text id="textColumnMatStatus2" text="{i18n>common.status}" />
                     </Column>
                 </columns>
 
@@ -207,7 +207,7 @@
                                 visible="{= ${MatStatus} !== 'DMMY' }"
                                 icon="{= ${MatStatus} === 'LOCK' ? 'sap-icon://locked' : 'sap-icon://unlocked' }"
                                 type="{= ${MatStatus} === 'LOCK' ? 'Reject' : 'Accept' }"
-                                tooltip="{= ${MatStatus} === 'LOCK' ? 'Bloccato' : 'Rilasciato' }" />
+                                tooltip="{= ${MatStatus} === 'LOCK' ? ${i18n>common.locked} : ${i18n>common.released} }" />
                         </cells>
                     </ColumnListItem>
                 </items>
@@ -218,8 +218,8 @@
             <VBox id="legalSpacer2" class="legalFooterSpacer"/>
             <!-- Legal Footer -->
             <VBox id="legalFooter2" class="appLegalFooter" alignItems="Center">
-                <Text id="legalTitle2" text="VALENTINO.COM" class="legalFooterTitle"/>
-<Text id="legalCopy2" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+                <Text id="legalTitle2" text="{i18n>legal.site}" class="legalFooterTitle"/>
+<Text id="legalCopy2" text="{= ${i18n>legal.copyPrefix} + ${vm>/legalYear} + ${i18n>legal.copySuffix} }" class="legalFooterText"/>
 
  </VBox>
     </Page>

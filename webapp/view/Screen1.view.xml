@@ -7,7 +7,7 @@
 
     <Page
         id="page1"
-        title="Fornitori">
+        title="{i18n>common.suppliers}">
 
         <customHeader>
             <Toolbar id="toolbar1">
@@ -23,7 +23,7 @@
                     <contentMiddle>
                         <Title
                             id="title1"
-                            text="Dati aggregati per fornitore" />
+                            text="{i18n>screen1.headerTitle}" />
                     </contentMiddle>
                     <contentRight>
                         <HBox id="hbox2" width="200px"/>
@@ -36,31 +36,31 @@
             <!-- Filter bar: desktop=one row, mobile=2 rows -->
             <VBox id="vboxFilters1" class="mobileFilterBar">
                 <HBox id="filterRow1A" alignItems="Center" class="filterRow">
-                    <Label id="lblCatMat1" text="Categoria:" class="sapUiTinyMarginEnd"/>
+                    <Label id="lblCatMat1" text="{i18n>screen1.categoryLabel}" class="sapUiTinyMarginEnd"/>
                     <ComboBox
                         id="comboCatMat1"
                         width="250px"
-                        placeholder="Tutte le categorie"
+                        placeholder="{i18n>screen1.allCategoriesPlaceholder}"
                         items="{vm>/userCategoriesList}"
                         selectionChange=".onFilterChanged">
                         <items>
                             <core:Item id="catItem1" key="{vm>key}" text="{vm>text}"/>
                         </items>
                     </ComboBox>
-                    <Label id="labelOnlyIncomplete1" text="Solo dati incompleti" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
+                    <Label id="labelOnlyIncomplete1" text="{i18n>screen1.onlyIncomplete}" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
                     <Switch
                         id="switchOnlyIncomplete1"
                         state="true"
                         change=".onFilterChanged" />
                 </HBox>
                 <HBox id="filterRow1B" alignItems="Center" class="filterRow filterRowRight">
-                    <Label id="labelVendorFilter1" text="Fornitore" class="sapUiTinyMarginEnd"/>
+                    <Label id="labelVendorFilter1" text="{i18n>screen1.vendorFilterLabel}" class="sapUiTinyMarginEnd"/>
                     <SearchField
                         id="inputVendorFilter1"
                         width="15rem"
                         liveChange=".onFilterChanged"
                         search=".onFilterChanged"
-                        placeholder="Cerca per nome o codice..." />
+                        placeholder="{i18n>screen1.vendorSearchPlaceholder}" />
                 </HBox>
             </VBox>
 
@@ -77,34 +77,34 @@
 
                 <headerToolbar>
                     <Toolbar id="toolbarTableHeader1">
-                        <Title id="titleTable1" text="Fornitori" level="H2" />
+                        <Title id="titleTable1" text="{i18n>screen1.tableTitle}" level="H2" />
                     </Toolbar>
                 </headerToolbar>
 
                 <columns>
                     <Column id="columnVendor1">
-                        <Text id="textColumnVendor1" text="Fornitore" />
+                        <Text id="textColumnVendor1" text="{i18n>common.vendor}" />
                     </Column>
                     <Column id="columnOpenPo1" hAlign="Center">
-                        <Text id="textColumnOpenPo1" text="Aperti" />
+                        <Text id="textColumnOpenPo1" text="{i18n>common.open}" />
                     </Column>
                     <Column id="columnCatMat1" hAlign="Center">
-                        <Text id="textColumnCatMat1" text="Cat. Materiale" />
+                        <Text id="textColumnCatMat1" text="{i18n>common.categoryMaterialShort}" />
                     </Column>
                     <Column id="columnToUnlock1" hAlign="Center">
-                        <Text id="textColumnToUnlock1" text="Da sbloccare" />
+                        <Text id="textColumnToUnlock1" text="{i18n>common.toUnlock}" />
                     </Column>
                     <Column id="columnRejected1" hAlign="Center">
-                        <Text id="textColumnRejected1" text="Rifiutati" />
+                        <Text id="textColumnRejected1" text="{i18n>common.rejected}" />
                     </Column>
                     <Column id="columnModified1" hAlign="Center">
-                        <Text id="textColumnModified1" text="Modificati" />
+                        <Text id="textColumnModified1" text="{i18n>common.modified}" />
                     </Column>
                     <Column id="columnPending1" hAlign="Center">
-                        <Text id="textColumnPending1" text="In attesa approvazione" />
+                        <Text id="textColumnPending1" text="{i18n>common.pendingApproval}" />
                     </Column>
                     <Column id="columnApproved1" hAlign="Center">
-                        <Text id="textColumnApproved1" text="Approvati" />
+                        <Text id="textColumnApproved1" text="{i18n>common.approved}" />
                     </Column>
                 </columns>
 
@@ -119,7 +119,7 @@
                             <core:Icon
                                 id="iconOpen1"
                                 src="{= ${vm>Open} === 'X' ? 'sap-icon://open-folder' : 'sap-icon://folder' }"
-                                tooltip="{= ${vm>Open} === 'X' ? 'Aperti' : 'Nessun aperto' }" />
+                                tooltip="{= ${vm>Open} === 'X' ? ${i18n>common.open} : ${i18n>screen1.noOpen} }" />
 
                             <Text
                                 id="textCatMat1"
@@ -159,8 +159,8 @@
             <VBox id="legalSpacer1" class="legalFooterSpacer"/>
             <!-- Legal Footer -->
             <VBox id="legalFooter1" class="appLegalFooter" alignItems="Center">
-                <Text id="legalTitle1" text="VALENTINO.COM" class="legalFooterTitle"/>
-                <Text id="legalCopy1" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+                <Text id="legalTitle1" text="{i18n>legal.site}" class="legalFooterTitle"/>
+                <Text id="legalCopy1" text="{= ${i18n>legal.copyPrefix} + ${vm>/legalYear} + ${i18n>legal.copySuffix} }" class="legalFooterText"/>
            </VBox>
     </Page>
 </mvc:View>

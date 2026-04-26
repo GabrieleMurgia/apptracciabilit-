@@ -7,7 +7,7 @@
 
     <Page
         id="page0"
-        title="Modalità d'accesso">
+        title="{i18n>screen0.pageTitle}">
         <customHeader>
             <Toolbar id="toolbar0">
 
@@ -19,7 +19,7 @@
             </contentLeft>
 
         <contentMiddle>
-            <Title id="title0" text="Gestione lotti fornitore - Seleziona modalità" textAlign="Center"/>
+            <Title id="title0" text="{i18n>screen0.headerTitle}" textAlign="Center"/>
         </contentMiddle>
 
         <contentRight>
@@ -39,7 +39,7 @@
                 renderType="Div">
                 <Text
                     id="textIntro0"
-                    text="Seleziona il flusso di lavoro"
+                    text="{i18n>screen0.intro}"
                     textAlign="Center"
                     class="FirstTitle"
                      />
@@ -54,8 +54,8 @@
                     <GenericTile
                         width="100%"
                         id="tileFlowA"
-                        header="Inserimento Tracciabilità Materiali"
-                        subheader="flusso Inserimento Tracciabilità Materiali"
+                        header="{i18n>screen0.tileFlowAHeader}"
+                        subheader="{i18n>screen0.tileFlowASubheader}"
                         press="onPressFlowA">
                         <tileContent>
                             <TileContent id="tileContentA">
@@ -73,8 +73,8 @@
                     <GenericTile
                         width="100%"
                         id="tileFlowB"
-                        header="Caricamento Da excel Tracciabilità Materiali"
-                        subheader="flusso Caricamento Da excel"
+                        header="{i18n>screen0.tileFlowBHeader}"
+                        subheader="{i18n>screen0.tileFlowBSubheader}"
                         press="onPressFlowB">
                         <tileContent>
                             <TileContent id="tileContentB">
@@ -93,8 +93,8 @@
                         width="100%"
                         id="tileFlowC"
                         visible="{vm>/showAggregatedTile}"
-                        header="Dati In Tabella Tracciabilità"
-                        subheader="Dati In Tabella Tracciabilità"
+                        header="{i18n>screen0.tileFlowCHeader}"
+                        subheader="{i18n>screen0.tileFlowCSubheader}"
                         press="onPressFlowC">
                         <tileContent>
                             <TileContent id="tileContentC">
@@ -113,8 +113,8 @@
             <VBox id="legalSpacer0" class="legalFooterSpacer"/>
             <!-- Legal Footer -->
             <VBox id="legalFooter0" class="appLegalFooter" alignItems="Center">
-                <Text id="legalTitle0" text="VALENTINO.COM" class="legalFooterTitle"/>
-<Text id="legalCopy0" text="Powered by Valentino Copyright © {vm>/legalYear} VALENTINO S.p.A. - All rights reserved - VAT 05412951005 Informazioni sul venditore" class="legalFooterText"/>
+                <Text id="legalTitle0" text="{i18n>legal.site}" class="legalFooterTitle"/>
+<Text id="legalCopy0" text="{= ${i18n>legal.copyPrefix} + ${vm>/legalYear} + ${i18n>legal.copySuffix} }" class="legalFooterText"/>
 </VBox>
         </content>
 

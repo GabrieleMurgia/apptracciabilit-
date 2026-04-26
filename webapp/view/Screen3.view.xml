@@ -8,7 +8,7 @@
   xmlns:mdctable="sap.ui.mdc.table"
   displayBlock="true">
 
-  <Page id="page3" title="Tracciabilità" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
+  <Page id="page3" title="{i18n>common.traceability}" enableScrolling="false" class="sapUiNoContentPadding fullHeightPage pageWithLegalBar">
 
     <customHeader>
       <Toolbar id="toolbar3" class="appCustomHeader">
@@ -19,7 +19,7 @@
             <Button id="buttonBack3" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent"/>
           </contentLeft>
           <contentMiddle>
-            <Title id="title3" text="Tracciabilità" level="H3"/>
+            <Title id="title3" text="{i18n>common.traceability}" level="H3"/>
           </contentMiddle>
           <contentRight>
             <ToolbarSpacer id="bar3SpacerRight"/>
@@ -78,46 +78,46 @@
         <HBox id="hboxToolbarTable3-1" wrap="Wrap" alignItems="Center" class="filterGroup">
 
           <HBox id="hboxStatusFilter3" class="statusFilterBox" alignItems="Center" wrap="Wrap">
-            <Label id="lblStatus3" text="Stato:" class="sapUiTinyMarginEnd filterLabel"/>
-            <ObjectStatus id="stAll3" text="TUTTI" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="statusChip">
+            <Label id="lblStatus3" text="{i18n>common.statusLabel}" class="sapUiTinyMarginEnd filterLabel"/>
+            <ObjectStatus id="stAll3" text="{i18n>common.statusAll}" icon="sap-icon://filter" state="None" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStAll3" key="status" value=""/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stST3" text="In attesa" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stST3" text="{i18n>common.statusPending}" icon="sap-icon://circle-task" state="Warning" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStST3" key="status" value="ST"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stAP3" text="Approvato" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stAP3" text="{i18n>common.statusApproved}" icon="sap-icon://circle-task" state="Success" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStAP3" key="status" value="AP"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stRJ3" text="Respinto" icon="sap-icon://alert" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stRJ3" text="{i18n>common.statusRejected}" icon="sap-icon://alert" state="Error" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStRJ3" key="status" value="RJ"/></customData>
             </ObjectStatus>
-            <ObjectStatus id="stCH3" text="Modificato" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">
+            <ObjectStatus id="stCH3" text="{i18n>common.statusModified}" icon="sap-icon://circle-task" state="Information" active="true" press=".onStatusFilterPress" class="statusChip">
               <customData><core:CustomData id="cdStCH3" key="status" value="CH"/></customData>
             </ObjectStatus>
           </HBox>
 
           <HBox id="hboxFilter3" alignItems="Center" class="searchFilterBox">
-            <Label id="lblFilter3" text="Cercare:" labelFor="inputFilter3" class="sapUiTinyMarginEnd filterLabel"/>
-            <Input id="inputFilter3" width="100%" liveChange=".onGlobalFilter" placeholder="Filtro testuale su tutti i campi" class="searchInput"/>
-            <Button id="btnColFilters5" icon="sap-icon://filter" tooltip="Filtri per colonna" press=".onOpenColumnFilters" type="Transparent"/>
-            <Button id="btnSort5" icon="sap-icon://sort" tooltip="Ordinamento" press=".onOpenSort" type="Transparent"/>
-            <Button id="btnResetFS5" icon="sap-icon://reset" tooltip="Reset filtri/ordinamento" press=".onResetFiltersAndSort" type="Transparent"/>
+            <Label id="lblFilter3" text="{i18n>common.searchLabel}" labelFor="inputFilter3" class="sapUiTinyMarginEnd filterLabel"/>
+            <Input id="inputFilter3" width="100%" liveChange=".onGlobalFilter" placeholder="{i18n>common.searchAllFieldsPlaceholder}" class="searchInput"/>
+            <Button id="btnColFilters5" icon="sap-icon://filter" tooltip="{i18n>common.columnFiltersTooltip}" press=".onOpenColumnFilters" type="Transparent"/>
+            <Button id="btnSort5" icon="sap-icon://sort" tooltip="{i18n>common.sortTooltip}" press=".onOpenSort" type="Transparent"/>
+            <Button id="btnResetFS5" icon="sap-icon://reset" tooltip="{i18n>common.resetFiltersTooltip}" press=".onResetFiltersAndSort" type="Transparent"/>
           </HBox>
 
         </HBox>
 
         <Toolbar id="tblToolbar3" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar532"/>
-          <Button id="btnAddRow01" text="Aggiungi riga" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
+          <Button id="btnAddRow01" text="{i18n>common.addRow}" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
 <!--           <Button id="btnCopyRow01" text="Copia riga" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
           <Button id="btnDeleteRows01" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/> -->
-          <Button id="btnCopyRow01" text="Copia riga" type="Default" icon="sap-icon://copy" enabled="{detail>/__canCopyRow}" press=".onCopyRow" class="actionBtn"/>
-          <Button id="btnDeleteRows01" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canCopyRow}" press=".onDeleteRows" class="actionBtn"/>
+          <Button id="btnCopyRow01" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canCopyRow}" press=".onCopyRow" class="actionBtn"/>
+          <Button id="btnDeleteRows01" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canCopyRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep3"/>
-          <Button id="btnApprove3" text="Approva" type="Accept" icon="sap-icon://accept" visible="{detail>/__canApprove}" press=".onApprove" class="actionBtn"/>
-          <Button id="btnReject3" text="Rifiuta" type="Reject" icon="sap-icon://decline" visible="{detail>/__canReject}" press=".onReject" class="actionBtn"/>
+          <Button id="btnApprove3" text="{i18n>action.approve}" type="Accept" icon="sap-icon://accept" visible="{detail>/__canApprove}" press=".onApprove" class="actionBtn"/>
+          <Button id="btnReject3" text="{i18n>action.reject}" type="Reject" icon="sap-icon://decline" visible="{detail>/__canReject}" press=".onReject" class="actionBtn"/>
           <ToolbarSeparator id="tbSep3b"/>
-          <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="Excel" press=".onExportExcel" type="Transparent"/>
+          <Button id="tbExcel3" icon="sap-icon://excel-attachment" tooltip="{i18n>common.excel}" press=".onExportExcel" type="Transparent"/>
         </Toolbar>
 
       </HBox>
@@ -147,7 +147,7 @@
     <footer>
       <OverflowToolbar id="footerToolbar5">
         <ToolbarSpacer id="footerSpacer5"/>
-        <Button id="btnSaveLocal5" text="Salva" icon="sap-icon://save" type="Emphasized" press=".onSave"/>
+        <Button id="btnSaveLocal5" text="{i18n>action.save}" icon="sap-icon://save" type="Emphasized" press=".onSave"/>
       </OverflowToolbar>
     </footer>
 

@@ -206,6 +206,7 @@ sap.ui.define([
         opts.router.navTo("Screen3", {
           vendorId: encodeURIComponent(opts.vendorId),
           material: encodeURIComponent(opts.material),
+          season: encodeURIComponent(ScreenFlowStateUtil.getCurrentSeason(oVm) || ""),
           mode: opts.mode || "A"
         }, true);
       });

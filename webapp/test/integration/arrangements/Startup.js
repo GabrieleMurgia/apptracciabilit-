@@ -1,12 +1,14 @@
 sap.ui.define([
-	"sap/ui/test/Opa5"
-], function (Opa5) {
+	"sap/ui/test/Opa5",
+	"./IntegrationBackend"
+], function (Opa5, IntegrationBackend) {
 	"use strict";
 
 	return Opa5.extend("integration.arrangements.Startup", {
 
 		iStartMyApp: function (oOptionsParameter) {
 			var oOptions = oOptionsParameter || {};
+			IntegrationBackend.install({ profile: oOptions.profile });
 
 			// start the app with a minimal delay to make tests fast but still async to discover basic timing issues
 			oOptions.delay = oOptions.delay || 50;
@@ -20,6 +22,11 @@ sap.ui.define([
 				hash: oOptions.hash,
 				autoWait: oOptions.autoWait
 			});
+		},
+
+		iTeardownMyApp: function () {
+			IntegrationBackend.uninstall();
+			return this.iTeardownMyUIComponent();
 		}
 	});
 });

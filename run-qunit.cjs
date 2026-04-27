@@ -9,7 +9,7 @@ const path = require("path");
 const puppeteer = require("puppeteer");
 
 const URL = process.env.QUNIT_URL || "http://localhost:8765/test/unit/unitTests.qunit.html";
-const TIMEOUT_MS = 90000;
+const TIMEOUT_MS = parseInt(process.env.QUNIT_TIMEOUT_MS || "90000", 10);
 const PUPPETEER_EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || resolveExecutablePath();
 
 function walkExecutables(rootDir, fileName, bucket) {

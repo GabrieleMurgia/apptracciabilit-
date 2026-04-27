@@ -24,6 +24,15 @@ sap.ui.define([
                     Core.setModel(this.getModel("i18n"), "i18n");
                 }
 
+                // Test-only hook: integration OPA can inject a stateful fake OData model
+                // without changing the normal runtime path.
+                var oIntegrationBackend = (typeof window !== "undefined" && window.__vendTraceIntegrationBackend) || null;
+                if (oIntegrationBackend && typeof oIntegrationBackend.createModel === "function") {
+                    this.setModel(oIntegrationBackend.createModel({
+                        component: this
+                    }));
+                }
+
                 // ── Dynamic year for legal footer ──
                 var sYear = String(new Date().getFullYear());
 
@@ -54,7 +63,9 @@ sap.ui.define([
 
                 var oModel = this.getModel();
                 var sServiceUrl = (oModel && oModel.sServiceUrl) || "/sap/opu/odata/sap/ZVEND_TRACE_SRV";
-                var sLogoUrl = sServiceUrl + "/GetFieldFileSet(FieldName='Loghi',FieldValue='VALENTINO')/$value";
+                var sLogoUrl =
+                    (oIntegrationBackend && typeof oIntegrationBackend.getLogoSrc === "function" && oIntegrationBackend.getLogoSrc()) ||
+                    (sServiceUrl + "/GetFieldFileSet(FieldName='Loghi',FieldValue='VALENTINO')/$value");
 
 
                 var fnSetLogo = function () {

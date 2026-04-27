@@ -126,7 +126,7 @@ sap.ui.define([
       this._xlsxPromise = new Promise(function (resolve, reject) {
         // Try loading from local project first, then CDN
         var aPaths = [
-          jQuery.sap.getModulePath("apptracciabilita/apptracciabilita") + "/lib/xlsx.full.min.js",
+          jQuery.sap.getModulePath("apptracciabilita/apptracciabilita") + "/thirdparty/xlsx.full.min.js",
           "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
         ];
 

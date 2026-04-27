@@ -8,8 +8,9 @@
 		id="sap-ui-bootstrap"
 		src="../../resources/sap-ui-core.js"
 		data-sap-ui-theme="sap_horizon"
+		data-sap-ui-libs="sap.m,sap.ui.core,sap.ui.mdc,sap.ui.table,sap.ui.unified,sap.ushell"
 		data-sap-ui-resourceroots='{
-			"apptracciabilita.apptracciabilita": "../../",
+			"apptracciabilita/apptracciabilita": "../../",
 			"integration": "./"
 		}'
 		data-sap-ui-animation="false"
@@ -20,6 +21,9 @@
 	</script>
 	<link rel="stylesheet" type="text/css" href="../../resources/sap/ui/thirdparty/qunit-2.css">
 	<script src="../../resources/sap/ui/thirdparty/qunit-2.js"></script>
+	<script>
+		QUnit.config.autostart = false;
+	</script>
 	<script src="../../resources/sap/ui/qunit/qunit-junit.js"></script>
 </head>
 <body>

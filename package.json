@@ -29,6 +29,7 @@
     "start-variants-management": "fiori run --open \"/preview.html#app-preview\"",
     "unit-test": "fiori run --config ./ui5-local.yaml --open \"test/unit/unitTests.qunit.html\"",
     "unit-test:headless": "node run-unit-headless.cjs",
+    "integration-test:headless": "node run-integration-headless.cjs",
     "build:cf": "ui5 build preload --clean-dest --config ui5-deploy.yaml --include-task=generateCachebusterInfo",
     "build:mta": "rimraf resources mta_archives && mbt build",
     "undeploy": "cf undeploy apptracciabilitaapptracciabilita --delete-services --delete-service-keys --delete-service-brokers"

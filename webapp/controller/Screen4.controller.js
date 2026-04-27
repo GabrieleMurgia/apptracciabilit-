@@ -161,8 +161,8 @@ sap.ui.define([
         syncFn: this._syncAttachmentCounters.bind(this),
         getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
         setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
-        setIntervalFn: setInterval,
-        clearIntervalFn: clearInterval
+        setIntervalFn: window.setInterval.bind(window),
+        clearIntervalFn: window.clearInterval.bind(window)
       });
     },
 
@@ -170,7 +170,7 @@ sap.ui.define([
       return Screen4AttachUtil.stopPolling({
         getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
         setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
-        clearIntervalFn: clearInterval
+        clearIntervalFn: window.clearInterval.bind(window)
       });
     },
     _hookDirtyOnEdit: function (oCtrl) {

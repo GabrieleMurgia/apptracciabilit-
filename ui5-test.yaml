@@ -9,5 +9,7 @@ framework:
     - name: sap.m
     - name: sap.ui.core
     - name: sap.ui.mdc
+    - name: sap.ui.table
+    - name: sap.ui.unified
     - name: sap.ushell
     - name: themelib_sap_horizon

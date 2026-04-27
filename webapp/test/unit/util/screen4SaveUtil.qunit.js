@@ -6,9 +6,10 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
+  "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
   "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
   "apptracciabilita/apptracciabilita/util/saveUtil"
-], function (JSONModel, MessageToast, MessageBox, Screen4SaveUtil, VmPaths, RecordsUtil, S4Loader, SaveUtil) {
+], function (JSONModel, MessageToast, MessageBox, Screen4SaveUtil, VmPaths, RecordsUtil, ScreenFlowStateUtil, S4Loader, SaveUtil) {
   "use strict";
 
   QUnit.module("util/screen4SaveUtil");
@@ -279,6 +280,53 @@ sap.ui.define([
     } finally {
       stubBuild.restore();
       stubVal.restore();
+    }
+  });
+
+  QUnit.test("reloadAfterSaveAndNavBack reloads cache and navigates back to Screen3 preserving season", function (assert) {
+    var sCK = "CK-NAV";
+    var oVm = buildVm(sCK);
+    var oDetail = new JSONModel({ __dirty: true });
+    var spyNav = sinon.spy();
+    var spyStopPolling = sinon.spy();
+    var stubReload = sinon.stub(S4Loader, "reloadDataFromBackend", function (opts, fnDone) {
+      fnDone([{
+        Guid: "GUID-001",
+        Materiale: "MAT001",
+        Stagione: "46",
+        CatMateriale: "CF"
+      }]);
+    });
+    var stubPickCat = sinon.stub(S4Loader, "pickCat").returns("CF");
+    var stubBuildRecords = sinon.stub(S4Loader, "buildRecords01ForCache").returns([{ guidKey: "GUID-001" }]);
+
+    ScreenFlowStateUtil.setCurrentSeason(oVm, "46");
+
+    try {
+      Screen4SaveUtil.reloadAfterSaveAndNavBack({
+        vmModel: oVm,
+        cacheKey: sCK,
+        detailModel: oDetail,
+        odataModel: {},
+        vendorId: "0000001111",
+        material: "MAT001",
+        mode: "A",
+        router: { navTo: spyNav },
+        cfgForScreenFn: function () { return []; },
+        logFn: function () {},
+        stopAttachmentPollingFn: spyStopPolling
+      });
+
+      assert.strictEqual(stubReload.callCount, 1, "backend reload triggered once");
+      assert.strictEqual(spyStopPolling.callCount, 1, "attachment polling stopped once");
+      assert.strictEqual(spyNav.callCount, 1, "router.navTo called once");
+      assert.strictEqual(spyNav.firstCall.args[0], "Screen3", "navigates to Screen3");
+      assert.strictEqual(spyNav.firstCall.args[1].season, "46", "season param preserved on return navigation");
+      assert.strictEqual(oDetail.getProperty("/__dirty"), false, "dirty flag reset");
+    } finally {
+      stubBuildRecords.restore();
+      stubPickCat.restore();
+      stubReload.restore();
     }
   });
 });

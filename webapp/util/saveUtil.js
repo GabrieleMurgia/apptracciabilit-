@@ -9,6 +9,8 @@ sap.ui.define([
 ], function (BusyIndicator, MessageToast, MessageBox, N, VmPaths, PostUtil, I18n) {
   "use strict";
 
+  var deepClone = N.deepClone;
+
   return {
 
     /**

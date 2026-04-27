@@ -53,4 +53,20 @@ sap.ui.define([
     Then.onTheScreen5Page.iShouldSeeLoadedRows();
     Then.iTeardownMyApp();
   });
+
+  opaTest("Superuser S synthetic profile exposes add/copy/delete on Screen3", function (Given, When, Then) {
+    Given.iStartMyApp({ hash: "", profile: "superuser-synthetic-s" });
+    Then.onTheScreen0Page.iShouldSeeLandingPage();
+
+    When.onTheScreen0Page.iPressFlowATile();
+    Then.onTheScreen1Page.iShouldSeeVendorsLoaded();
+
+    When.onTheScreen1Page.iPressFirstVendor();
+    Then.onTheScreen2Page.iShouldSeeMaterialsLoaded();
+
+    When.onTheScreen2Page.iPressFirstMaterial();
+    Then.onTheScreen3Page.iShouldSeeRecordsLoaded();
+    Then.onTheScreen3Page.iShouldSeeSuperuserCrudActionsEnabled();
+    Then.iTeardownMyApp();
+  });
 });

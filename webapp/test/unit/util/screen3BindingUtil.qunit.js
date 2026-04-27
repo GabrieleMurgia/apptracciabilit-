@@ -79,7 +79,7 @@ sap.ui.define([
     assert.strictEqual(iBackendCalls, 0, "backend skipped");
   });
 
-  QUnit.test("bindRecords lets superuser add rows on approved groups without enabling copy/delete", async function (assert) {
+  QUnit.test("bindRecords lets superuser add, copy and delete on approved groups", async function (assert) {
     var oVm = new JSONModel({ userType: "S", mdcCfg: {} });
     var oDetail = new JSONModel({ _mmct: { s01Table: [] } });
 
@@ -109,7 +109,7 @@ sap.ui.define([
     });
 
     assert.strictEqual(oDetail.getProperty("/__canAddRow"), true, "superuser keeps add-row permission");
-    assert.strictEqual(oDetail.getProperty("/__canCopyRow"), false, "copy-row stays disabled");
-    assert.strictEqual(oDetail.getProperty("/__canDeleteRow"), false, "delete-row stays disabled");
+    assert.strictEqual(oDetail.getProperty("/__canCopyRow"), true, "copy-row is enabled for superuser");
+    assert.strictEqual(oDetail.getProperty("/__canDeleteRow"), true, "delete-row is enabled for superuser");
   });
 });

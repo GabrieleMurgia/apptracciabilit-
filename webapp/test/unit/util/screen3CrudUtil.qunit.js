@@ -255,4 +255,45 @@ sap.ui.define([
       stubCanDelete.restore();
     }
   });
+
+  QUnit.test("onDeleteRows keeps the AP veto even when superuser delete permission is enabled", function (assert) {
+    var sCacheKey = "CK-S3-DEL-AP";
+    var oVm = buildVm(sCacheKey);
+    var oParent = { idx: 1, guidKey: "G1", GUID: "G1", Fibra: "F1", Stato: "AP", __status: "AP" };
+    var oDetail = new JSONModel({
+      RecordsAll: [oParent],
+      __canDeleteRow: true,
+      __deletedParents: []
+    });
+    var stubCanDelete = sinon.stub(RowManagementUtil, "canDeleteSelectedRows").returns({ canDelete: false, forbidden: [oParent] });
+    var stubToast = sinon.stub(MessageToast, "show");
+    try {
+      oVm.setProperty(VmPaths.recordsByKeyPath(sCacheKey), [oParent]);
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sCacheKey), [{ Guid: "G1", guidKey: "G1", Fibra: "F1" }]);
+
+      var bApplied = false;
+      var bCleared = false;
+      Screen3CrudUtil.onDeleteRows({
+        detailModel: oDetail,
+        vmModel: oVm,
+        cacheKey: sCacheKey,
+        cacheKeySafe: "SAFE-S3-DEL-AP",
+        component: { getModel: function () { return oVm; } },
+        getSelectedParentObjectsFn: function () { return [oParent]; },
+        applyClientFiltersFn: function () { bApplied = true; },
+        clearSelectionFn: function () { bCleared = true; }
+      });
+
+      assert.strictEqual(oDetail.getProperty("/RecordsAll").length, 1, "approved parent is not removed");
+      assert.strictEqual(oVm.getProperty(VmPaths.recordsByKeyPath(sCacheKey)).length, 1, "records cache untouched");
+      assert.strictEqual(oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)).length, 1, "raw cache untouched");
+      assert.strictEqual(bApplied, false, "filters not reapplied on veto");
+      assert.strictEqual(bCleared, false, "selection not cleared on veto");
+      assert.strictEqual(stubCanDelete.callCount, 1, "AP veto check still executed");
+      assert.strictEqual(stubToast.callCount, 1, "veto feedback shown");
+    } finally {
+      stubToast.restore();
+      stubCanDelete.restore();
+    }
+  });
 });

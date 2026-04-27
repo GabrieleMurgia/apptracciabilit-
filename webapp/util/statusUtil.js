@@ -25,6 +25,20 @@ sap.ui.define([], function () {
   return (sRole === "E" && sStatus !== "AP");
   }
 
+  function canCopyRow(sRole, sStatus) {
+    sRole = String(sRole || "").trim().toUpperCase();
+    sStatus = String(sStatus || "").trim().toUpperCase();
+    if (sRole === "S") return true;
+    return sRole === "E" && canEdit(sRole, sStatus);
+  }
+
+  function canDeleteRow(sRole, sStatus) {
+    sRole = String(sRole || "").trim().toUpperCase();
+    sStatus = String(sStatus || "").trim().toUpperCase();
+    if (sRole === "S") return true;
+    return sRole === "E" && canEdit(sRole, sStatus);
+  }
+
   function rankStato(st) {
     st = String(st || "").trim().toUpperCase();
     if (st === "AP") return 4;
@@ -81,6 +95,8 @@ sap.ui.define([], function () {
     canApprove: canApprove,
     canReject: canReject,
     normStatoRow: normStatoRow,
-    canAddRow:canAddRow
+    canAddRow: canAddRow,
+    canCopyRow: canCopyRow,
+    canDeleteRow: canDeleteRow
   };
 });

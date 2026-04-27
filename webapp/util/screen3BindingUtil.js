@@ -158,11 +158,11 @@ sap.ui.define([
     if (opts.noMatListMode) {
       oDetail.setProperty("/__canAddRow", false);
       oDetail.setProperty("/__noMatListMode", true);
-      oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
-      oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
+      oDetail.setProperty("/__canCopyRow", StatusUtil.canCopyRow(sRole, sAgg));
+      oDetail.setProperty("/__canDeleteRow", StatusUtil.canDeleteRow(sRole, sAgg));
     } else {
-      oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
-      oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
+      oDetail.setProperty("/__canCopyRow", StatusUtil.canCopyRow(sRole, sAgg));
+      oDetail.setProperty("/__canDeleteRow", StatusUtil.canDeleteRow(sRole, sAgg));
     }
 
     var bCanApproveReject = (sRole === "I" || sRole === "S");

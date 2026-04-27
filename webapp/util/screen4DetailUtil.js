@@ -54,8 +54,8 @@ sap.ui.define([
     opts.detailModel.setProperty("/__status", gSt);
     opts.detailModel.setProperty("/__canEdit", StatusUtil.canEdit(sRole, gSt));
     opts.detailModel.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-    opts.detailModel.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, gSt));
-    opts.detailModel.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, gSt));
+    opts.detailModel.setProperty("/__canCopyRow", StatusUtil.canCopyRow(sRole, gSt));
+    opts.detailModel.setProperty("/__canDeleteRow", StatusUtil.canDeleteRow(sRole, gSt));
     opts.detailModel.setProperty("/__canApprove", false);
     opts.detailModel.setProperty("/__canReject", false);
   }

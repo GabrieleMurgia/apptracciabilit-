@@ -130,6 +130,25 @@ sap.ui.define([
           });
         },
 
+        iShouldSeeSuperuserCrudActionsEnabled: function () {
+          return this.waitFor({
+            id: "page3",
+            viewName: "Screen3",
+            check: function (oPage) {
+              var oDetail = oPage.getModel("detail");
+              return !!oDetail &&
+                oDetail.getProperty("/__role") === "S" &&
+                oDetail.getProperty("/__canAddRow") === true &&
+                oDetail.getProperty("/__canCopyRow") === true &&
+                oDetail.getProperty("/__canDeleteRow") === true;
+            },
+            success: function () {
+              Opa5.assert.ok(true, "Screen3 exposes add/copy/delete permissions for superuser");
+            },
+            errorMessage: "Screen3 did not expose superuser CRUD actions"
+          });
+        },
+
         iShouldSeeBackendParentFieldValue: function (sFieldPath, sValue) {
           return this.waitFor({
             check: function () {

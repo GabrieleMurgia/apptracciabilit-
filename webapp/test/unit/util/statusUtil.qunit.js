@@ -34,6 +34,11 @@ sap.ui.define([
     assert.strictEqual(StatusUtil.canAddRow("S", "AP"), true, "superuser can always add rows, even on approved groups");
     assert.strictEqual(StatusUtil.canAddRow("S", "ST"), true, "superuser can add rows on open groups");
     assert.strictEqual(StatusUtil.canAddRow("I", "ST"), false, "internal role does not gain add-row permission");
+    assert.strictEqual(StatusUtil.canCopyRow("S", "AP"), true, "superuser can copy rows even on approved groups");
+    assert.strictEqual(StatusUtil.canDeleteRow("S", "AP"), true, "superuser can request row delete even on approved groups");
+    assert.strictEqual(StatusUtil.canCopyRow("E", "ST"), true, "editor keeps copy permission on editable groups");
+    assert.strictEqual(StatusUtil.canDeleteRow("E", "AP"), false, "editor cannot delete approved groups");
+    assert.strictEqual(StatusUtil.canCopyRow("I", "ST"), false, "internal role does not gain copy-row permission");
   });
 
   QUnit.test("normalizes row status using explicit fields and legacy flags", function (assert) {

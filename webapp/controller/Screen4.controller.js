@@ -45,7 +45,7 @@ sap.ui.define([
         RowsAll: [], Rows: [], RowsCount: 0,
         _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
         __dirty: false, __role: "", __status: "",
-        __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
+        __canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false
       }), "detail");
 
       // Periodically sync attachment counters across rows.
@@ -97,7 +97,7 @@ sap.ui.define([
           guidKey: "", Fibra: "", RowsAll: [], Rows: [], RowsCount: 0, Header4Fields: [],
           _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
           __dirty: false, __role: "", __status: "",
-          __canEdit: false, __canAddRow: false, __canApprove: false, __canReject: false
+          __canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false
         }, true);
 
         self._applyUiPermissions();
@@ -271,6 +271,13 @@ sap.ui.define([
       });
     },
 
+    _refreshAfterBackendSaveInPlace: function () {
+      var self = this;
+      this._loadSelectedRecordRows(function () {
+        self._bindRowsAndColumns();
+      });
+    },
+
     // Resolve the list of rows belonging to the selected parent Guid. If none
     // exist (pure template / new record), synthesize a placeholder row and
     // append it to the rows cache so the table has something to bind.
@@ -357,9 +364,12 @@ sap.ui.define([
     _applyUiPermissions: function () {
       try {
         var oD = this.getView().getModel("detail"); if (!oD) return;
-        var oA = this.byId("btnAddRow"), oDl = this.byId("btnDeleteRows");
+        var oA = this.byId("btnAddRow02");
+        var oC = this.byId("btnCopyRow02");
+        var oDl = this.byId("btnDeleteRows02");
         if (oA && oA.setEnabled) oA.setEnabled(!!oD.getProperty("/__canAddRow"));
-        if (oDl && oDl.setEnabled) oDl.setEnabled(!!oD.getProperty("/__canEdit"));
+        if (oC && oC.setEnabled) oC.setEnabled(!!oD.getProperty("/__canCopyRow"));
+        if (oDl && oDl.setEnabled) oDl.setEnabled(!!oD.getProperty("/__canDeleteRow"));
       } catch (e) { console.debug("[Screen4] suppressed error", e); }
     },
 
@@ -477,7 +487,8 @@ sap.ui.define([
         setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this),
         applyUiPermissionsFn: this._applyUiPermissions.bind(this),
         logFn: this._log.bind(this),
-        stopAttachmentPollingFn: this._stopAttachmentSyncPolling.bind(this)
+        stopAttachmentPollingFn: this._stopAttachmentSyncPolling.bind(this),
+        afterReloadInPlaceFn: this._refreshAfterBackendSaveInPlace.bind(this)
       });
     },
 

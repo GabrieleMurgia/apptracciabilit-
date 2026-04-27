@@ -27,7 +27,7 @@ sap.ui.define([
 
     When.onTheScreen4Page.iEditDetailFieldTo("Note", "KT-S4-SAVE");
     When.onTheScreen4Page.iPressSave();
-    Then.onTheScreen3Page.iShouldSeeRecordsLoaded();
+    Then.onTheScreen4Page.iShouldSeeRowsLoaded();
     Then.onTheScreen4Page.iShouldSeeBackendDetailFieldValue("Note", "KT-S4-SAVE");
     Then.iTeardownMyApp();
   });

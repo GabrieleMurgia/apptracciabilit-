@@ -99,7 +99,7 @@
           <ToolbarSpacer id="footerToolbar532"/>
           <Button id="btnAddRow01" text="{i18n>common.addRow}" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
           <Button id="btnCopyRow01" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canCopyRow}" press=".onCopyRow" class="actionBtn"/>
-          <Button id="btnDeleteRows01" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canCopyRow}" press=".onDeleteRows" class="actionBtn"/>
+          <Button id="btnDeleteRows01" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canDeleteRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep3"/>
           <Button id="btnApprove3" text="{i18n>action.approve}" type="Accept" icon="sap-icon://accept" visible="{detail>/__canApprove}" press=".onApprove" class="actionBtn"/>
           <Button id="btnReject3" text="{i18n>action.reject}" type="Reject" icon="sap-icon://decline" visible="{detail>/__canReject}" press=".onReject" class="actionBtn"/>

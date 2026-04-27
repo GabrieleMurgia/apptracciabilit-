@@ -238,6 +238,9 @@ sap.ui.define([
     onDeleteRows: function (opts) {
       var oDetail = opts.detailModel;
       if (!oDetail) return MessageToast.show(I18n.text(null, "msg.detailModelNotFound", [], "Model 'detail' non trovato"));
+      if (!oDetail.getProperty("/__canDeleteRow")) {
+        return MessageToast.show(I18n.text(null, "msg.noPermissionDeleteRows", [], "Non hai permessi per eliminare righe"));
+      }
 
       var aSel = opts.getSelectedParentObjectsFn();
       if (!aSel.length) return MessageToast.show(I18n.text(null, "msg.selectAtLeastOneRowToDelete", [], "Seleziona almeno una riga da eliminare"));

@@ -156,7 +156,7 @@ sap.ui.define([
         onSuccess: function () {
           opts.proxyDetail.destroy();
           oVm.setProperty(VmPaths.deletedLinesForPostPath(sCK), []);
-          self.reloadAfterSaveAndNavBack(opts);
+          self.reloadAfterSaveInPlace(opts);
         },
         onPartialError: function (aErr) {
           opts.proxyDetail.destroy();
@@ -169,10 +169,12 @@ sap.ui.define([
       });
     },
 
-    reloadAfterSaveAndNavBack: function (opts) {
+    reloadAfterSaveInPlace: function (opts) {
       var oVm = opts.vmModel;
       var sCK = opts.cacheKey;
       var oD = opts.detailModel;
+      var sCurrentGuid = N.toStableString(oD.getProperty("/guidKey"));
+      var aCurrentRows = N.deepClone(oD.getProperty("/RowsAll") || []);
       var oNoMatListCtx = ScreenFlowStateUtil.getNoMatListContext(oVm);
 
       S4Loader.reloadDataFromBackend({
@@ -184,7 +186,7 @@ sap.ui.define([
         season: ScreenFlowStateUtil.getCurrentSeason(oVm),
         logFn: opts.logFn
       }, function (aFreshRows) {
-        aFreshRows = aFreshRows || [];
+        aFreshRows = (aFreshRows && aFreshRows.length) ? aFreshRows : aCurrentRows;
 
         var sCat2 = S4Loader.pickCat(aFreshRows[0] || {});
         var aFreshRecords = S4Loader.buildRecords01ForCache(
@@ -195,20 +197,15 @@ sap.ui.define([
 
         oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), aFreshRows);
         oVm.setProperty(VmPaths.recordsByKeyPath(sCK), aFreshRecords);
-        ScreenFlowStateUtil.clearSelectedParentForScreen4(oVm);
-        ScreenFlowStateUtil.markReturnFromScreen4(oVm);
-        ScreenFlowStateUtil.markForceScreen3CacheReload(oVm);
+        ScreenFlowStateUtil.setSelectedParentForScreen4(oVm, aFreshRecords.find(function (r) {
+          return N.toStableString(r && (r.guidKey || r.Guid || r.GUID || "")) === sCurrentGuid;
+        }) || aFreshRecords[0] || null);
 
-        opts.stopAttachmentPollingFn();
         oD.setProperty("/__dirty", false);
+        if (typeof opts.afterReloadInPlaceFn === "function") {
+          opts.afterReloadInPlaceFn(aFreshRows, aFreshRecords);
+        }
         MessageToast.show(I18n.text(null, "msg.dataSavedSuccessfully", [], "Dati salvati con successo"));
-
-        opts.router.navTo("Screen3", {
-          vendorId: encodeURIComponent(opts.vendorId),
-          material: encodeURIComponent(opts.material),
-          season: encodeURIComponent(ScreenFlowStateUtil.getCurrentSeason(oVm) || ""),
-          mode: opts.mode || "A"
-        }, true);
       });
     },
 
@@ -261,7 +258,8 @@ sap.ui.define([
         router: opts.router,
         cfgForScreenFn: opts.cfgForScreenFn,
         logFn: opts.logFn,
-        stopAttachmentPollingFn: opts.stopAttachmentPollingFn
+        stopAttachmentPollingFn: opts.stopAttachmentPollingFn,
+        afterReloadInPlaceFn: opts.afterReloadInPlaceFn
       });
     }
   };

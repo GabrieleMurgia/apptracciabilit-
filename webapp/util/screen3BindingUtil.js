@@ -161,8 +161,8 @@ sap.ui.define([
       oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
       oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
     } else {
-      oDetail.setProperty("/__canCopyRow", oDetail.getProperty("/__canAddRow"));
-      oDetail.setProperty("/__canDeleteRow", oDetail.getProperty("/__canAddRow"));
+      oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
+      oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
     }
 
     var bCanApproveReject = (sRole === "I" || sRole === "S");

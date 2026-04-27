@@ -78,4 +78,38 @@ sap.ui.define([
     assert.strictEqual(iCacheCalls, 1, "cache bind used");
     assert.strictEqual(iBackendCalls, 0, "backend skipped");
   });
+
+  QUnit.test("bindRecords lets superuser add rows on approved groups without enabling copy/delete", async function (assert) {
+    var oVm = new JSONModel({ userType: "S", mdcCfg: {} });
+    var oDetail = new JSONModel({ _mmct: { s01Table: [] } });
+
+    await Screen3BindingUtil.bindRecords({
+      detailModel: oDetail,
+      records: [{ guidKey: "G1", Stato: "AP", __status: "AP" }],
+      vmModel: oVm,
+      noMatListMode: false,
+      inlineFs: {},
+      setInlineFsFn: function () {},
+      logFn: function () {},
+      setSnapshotRecordsFn: function () {},
+      setOriginalSnapshotFn: function () {},
+      keepOriginalSnapshot: false,
+      table: null,
+      onGoToScreen4FromRowFn: function () {},
+      createStatusCellTemplateFn: function () {},
+      createCellTemplateFn: function () {},
+      setStatusColumnFn: function () {},
+      getStatusColumnFn: function () { return null; },
+      applyInlineHeaderFilterSortFn: async function () {},
+      applyClientFiltersFn: function () {},
+      clearSelectionFn: function () {},
+      scheduleHeaderFilterSortFn: function () {},
+      logTableFn: function () {},
+      ensurePostErrorRowHooksFn: function () {}
+    });
+
+    assert.strictEqual(oDetail.getProperty("/__canAddRow"), true, "superuser keeps add-row permission");
+    assert.strictEqual(oDetail.getProperty("/__canCopyRow"), false, "copy-row stays disabled");
+    assert.strictEqual(oDetail.getProperty("/__canDeleteRow"), false, "delete-row stays disabled");
+  });
 });

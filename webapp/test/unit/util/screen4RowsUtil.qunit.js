@@ -94,6 +94,7 @@ sap.ui.define([
     var oDetail = new JSONModel({
       guidKey: "G1",
       __canEdit: true,
+      __canDeleteRow: true,
       __role: "I",
       __status: "ST",
       RowsAll: [oRow1, oRow2]
@@ -186,6 +187,7 @@ sap.ui.define([
     var oSource = { __localId: "L1", Guid: "G-BASE", guidKey: "G-BASE", ATT_DOC: "3", Campo: "A" };
     var oDetail = new JSONModel({
       __canAddRow: true,
+      __canCopyRow: true,
       _mmct: { s01: [{ ui: "ATT_DOC", attachment: true }], s02: [] },
       RowsAll: [oSource]
     });

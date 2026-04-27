@@ -206,6 +206,7 @@ sap.ui.define([
     var oParent2 = { idx: 2, guidKey: "G2", GUID: "G2", Fibra: "F2" };
     var oDetail = new JSONModel({
       RecordsAll: [oParent1, oParent2],
+      __canDeleteRow: true,
       __deletedParents: []
     });
     var stubCanDelete = sinon.stub(RowManagementUtil, "canDeleteSelectedRows").returns({ canDelete: true });

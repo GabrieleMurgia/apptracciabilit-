@@ -51,6 +51,23 @@ sap.ui.define([
     assert.strictEqual(aSelected[0].__readOnly, true, "row readonly updated");
   });
 
+  QUnit.test("applyGroupStatusAndPerms lets superuser add rows on approved groups without broadening copy/delete", function (assert) {
+    var oVm = buildVm("CK-S4", "S");
+    var oDetail = new JSONModel({});
+    var aSelected = [{ Stato: "AP" }];
+
+    Screen4DetailUtil.applyGroupStatusAndPerms({
+      selectedRows: aSelected,
+      vmModel: oVm,
+      detailModel: oDetail
+    });
+
+    assert.strictEqual(oDetail.getProperty("/__canEdit"), false, "approved group stays read-only");
+    assert.strictEqual(oDetail.getProperty("/__canAddRow"), true, "superuser can still add rows");
+    assert.strictEqual(oDetail.getProperty("/__canCopyRow"), false, "copy stays disabled");
+    assert.strictEqual(oDetail.getProperty("/__canDeleteRow"), false, "delete stays disabled");
+  });
+
   QUnit.test("resolveCatForSelection falls back to caches and backfills missing CatMateriale", function (assert) {
     var oRec = {};
     var sCat = Screen4DetailUtil.resolveCatForSelection({

@@ -31,6 +31,9 @@ sap.ui.define([
 
     assert.strictEqual(StatusUtil.canAddRow("E", "ST"), true, "editor can add rows before approval");
     assert.strictEqual(StatusUtil.canAddRow("E", "AP"), false, "editor cannot add rows after approval");
+    assert.strictEqual(StatusUtil.canAddRow("S", "AP"), true, "superuser can always add rows, even on approved groups");
+    assert.strictEqual(StatusUtil.canAddRow("S", "ST"), true, "superuser can add rows on open groups");
+    assert.strictEqual(StatusUtil.canAddRow("I", "ST"), false, "internal role does not gain add-row permission");
   });
 
   QUnit.test("normalizes row status using explicit fields and legacy flags", function (assert) {

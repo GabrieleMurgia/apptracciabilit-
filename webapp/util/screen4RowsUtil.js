@@ -141,7 +141,7 @@ sap.ui.define([
       try {
         var oD = opts.detailModel;
         if (!oD) return;
-        if (!oD.getProperty("/__canEdit")) {
+        if (!oD.getProperty("/__canDeleteRow")) {
           MessageToast.show(I18n.text(null, "msg.noPermissionDeleteRows", [], "Non hai permessi per eliminare righe"));
           return;
         }
@@ -278,7 +278,7 @@ sap.ui.define([
       try {
         var oD = opts.detailModel;
         if (!oD) return;
-        if (!oD.getProperty("/__canAddRow")) {
+        if (!oD.getProperty("/__canCopyRow")) {
           MessageToast.show(I18n.text(null, "msg.noPermissionCopyRows", [], "Non hai permessi per copiare righe"));
           return;
         }

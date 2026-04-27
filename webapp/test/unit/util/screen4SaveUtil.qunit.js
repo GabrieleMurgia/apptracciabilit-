@@ -283,12 +283,12 @@ sap.ui.define([
     }
   });
 
-  QUnit.test("reloadAfterSaveAndNavBack reloads cache and navigates back to Screen3 preserving season", function (assert) {
+  QUnit.test("reloadAfterSaveInPlace reloads cache and refreshes Screen4 without redirecting to Screen3", function (assert) {
     var sCK = "CK-NAV";
     var oVm = buildVm(sCK);
     var oDetail = new JSONModel({ __dirty: true });
     var spyNav = sinon.spy();
-    var spyStopPolling = sinon.spy();
+    var spyRefresh = sinon.spy();
     var stubReload = sinon.stub(S4Loader, "reloadDataFromBackend", function (opts, fnDone) {
       fnDone([{
         Guid: "GUID-001",
@@ -303,7 +303,7 @@ sap.ui.define([
     ScreenFlowStateUtil.setCurrentSeason(oVm, "46");
 
     try {
-      Screen4SaveUtil.reloadAfterSaveAndNavBack({
+      Screen4SaveUtil.reloadAfterSaveInPlace({
         vmModel: oVm,
         cacheKey: sCK,
         detailModel: oDetail,
@@ -314,14 +314,16 @@ sap.ui.define([
         router: { navTo: spyNav },
         cfgForScreenFn: function () { return []; },
         logFn: function () {},
-        stopAttachmentPollingFn: spyStopPolling
+        stopAttachmentPollingFn: function () {},
+        afterReloadInPlaceFn: spyRefresh
       });
 
       assert.strictEqual(stubReload.callCount, 1, "backend reload triggered once");
-      assert.strictEqual(spyStopPolling.callCount, 1, "attachment polling stopped once");
-      assert.strictEqual(spyNav.callCount, 1, "router.navTo called once");
-      assert.strictEqual(spyNav.firstCall.args[0], "Screen3", "navigates to Screen3");
-      assert.strictEqual(spyNav.firstCall.args[1].season, "46", "season param preserved on return navigation");
+      assert.strictEqual(spyRefresh.callCount, 1, "Screen4 refresh callback triggered once");
+      assert.strictEqual(spyNav.callCount, 0, "router.navTo is not called");
+      assert.strictEqual(ScreenFlowStateUtil.shouldSkipScreen3BackendOnce(oVm), false, "skip-back flag is not armed");
+      assert.strictEqual(ScreenFlowStateUtil.shouldForceScreen3CacheReload(oVm), false, "force-reload flag is not armed");
+      assert.strictEqual(oVm.getProperty("/selectedScreen3Record/guidKey"), "GUID-001", "selected parent is updated to the fresh record");
       assert.strictEqual(oDetail.getProperty("/__dirty"), false, "dirty flag reset");
     } finally {
       stubBuildRecords.restore();

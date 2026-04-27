@@ -21,6 +21,7 @@ sap.ui.define([], function () {
   function canAddRow (sRole, sStatus) {
   sRole = String(sRole || "").trim().toUpperCase();
   sStatus = String(sStatus || "").trim().toUpperCase();
+  if (sRole === "S") return true;
   return (sRole === "E" && sStatus !== "AP");
   }
 

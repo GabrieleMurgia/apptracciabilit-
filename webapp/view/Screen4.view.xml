@@ -69,8 +69,8 @@
         <Toolbar id="tblToolbar4" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar4sp"/>
           <Button id="btnAddRow02" text="{i18n>common.addRow}" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
-          <Button id="btnCopyRow02" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
-          <Button id="btnDeleteRows02" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/>
+          <Button id="btnCopyRow02" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canCopyRow}" press=".onCopyRow" class="actionBtn"/>
+          <Button id="btnDeleteRows02" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canDeleteRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep4"/>
           <ToolbarSeparator id="tbSep4b"/>
           <Button id="tbPrint4" icon="sap-icon://print" tooltip="{i18n>common.print}" press=".onPrint" type="Transparent"/>

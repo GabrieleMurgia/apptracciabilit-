@@ -180,11 +180,20 @@ sap.ui.define([
     }
   });
 
-  QUnit.test("onCopyRow duplicates the selected row, resets attachment counters and appends the copy", function (assert) {
+  QUnit.test("onCopyRow duplicates the selected row, resets notes, clears vendor batch, resets attachment counters and appends the copy", function (assert) {
     var sCacheKey = "CK-S4-COPY";
     var oVm = buildVm(sCacheKey);
     oVm.setProperty(VmPaths.dataRowsByKeyPath(sCacheKey), [{ Guid: "G-BASE", ATT_DOC: "3" }]);
-    var oSource = { __localId: "L1", Guid: "G-BASE", guidKey: "G-BASE", ATT_DOC: "3", Campo: "A" };
+    var oSource = {
+      __localId: "L1",
+      Guid: "G-BASE",
+      guidKey: "G-BASE",
+      ATT_DOC: "3",
+      Campo: "A",
+      Fibra: "CO",
+      PartitaFornitore: "OVA",
+      Note: "Nota Valentino"
+    };
     var oDetail = new JSONModel({
       __canAddRow: true,
       __canCopyRow: true,
@@ -219,6 +228,9 @@ sap.ui.define([
       var oCopy = aRows[aRows.length - 1];
       assert.strictEqual(aRows.length, 2, "copy appended");
       assert.strictEqual(oCopy.ATT_DOC, "0", "attachment counter reset on copy");
+      assert.strictEqual(oCopy.Note, "", "notes are reset on copy");
+      assert.strictEqual(oCopy.Fibra, "CO", "fiber is preserved on copy");
+      assert.strictEqual(oCopy.PartitaFornitore, "", "vendor batch is cleared to avoid duplicate business key");
       assert.ok(/^COPY_/.test(oCopy.__localId), "copy local id generated");
       assert.strictEqual(oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey)).length, 2, "cache copy appended");
       assert.ok(bPerms, "permissions reapplied");

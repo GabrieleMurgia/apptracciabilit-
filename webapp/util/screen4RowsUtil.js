@@ -314,7 +314,11 @@ sap.ui.define([
         oNew.__readOnly = false;
         oNew.__localId = "COPY_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
         oNew.Stato = "ST";
+        // Keep the historical semantics of copy: note is reset, and clear the
+        // vendor batch to avoid cloning a backend-unique business key
+        // (Partita+Fibra).
         oNew.Note = "";
+        oNew.PartitaFornitore = "";
         delete oNew.__metadata;
 
         (oD.getProperty("/_mmct/s02") || []).forEach(function (f) {

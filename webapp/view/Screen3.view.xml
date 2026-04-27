@@ -50,17 +50,6 @@
 
         <ToolbarSpacer id="hdr3Spacer"/>
 
-        <!-- ODA Status -->
-<!--         <HBox id="hboxOda" alignItems="Center" class="odaStatusChip">
-          <Label id="labelOpenODA" text="ODA aperti:" class="odaLabel"/>
-          <ObjectStatus
-            id="iconOpenOda3"
-            text="{= ${detail>/OpenOda} === 'X' ? 'Sì' : 'No' }"
-            icon="{= ${detail>/OpenOda} === 'X' ? 'sap-icon://status-completed' : 'sap-icon://status-error' }"
-            state="{= ${detail>/OpenOda} === 'X' ? 'Success' : 'Error' }"
-            tooltip="{= ${detail>/OpenOda} === 'X' ? 'Esistono ODA aperti' : 'Nessun ODA aperto' }"/>
-        </HBox> -->
-
       </OverflowToolbar>
     </subHeader>
 
@@ -109,8 +98,6 @@
         <Toolbar id="tblToolbar3" design="Transparent" class="actionToolbar">
           <ToolbarSpacer id="footerToolbar532"/>
           <Button id="btnAddRow01" text="{i18n>common.addRow}" type="Emphasized" icon="sap-icon://add" enabled="{detail>/__canAddRow}" press=".onAddRow" class="actionBtn"/>
-<!--           <Button id="btnCopyRow01" text="Copia riga" type="Default" icon="sap-icon://copy" enabled="{detail>/__canAddRow}" press=".onCopyRow" class="actionBtn"/>
-          <Button id="btnDeleteRows01" text="Elimina righe" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canAddRow}" press=".onDeleteRows" class="actionBtn"/> -->
           <Button id="btnCopyRow01" text="{i18n>common.copyRow}" type="Default" icon="sap-icon://copy" enabled="{detail>/__canCopyRow}" press=".onCopyRow" class="actionBtn"/>
           <Button id="btnDeleteRows01" text="{i18n>common.deleteRows}" type="Negative" icon="sap-icon://delete" enabled="{detail>/__canCopyRow}" press=".onDeleteRows" class="actionBtn"/>
           <ToolbarSeparator id="tbSep3"/>

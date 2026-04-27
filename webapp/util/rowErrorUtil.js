@@ -23,7 +23,7 @@ sap.ui.define([
             break;
           }
         }
-      } catch (e) { }
+      } catch (e) { console.debug("[rowErrorUtil] suppressed error", e); }
     },
 
     // =========================
@@ -49,7 +49,7 @@ sap.ui.define([
         if (opts.updateRowStyles) {
           opts.updateRowStyles();
         }
-      } catch (e) { }
+      } catch (e) { console.debug("[rowErrorUtil] suppressed error", e); }
     },
 
     // =========================
@@ -82,7 +82,7 @@ sap.ui.define([
                 clearFn(oCtx);
               });
             }
-          } catch (e) { }
+          } catch (e) { console.debug("[rowErrorUtil] suppressed error", e); }
         });
         return;
       }
@@ -106,7 +106,7 @@ sap.ui.define([
                 clearFn(oCtx2);
               });
             }
-          } catch (e) { }
+          } catch (e) { console.debug("[rowErrorUtil] suppressed error", e); }
         });
       }
     },
@@ -152,7 +152,7 @@ sap.ui.define([
           }
           this.updatePostErrorRowStyles(oInner, opts);
         }
-      } catch (e) { }
+      } catch (e) { console.debug("[rowErrorUtil] suppressed error", e); }
     },
 
     // =========================

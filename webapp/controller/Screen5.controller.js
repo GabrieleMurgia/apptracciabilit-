@@ -1,38 +1,21 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
+  "apptracciabilita/apptracciabilita/util/screen6FlowUtil",
+  "apptracciabilita/apptracciabilita/util/screen5FlowUtil",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
-  "sap/m/MessageBox",
-  "sap/ui/core/BusyIndicator",
-  "sap/ui/model/Filter",
-  "sap/ui/model/FilterOperator",
-  "sap/ui/mdc/table/Column",
   "sap/m/HBox",
   "sap/m/ObjectStatus",
-  "sap/ui/mdc/p13n/StateUtil",
 
   // ===== UTIL =====
-  "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/domains",
-  "apptracciabilita/apptracciabilita/util/statusUtil",
-  "apptracciabilita/apptracciabilita/util/mdcTableUtil",
-  "apptracciabilita/apptracciabilita/util/p13nUtil",
   "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil",
-  "apptracciabilita/apptracciabilita/util/exportUtil",
-  "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
-  "apptracciabilita/apptracciabilita/util/filterSortUtil",
-  "apptracciabilita/apptracciabilita/util/mmctUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
-  BaseController, JSONModel, MessageToast, MessageBox, BusyIndicator,
-  Filter, FilterOperator, MdcColumn, HBox, ObjectStatus, StateUtil,
-  N, Domains, StatusUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, PostUtil, ExportUtil, RecordsUtil, DataLoaderUtil,
-  FilterSortUtil, MmctUtil, TableColumnAutoSize, I18n
+  BaseController, Screen6FlowUtil, Screen5FlowUtil, JSONModel, MessageToast,
+  HBox, ObjectStatus,
+  Domains, CellTemplateUtil, I18n
 ) {
   "use strict";
 
@@ -68,47 +51,9 @@ sap.ui.define([
       this._ensureUserInfosLoaded().then(function () {
         self._log("_onRouteMatched");
 
-        // Build categories list for ComboBox
         var oVm = self.getOwnerComponent().getModel("vm");
-        var mCats = oVm.getProperty("/mmctFieldsByCat") || {};
-        var aCatKeys = Object.keys(mCats);
-
-        // Fallback: also extract CatMateriale from raw userCategories/userMMCT
-        if (!aCatKeys.length) {
-          var aMMCT = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
-          var catSeen = {};
-          (aMMCT || []).forEach(function (cat) {
-            var c = cat && (cat.CatMateriale || cat.CATMATERIALE || cat.Categoria || "");
-            c = String(c || "").trim();
-            if (c && !catSeen[c]) { catSeen[c] = true; aCatKeys.push(c); }
-            // Also check nested fields
-            var aFields = (cat.UserMMCTFields && cat.UserMMCTFields.results) || [];
-            aFields.forEach(function (f) {
-              var fc = String(f && f.CatMateriale || "").trim();
-              if (fc && !catSeen[fc]) { catSeen[fc] = true; aCatKeys.push(fc); }
-            });
-          });
-        }
-
-        var aCatList = aCatKeys.map(function (k) {
-          // Try to find description from MMCT data
-          var sDesc = "";
-          try {
-            var aMMCTSrc = oVm.getProperty("/userCategories") || oVm.getProperty("/userMMCT") || oVm.getProperty("/UserInfosMMCT") || [];
-            (aMMCTSrc || []).some(function (cat) {
-              var c = String(cat && (cat.CatMateriale || cat.CATMATERIALE || cat.MaterialCategory || cat.Categoria || "") || "").trim();
-              if (c === k) {
-                sDesc = String(cat.CatMaterialeDesc || cat.MatCatDesc || cat.DescCatMateriale || cat.Description || "").trim();
-                return !!sDesc;
-              }
-              return false;
-            });
-          } catch (e) { /* ignore */ }
-          return { key: k, text: sDesc ? (k + " – " + sDesc) : k };
-        }).sort(function (a, b) { return a.text.localeCompare(b.text); });
-
-        oVm.setProperty("/userCategoriesList", aCatList);
-        self._log("Categories built", { count: aCatList.length, keys: aCatKeys });
+        Screen6FlowUtil.buildCategoriesList({ vmModel: oVm });
+        self._log("Categories built", { count: (oVm.getProperty("/userCategoriesList") || []).length });
 
         // Reset detail
         var oDetail = self.getView().getModel("detail");
@@ -140,262 +85,48 @@ sap.ui.define([
     },
 
     _loadDataByCat: function (sCat) {
-      var self = this;
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sUserId = (oVm && oVm.getProperty("/userId")) || "";
-
-      // Build filters: OnlySaved eq 'X' + CatMateriale eq sCat
-      var aFilters = [
-        new Filter("UserID", FilterOperator.EQ, sUserId),
-        new Filter("OnlySaved", FilterOperator.EQ, "X"),
-        new Filter("CatMateriale", FilterOperator.EQ, sCat)
-      ];
-
-      // REAL OData call to DataSet
-      BusyIndicator.show(0);
-      var oODataModel = this.getOwnerComponent().getModel();
-      oODataModel.read("/DataSet", {
-        filters: aFilters,
-        urlParameters: { "sap-language": "IT" },
-        success: function (oData) {
-          BusyIndicator.hide();
-          var aResults = (oData && oData.results) || [];
-          self._log("DataSet loaded", { count: aResults.length, cat: sCat });
-          self._onDataLoaded(aResults, sCat);
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("[S5] DataSet read ERROR", oError);
-          MessageBox.error(N.getBackendErrorMessage(oError));
-        }
+      Screen5FlowUtil.loadDataByCat({
+        cat: sCat,
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        odataModel: this.getOwnerComponent().getModel(),
+        logFn: this._log.bind(this),
+        onDataLoadedFn: this._onDataLoaded.bind(this)
       });
     },
 
     _onDataLoaded: function (aRows, sCat) {
-      var oDetail = this.getView().getModel("detail");
-      var oVm = this.getOwnerComponent().getModel("vm");
-
-      // Hydrate MMCT config from rows
-      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, N.getCodAgg);
-      this._log("_hydrateMmctFromRows", result);
-
-      // Format multi-value fields
-      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
-      PostUtil.formatIncomingRowsMultiSeparators(aRows, mMulti);
-
-      // Mark ALL rows as read-only (Screen5 is view-only)
-      // Resolve domain keys to display texts (e.g. "BA" -> "Blue Angel")
-      var mDomByKey = oVm.getProperty("/domainsByKey") || {};
-      var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-      var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-
-      // Build map: fieldName -> domainName for fields that have a domain
-      var mFieldDomain = {};
-      [aCfg01, aCfg02].forEach(function (arr) {
-        (arr || []).forEach(function (f) {
-          if (!f || !f.ui || !f.domain) return;
-          var sDom = String(f.domain).trim();
-          if (sDom && mDomByKey[sDom]) {
-            mFieldDomain[String(f.ui).trim()] = sDom;
-          }
-        });
+      Screen5FlowUtil.onDataLoaded({
+        rows: aRows,
+        cat: sCat,
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        inputFilter: this.byId("inputFilter5"),
+        logFn: this._log.bind(this),
+        resetInlineFsFn: function () {
+          this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
+        }.bind(this),
+        bindTableFn: this._bindTable.bind(this)
       });
-
-      aRows.forEach(function (r) {
-        if (!r) return;
-        r.__readOnly = true;
-
-        // Resolve domain keys to display texts and deduplicate
-        Object.keys(mFieldDomain).forEach(function (sField) {
-          var v = r[sField];
-          if (v == null || v === "") return;
-          var sDom = mFieldDomain[sField];
-          var mKeys = mDomByKey[sDom] || {};
-
-          if (Array.isArray(v)) {
-            // Multi-value array: resolve each key, deduplicate
-            var seen = {};
-            r[sField] = v.map(function (k) {
-              var sk = String(k || "").trim();
-              var txt = mKeys[sk] || sk;
-              if (seen[txt]) return null;
-              seen[txt] = true;
-              return txt;
-            }).filter(Boolean);
-          } else {
-            // String: may be semicolon-separated keys
-            var sVal = String(v);
-            var parts = sVal.split(/[;|]+/).map(function (k) { return k.trim(); }).filter(Boolean);
-            if (parts.length > 1) {
-              var seen2 = {};
-              r[sField] = parts.map(function (k) {
-                var txt = mKeys[k] || k;
-                if (seen2[txt]) return null;
-                seen2[txt] = true;
-                return txt;
-              }).filter(Boolean).join("; ");
-            } else {
-              var sk = sVal.trim();
-              if (mKeys[sk]) r[sField] = mKeys[sk];
-            }
-          }
-        });
-      });
-
-      // Set data
-      oDetail.setProperty("/_mmct/cat", sCat);
-      oDetail.setProperty("/RowsAll", aRows);
-      oDetail.setProperty("/Rows", aRows);
-      oDetail.setProperty("/RowsCount", aRows.length);
-      oDetail.setProperty("/__loaded", true);
-
-      // Reset filters
-      this._inlineFS = { filters: {}, sort: { key: "", desc: false }, sortBtns: {}, filterInputs: {}, headerTitles: {}, headerRows: {}, headerBoxes: {} };
-      var oInp = this.byId("inputFilter5");
-      if (oInp && oInp.setValue) oInp.setValue("");
-      oDetail.setProperty("/__q", "");
-      oDetail.setProperty("/__statusFilter", "");
-
-      // Build columns and bind table
-      this._bindTable(aRows);
     },
 
     // ==================== TABLE BINDING ====================
-_bindTable: async function (aRows) {
-      var oDetail = this.getView().getModel("detail");
-      var oVm = this.getOwnerComponent().getModel("vm");
-
-      // Get category
-      var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
-      if (!sCat) {
-        try { sCat = String(this.byId("comboMatCat5").getSelectedKey() || "").trim(); } catch (e) {}
-      }
-
-      // Get raw MMCT fields for this category
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-
-      // ── 1) SOLO campi con InSummary = "X" ──
-      // ── 2) Ordinati per SummarySort (ascending) ──
-      var seen = Object.create(null);
-      var aCfgAll = aRawFields
-        .filter(function (f) {
-          return String(f.InSummary || "").trim().toUpperCase() === "X";
-        })
-        .sort(function (a, b) {
-          var sA = parseInt(String(a.SummarySort ?? a.SUMMARYSORT ?? "0").trim(), 10) || 0;
-          var sB = parseInt(String(b.SummarySort ?? b.SUMMARYSORT ?? "0").trim(), 10) || 0;
-          if (sA > 0 && sB > 0) return sA - sB;
-          if (sA > 0) return -1;
-          if (sB > 0) return 1;
-          return 0;
-        })
-        .map(function (f) {
-          var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-          if (!ui) return null;
-          var k = ui.toUpperCase();
-          if (seen[k]) return null;
-          seen[k] = true;
-          var imp = String(f.Impostazione || "").trim().toUpperCase();
-          return {
-            ui: ui,
-            label: String(f.UiFieldLabel || f.Descrizione || ui).trim(),
-            domain: String(f.Dominio || "").trim(),
-            required: imp === "O",
-            locked: imp === "B",
-            attachment: imp === "A",
-            download: imp === "D",
-            multiple: String(f.MultipleVal || "").trim().toUpperCase() === "X",
-            order: parseInt(String(f.Ordinamento || "9999").trim(), 10) || 9999,
-            numeric: (function () {
-                var sUi = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-                var aNum = ["Perccomp", "PerccompFibra", "PercMatRicicl", "PesoPack",
-                            "QtaFibra", "FattEmissione", "CalcCarbonFoot", "GradoRic"];
-                return aNum.indexOf(sUi) >= 0;
-            })()
-          };
-        })
-        .filter(Boolean);
-
-      // Ensure Stato column exists
-      if (!seen["STATO"]) {
-        aCfgAll.unshift({ ui: "Stato", label: "Stato", domain: "", required: false });
-      }
-      // Ensure key fields
-/*       ["Fornitore", "Materiale", "Fibra", "Stagione"].forEach(function (k) {
-        if (!seen[k.toUpperCase()]) {
-          aCfgAll.push({ ui: k, label: k, domain: "", required: false });
-          seen[k.toUpperCase()] = true;
-        }
-      }); */
-
-
-      // Set MDC config
-      var aProps = aCfgAll.map(function (f) {
-        var name = String(f.ui || "").trim();
-        if (name.toUpperCase() === "STATO") name = "Stato";
-        return { name: name, label: f.label || name, dataType: "String", domain: f.domain || "", required: !!f.required };
+    _bindTable: async function (aRows) {
+      await Screen5FlowUtil.bindTable({
+        rows: aRows,
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        table: this.byId("mdcTable5"),
+        getSelectedCatFn: function () {
+          var oCombo = this.byId("comboMatCat5");
+          return String((oCombo && oCombo.getSelectedKey && oCombo.getSelectedKey()) || "").trim();
+        }.bind(this),
+        logFn: this._log.bind(this),
+        createStatusCellTemplateFn: this._createStatusCellTemplate.bind(this),
+        createReadOnlyCellTemplateFn: this._createReadOnlyCellTemplate.bind(this),
+        applyInlineHeaderFilterSortFn: this._applyInlineHeaderFilterSort.bind(this),
+        applyClientFiltersFn: this._applyClientFilters.bind(this),
+        scheduleHeaderFilterSortFn: this._scheduleHeaderFilterSort.bind(this)
       });
-      oVm.setProperty("/mdcCfg/screen5", { modelName: "detail", collectionPath: "/Rows", properties: aProps });
-      this._log("mdcCfg/screen5 set", { props: aProps.length });
-
-      // Rebuild columns
-      var oTbl = this.byId("mdcTable5");
-      if (!oTbl) return;
-
-      this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
-      MdcTableUtil.resetInlineHeaderControls(this._inlineFS);
-      await this._rebuildColumnsHard(oTbl, aCfgAll);
-      TableColumnAutoSize.autoSize(oTbl, 60);
-
-      if (oTbl.initialized) await oTbl.initialized();
-      oTbl.setModel(oDetail, "detail");
-
-      await this._applyInlineHeaderFilterSort(oTbl);
-      this._applyClientFilters();
-      if (typeof oTbl.rebind === "function") oTbl.rebind();
-
-      await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
-      await this._applyInlineHeaderFilterSort(oTbl);
-
-      this._scheduleHeaderFilterSort(oTbl);
-
-      this._log("_bindTable done", { rows: aRows.length, cols: aCfgAll.length });
-    },
-    _rebuildColumnsHard: async function (oTbl, aCfgAll) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
-
-      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-      aOld.slice().forEach(function (c) { oTbl.removeColumn(c); c.destroy(); });
-
-      var seen = Object.create(null);
-      var aCfgUnique = (aCfgAll || []).filter(function (f) {
-        var ui = String(f && f.ui || "").trim();
-        if (!ui) return false;
-        if (ui.toUpperCase() === "STATO") return false;
-        var k = ui.toUpperCase();
-        if (seen[k]) return false;
-        seen[k] = true;
-        return true;
-      });
-
-      // Stato column first
-      var mP = MdcColumn.getMetadata().getAllProperties();
-      var oStatoProps = { width: "70px", header: "Stato", visible: true, dataProperty: "Stato",
-        template: this._createStatusCellTemplate("Stato") };
-      if (mP.propertyKey) oStatoProps.propertyKey = "Stato";
-      oTbl.addColumn(new MdcColumn(oStatoProps));
-
-      // Data columns (read-only) — order is already set by SummarySort in _bindTable
-      aCfgUnique.forEach(function (f) {
-        var sKey = String(f.ui || "").trim();
-        if (!sKey) return;
-        var sHeader = f.label || sKey;
-        var oColProps = { header: sHeader, visible: true, dataProperty: sKey,
-          template: this._createReadOnlyCellTemplate(sKey, f) };
-        if (mP.propertyKey) oColProps.propertyKey = sKey;
-        oTbl.addColumn(new MdcColumn(oColProps));
-      }.bind(this));
     },
 
     _createReadOnlyCellTemplate: function (sKey, oMeta) {
@@ -494,7 +225,7 @@ _bindTable: async function (aRows) {
       var oDetail = this.getView().getModel("detail");
       var sSrc = oEvt.getSource();
       var sVal = "";
-      try { sVal = (sSrc.data && sSrc.data("status")) || ""; } catch (e) { }
+      try { sVal = (sSrc.data && sSrc.data("status")) || ""; } catch (e) { console.debug("[Screen5] suppressed error", e); }
       oDetail.setProperty("/__statusFilter", sVal);
       this._applyClientFilters();
     },
@@ -506,119 +237,11 @@ _bindTable: async function (aRows) {
 
     // ==================== EXPORT ====================
     onExportExcel: async function () {
-      var oDetail = this.getView().getModel("detail");
-      if (!oDetail.getProperty("/__loaded")) { MessageToast.show(I18n.text(this, "msg.noDataToExport", [], "Nessun dato da esportare")); return; }
-
-      var aRows = oDetail.getProperty("/Rows") || [];
-      if (!aRows.length) { MessageToast.show(I18n.text(this, "msg.noRowsToExportCheckFilters", [], "Nessuna riga da esportare (controlla i filtri)")); return; }
-
-      try {
-        BusyIndicator.show(0);
-
-/*         // Build columns from MMCT config
-        var aCfg01 = oDetail.getProperty("/_mmct/s01") || [];
-        var aCfg02 = oDetail.getProperty("/_mmct/s02") || [];
-        var seen = {};
-        var aCols = [];
-
-        // Stato first
-        aCols.push({ label: "Stato", property: "StatoText", type: "String" });
-        seen["STATO"] = true;
-        seen["STATOTEXT"] = true;
-
-        // Key fields
-        ["Fornitore", "Materiale", "Fibra", "Stagione"].forEach(function (k) {
-          if (!seen[k.toUpperCase()]) {
-            aCols.push({ label: k, property: k, type: "String" });
-            seen[k.toUpperCase()] = true;
-          }
-        });
-
-        // Config fields
-        [aCfg01, aCfg02].forEach(function (arr) {
-          (arr || []).forEach(function (f) {
-            var ui = String(f && f.ui || "").trim();
-            if (!ui) return;
-            var k = ui.toUpperCase();
-            if (seen[k]) return;
-            seen[k] = true;
-            aCols.push({ label: f.label || ui, property: ui, type: "String" });
-          });
-        }); */
-
-      // Build columns from MMCT config — same logic as _bindTable:
-      // only InSummary="X" fields, sorted by SummarySort (ascending, 0 last).
-      // This guarantees Excel export matches what the user sees on screen.
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
-      var aRawFields = (oVm.getProperty("/mmctFieldsByCat/" + sCat)) || [];
-
-      var seen = {};
-      var aCols = [];
-
-      // Stato first (technical workflow column)
-      aCols.push({ label: "Stato", property: "StatoText", type: "String" });
-      seen["STATO"] = true;
-      seen["STATOTEXT"] = true;
-
-      // MMCT-driven columns (filtered + sorted exactly as the on-screen table)
-      aRawFields
-        .filter(function (f) {
-          return String(f.InSummary || "").trim().toUpperCase() === "X";
-        })
-        .sort(function (a, b) {
-          var sA = parseInt(String(a.SummarySort != null ? a.SummarySort : 0).trim(), 10) || 0;
-          var sB = parseInt(String(b.SummarySort != null ? b.SummarySort : 0).trim(), 10) || 0;
-          if (sA > 0 && sB > 0) return sA - sB;
-          if (sA > 0) return -1;
-          if (sB > 0) return 1;
-          return 0;
-        })
-        .forEach(function (f) {
-          var ui = String(f.UiFieldname || f.UIFIELDNAME || "").trim();
-          if (!ui) return;
-          var k = ui.toUpperCase();
-          if (seen[k]) return;
-          seen[k] = true;
-          var sLabel = String(f.UiFieldLabel || f.Descrizione || ui).trim();
-          aCols.push({ label: sLabel, property: ui, type: "String" });
-        });
-
-        // Map rows
-        var aData = aRows.map(function (r) {
-          var o = {};
-          aCols.forEach(function (c) {
-            var v = "";
-            if (c.property === "StatoText") {
-              v = RecordsUtil.statusText(String(r.Stato || r.__status || "ST").trim().toUpperCase());
-            } else {
-              v = (r && r[c.property] != null) ? r[c.property] : "";
-            }
-            if (Array.isArray(v)) v = v.join(", ");
-            o[c.property] = String(v != null ? v : "");
-          });
-          return o;
-        });
-
-        var EdmType = sap.ui.require("sap/ui/export/library").EdmType;
-        var Spreadsheet = sap.ui.require("sap/ui/export/Spreadsheet");
-        var oSettings = {
-          workbook: {
-            columns: aCols.map(function (c) { return { label: c.label, property: c.property, type: EdmType.String }; })
-          },
-          dataSource: aData,
-          fileName: "DatiTabella_" + (oDetail.getProperty("/_mmct/cat") || "export") + ".xlsx"
-        };
-        var oSheet = new Spreadsheet(oSettings);
-        await oSheet.build();
-        oSheet.destroy();
-        MessageToast.show(I18n.text(this, "msg.excelExported", [], "Excel esportato"));
-      } catch (e) {
-        console.error("[S5] Export error", e);
-        MessageToast.show(I18n.text(this, "msg.exportExcelError", [], "Errore export Excel"));
-      } finally {
-        BusyIndicator.hide();
-      }
+      await Screen5FlowUtil.exportExcel({
+        context: this,
+        detailModel: this.getView().getModel("detail"),
+        vmModel: this.getOwnerComponent().getModel("vm")
+      });
     },
     // ==================== NAVIGATION ====================
     _getNavBackFallback: function () {

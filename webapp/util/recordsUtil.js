@@ -443,7 +443,7 @@ sap.ui.define([
         if (typeof oMdcTable.getTable === "function") oInner = oMdcTable.getTable();
         if (!oInner && typeof oMdcTable.getContent === "function") oInner = oMdcTable.getContent();
         if (!oInner && oMdcTable._oTable) oInner = oMdcTable._oTable;
-      } catch (e) {}
+      } catch (e) { console.debug("[recordsUtil] suppressed error", e); }
       if (!oInner) return;
 
       var aItems = [];
@@ -461,7 +461,7 @@ sap.ui.define([
             try {
               var oBinding = oCtrl.getBinding("value") || oCtrl.getBinding("selectedKeys") || oCtrl.getBinding("selectedKey");
               if (oBinding && oBinding.getPath) sBindPath = String(oBinding.getPath() || "");
-            } catch (e) {}
+            } catch (e) { console.debug("[recordsUtil] suppressed error", e); }
             if (!sBindPath) return;
 
             var bExceeded = false, sMatchedField = "";
@@ -474,14 +474,14 @@ sap.ui.define([
             if (bExceeded) {
               oCtrl.setValueState("Error");
               oCtrl.setValueStateText("La somma supera il 100% (" + self.computePercSum(aRows, sMatchedField) + "%)");
-              try { oCtrl.data("__percError", "true"); } catch (e) {}
+              try { oCtrl.data("__percError", "true"); } catch (e) { console.debug("[recordsUtil] suppressed error", e); }
             } else {
               try {
                 if (oCtrl.data("__percError") === "true") {
                   oCtrl.setValueState("None"); oCtrl.setValueStateText("");
                   oCtrl.data("__percError", "false");
                 }
-              } catch (e) {}
+              } catch (e) { console.debug("[recordsUtil] suppressed error", e); }
             }
           });
         });

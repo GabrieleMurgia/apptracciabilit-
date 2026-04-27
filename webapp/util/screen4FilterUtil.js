@@ -162,7 +162,7 @@ sap.ui.define([
         });
       }
 
-      try { oCtrl.data("hdrFilterKey", sKey); } catch (e) { }
+      try { oCtrl.data("hdrFilterKey", sKey); } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
       return oCtrl;
     },
 
@@ -243,7 +243,7 @@ sap.ui.define([
           try {
             if (typeof c.setLabel === "function") c.setLabel(pack.box);
             else if (typeof c.setHeader === "function") c.setHeader(pack.box);
-          } catch (e) { }
+          } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
         });
 
         if (!okKeys) return false;
@@ -252,7 +252,7 @@ sap.ui.define([
         var boxes = (opts.hdrFilter && opts.hdrFilter.boxesByKey) || {};
         Object.keys(boxes).forEach(function (k) {
           if (!seen[k]) {
-            try { if (boxes[k] && boxes[k].box) boxes[k].box.destroy(); } catch (e) { }
+            try { if (boxes[k] && boxes[k].box) boxes[k].box.destroy(); } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
             delete boxes[k];
           }
         });
@@ -314,10 +314,10 @@ sap.ui.define([
         if (hdrFilter && hdrFilter.boxesByKey) {
           Object.keys(hdrFilter.boxesByKey).forEach(function (k) {
             var p = hdrFilter.boxesByKey[k];
-            try { if (p && p.box && !p.box.bIsDestroyed) p.box.destroy(); } catch (e) { }
+            try { if (p && p.box && !p.box.bIsDestroyed) p.box.destroy(); } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
           });
         }
-      } catch (e) { }
+      } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
       // caller must reassign: this._hdrFilter = { boxesByKey: {}, seenLast: {} };
       // caller must reassign: this._hdrSortBtns = {};
     },
@@ -328,7 +328,7 @@ sap.ui.define([
       try {
         if (oInnerCol && typeof oInnerCol.getFilterProperty === "function") k = oInnerCol.getFilterProperty() || "";
         if (!k && oInnerCol && typeof oInnerCol.getSortProperty === "function") k = oInnerCol.getSortProperty() || "";
-      } catch (e) { }
+      } catch (e) { console.debug("[screen4FilterUtil] suppressed error", e); }
       k = String(k || "").trim();
       if (k.indexOf(">") >= 0) k = k.split(">").pop();
       return String(k || "").trim();

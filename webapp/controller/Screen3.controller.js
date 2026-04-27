@@ -1,43 +1,35 @@
 sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
-  "sap/m/Button",
-  "sap/ui/mdc/table/Column",
   "sap/m/HBox",
   "sap/m/ObjectStatus",
-  "sap/ui/mdc/p13n/StateUtil",
 
   // ===== UTIL =====
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/domains",
-  "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
-  "apptracciabilita/apptracciabilita/util/p13nUtil",
   "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
-  "apptracciabilita/apptracciabilita/util/postUtil",
   "apptracciabilita/apptracciabilita/util/rowErrorUtil",
   "apptracciabilita/apptracciabilita/util/exportUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/screen3SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen3CrudUtil",
   "apptracciabilita/apptracciabilita/util/dataLoaderUtil",
+  "apptracciabilita/apptracciabilita/util/screen3BindingUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
   BaseController, JSONModel,
-  Button, MdcColumn, HBox, ObjectStatus, StateUtil,
-  N, VmPaths, Domains, StatusUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, PostUtil, RowErrorUtil, ExportUtil, RecordsUtil,
-  Screen3SaveUtil, Screen3CrudUtil, DataLoaderUtil, FilterSortUtil,
-  TableColumnAutoSize, ScreenFlowStateUtil, I18n
+  HBox, ObjectStatus,
+  N, VmPaths, Domains, MdcTableUtil,
+  CellTemplateUtil, RowErrorUtil, ExportUtil, RecordsUtil,
+  Screen3SaveUtil, Screen3CrudUtil, DataLoaderUtil, Screen3BindingUtil, FilterSortUtil,
+  ScreenFlowStateUtil, I18n
 ) {
   "use strict";
-
-  var deepClone = N.deepClone;
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen3", {
 
@@ -152,130 +144,65 @@ var oVm = self.getOwnerComponent().getModel("vm");
 
     // ==================== LOAD DATA ====================
     _loadDataOnce: function (aSavedSnapshot) {
-      var oVm = this._getOVm();
-      var sKey = this._getExportCacheKey();
-      var aRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || null;
-      var aRecs = oVm.getProperty(VmPaths.recordsByKeyPath(sKey)) || null;
-      var bSkip = ScreenFlowStateUtil.consumeSkipScreen3BackendOnce(oVm);
-      var bHasCache = Array.isArray(aRows) && aRows.length && Array.isArray(aRecs) && aRecs.length;
-
-      if (bHasCache) {
-        this._bindFromCache(aRows, sKey, bSkip, aSavedSnapshot);
-      }
-
-      if (bSkip && bHasCache) {
-        this._log("_loadDataOnce: skip backend reload (back from Screen4)", { cacheKey: sKey });
-        return;
-      }
-
-      this._loadToken = (this._loadToken || 0) + 1;
-      var iToken = this._loadToken;
-      this._reloadDataFromBackend(function (aResults) {
-        if (iToken !== this._loadToken) return;
-        this._bindFromBackend(aResults, sKey);
-      }.bind(this));
+      return Screen3BindingUtil.loadDataOnce({
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        savedSnapshot: aSavedSnapshot,
+        consumeSkipBackendFn: ScreenFlowStateUtil.consumeSkipScreen3BackendOnce,
+        bindFromCacheFn: this._bindFromCache.bind(this),
+        reloadDataFromBackendFn: this._reloadDataFromBackend.bind(this),
+        bindFromBackendFn: this._bindFromBackend.bind(this),
+        logFn: this._log.bind(this),
+        nextLoadTokenFn: function () {
+          this._loadToken = (this._loadToken || 0) + 1;
+          return this._loadToken;
+        }.bind(this),
+        getLoadTokenFn: function () { return this._loadToken; }.bind(this)
+      });
     },
 
     _bindFromCache: function (aRows, sKey, bSkip, aSavedSnapshot) {
-      var oVm = this._getOVm();
-      try {
-        this._hydrateAndFormat(aRows);
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aRows);
-
-        var oDetail = this._getODetail();
-        var aRecs;
-
-        if (bSkip && aSavedSnapshot && aSavedSnapshot.length) {
-          this._applySnapshotStatusAndNotes(aSavedSnapshot, aRows);
-          aRecs = this._bNoMatListMode
-            ? aSavedSnapshot
-            : this._excludeTemplatesByRawRows(aSavedSnapshot, aRows);
-        } else {
-          aRecs = RecordsUtil.buildRecords01(aRows, {
-            oDetail: oDetail,
-            oVm: this.getOwnerComponent().getModel("vm"),
-            includeTemplates: !!this._bNoMatListMode
-          });
-          if (!this._bNoMatListMode) {
-            aRecs = this._excludeTemplatesByRawRows(aRecs, aRows);
-          }
-        }
-
-        oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecs);
-        var resC = RecordsUtil.computeOpenOdaFromRows(aRows);
-        if (resC.hasSignalProp) oDetail.setProperty("/OpenOda", resC.flag);
-
-        if (bSkip && aSavedSnapshot) this._bKeepOriginalSnapshot = true;
-        this._bindRecords(aRecs);
-        this._bKeepOriginalSnapshot = false;
-
-        if (aSavedSnapshot) this._snapshotRecords = aSavedSnapshot;
-      } catch (e) {
-        console.warn("[S3] cache bind failed", e);
-      }
+      return Screen3BindingUtil.bindFromCache({
+        rows: aRows,
+        cacheKey: sKey,
+        skip: bSkip,
+        savedSnapshot: aSavedSnapshot,
+        noMatListMode: !!this._bNoMatListMode,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        logFn: this._log.bind(this),
+        bindRecordsFn: this._bindRecords.bind(this),
+        setKeepOriginalSnapshotFn: function (bKeep) { this._bKeepOriginalSnapshot = bKeep; }.bind(this),
+        setSnapshotRecordsFn: function (aSnapshot) { this._snapshotRecords = aSnapshot; }.bind(this)
+      });
     },
 
     _bindFromBackend: function (aResults, sKey) {
-      var oVm = this._getOVm();
-      this._hydrateAndFormat(aResults);
-
-      var oDetail = this._getODetail();
-      var res = RecordsUtil.computeOpenOdaFromRows(aResults);
-      if (res.hasSignalProp) oDetail.setProperty("/OpenOda", res.flag);
-
-      var aRecordsBuilt = RecordsUtil.buildRecords01(aResults, {
-        oDetail: oDetail,
-        oVm: this.getOwnerComponent().getModel("vm"),
-        includeTemplates: !!this._bNoMatListMode
+      return Screen3BindingUtil.bindFromBackend({
+        rows: aResults,
+        cacheKey: sKey,
+        noMatListMode: !!this._bNoMatListMode,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        logFn: this._log.bind(this),
+        bindRecordsFn: this._bindRecords.bind(this)
       });
-      if (!this._bNoMatListMode) {
-        aRecordsBuilt = this._excludeTemplatesByRawRows(aRecordsBuilt, aResults);
-      }
-
-      oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aResults);
-      oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecordsBuilt);
-      this._bindRecords(aRecordsBuilt);
     },
 
     // Snapshot salvato uscendo da Screen4 → contiene record con possibile
     // stato "stale". Lo risincronizza leggendo Stato/Note dalle righe grezze
     // appena rehidratate, calcolando lo stato di gruppo (AP/RJ/CH/ST).
     _applySnapshotStatusAndNotes: function (aSavedSnapshot, aRows) {
-      var mRawByGuid = {};
-      (aRows || []).forEach(function (r) {
-        var g = RecordsUtil.rowGuidKey(r);
-        if (!g) return;
-        if (!mRawByGuid[g]) mRawByGuid[g] = [];
-        mRawByGuid[g].push(r);
-      });
-
-      aSavedSnapshot.forEach(function (rec) {
-        if (!rec) return;
-        var g = N.toStableString(rec.guidKey || rec.GUID || rec.Guid || "");
-        var aRaw = mRawByGuid[g] || [];
-        if (!aRaw.length) return;
-
-        var aRawSt = aRaw.map(function (r) { return String(r.Stato || "ST").trim().toUpperCase(); });
-        var st;
-        if (aRawSt.every(function (s) { return s === "AP"; })) st = "AP";
-        else if (aRawSt.some(function (s) { return s === "RJ"; })) st = "RJ";
-        else if (aRawSt.some(function (s) { return s === "CH"; })) st = "CH";
-        else st = "ST";
-        rec.__status = st;
-        rec.Stato = st;
-
-        var rNote = aRaw.find(function (r) { return r.Note && String(r.Note).trim(); });
-        if (rNote) rec.Note = rNote.Note;
+      return Screen3BindingUtil.applySnapshotStatusAndNotes({
+        snapshot: aSavedSnapshot,
+        rows: aRows
       });
     },
 
     _excludeTemplatesByRawRows: function (aRecs, aRows) {
-      var mTpl = {};
-      (aRows || []).forEach(function (r) {
-        if (N.getCodAgg(r) === "N") mTpl[RecordsUtil.rowGuidKey(r)] = true;
-      });
-      return (aRecs || []).filter(function (rec) {
-        return !mTpl[N.toStableString(rec && (rec.guidKey || rec.GUID || rec.Guid))];
+      return Screen3BindingUtil.excludeTemplatesByRawRows({
+        records: aRecs,
+        rows: aRows
       });
     },
 
@@ -314,81 +241,34 @@ var oVm = self.getOwnerComponent().getModel("vm");
     },
 
     _hydrateAndFormat: function (aRows) {
-      var oDetail = this._getODetail();
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var result = DataLoaderUtil.hydrateMmctFromRows(aRows, oDetail, oVm, N.getCodAgg);
-      this._log("_hydrateMmctFromRows", result);
-      var mMulti = PostUtil.getMultiFieldsMap(oDetail);
-      PostUtil.formatIncomingRowsMultiSeparators(aRows, mMulti);
+      return Screen3BindingUtil.hydrateAndFormat({
+        rows: aRows,
+        detailModel: this._getODetail(),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        logFn: this._log.bind(this)
+      });
     },
 
     // ==================== MDC TABLE CONFIG ====================
     _ensureMdcCfgScreen3: function (aCfg01) {
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var seen = Object.create(null);
-      var aProps = [];
-
-      (aCfg01 || []).forEach(function (f) {
-        var name = String(f && f.ui || "").trim();
-        if (!name) return;
-        if (name.toUpperCase() === "STATO") name = "Stato";
-        var k = name.toUpperCase();
-        if (seen[k]) return;
-        seen[k] = true;
-        aProps.push({ name: name, label: f.label || name, dataType: "String", domain: f.domain || "", required: !!f.required });
+      return Screen3BindingUtil.ensureMdcCfgScreen3({
+        cfg01: aCfg01,
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        logFn: this._log.bind(this)
       });
-
-      if (!seen["STATO"]) {
-        aProps.unshift({ name: "Stato", label: "Stato", dataType: "String", domain: "", required: false });
-      }
-
-      oVm.setProperty("/mdcCfg/screen3", { modelName: "detail", collectionPath: "/Records", properties: aProps });
-      this._log("vm>/mdcCfg/screen3 set", { props: aProps.length });
     },
 
     _rebuildColumnsHard: async function (oTbl, aCfg01) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
-
-      var aOld = (oTbl.getColumns && oTbl.getColumns()) || [];
-      aOld.slice().forEach(function (c) { oTbl.removeColumn(c); c.destroy(); });
-
-      var seen = Object.create(null);
-      var aCfgUnique = (aCfg01 || []).filter(function (f) {
-        var ui = String(f && f.ui || "").trim();
-        if (!ui) return false;
-        if (ui.toUpperCase() === "STATO") return false;
-        var k = ui.toUpperCase();
-        if (seen[k]) return false;
-        seen[k] = true;
-        return true;
+      return Screen3BindingUtil.rebuildColumnsHard({
+        table: oTbl,
+        cfg01: aCfg01,
+        hasDetail: !!this.getView().getModel("detail").getProperty("/_mmct/hasDetail"),
+        onGoToScreen4FromRowFn: this.onGoToScreen4FromRow.bind(this),
+        createStatusCellTemplateFn: this._createStatusCellTemplate.bind(this),
+        createCellTemplateFn: this._createCellTemplate.bind(this),
+        setStatusColumnFn: function (oCol) { this._colStatoS3 = oCol; }.bind(this),
+        getStatusColumnFn: function () { return this._colStatoS3; }.bind(this)
       });
-
-      // Only show Dettaglio column if the category has detail level (S02 fields)
-      var oDetail = this.getView().getModel("detail");
-      var bHasDetail = !!(oDetail && oDetail.getProperty("/_mmct/hasDetail"));
-      if (bHasDetail) {
-        oTbl.addColumn(new MdcColumn({ header: "Dettaglio", visible: true, width: "100px",
-          template: new Button({ icon: "sap-icon://enter-more", type: "Transparent", press: this.onGoToScreen4FromRow.bind(this) })
-        }));
-      }
-
-      var mP = MdcColumn.getMetadata().getAllProperties();
-      var oStatoProps = { width: "70px", header: "Stato", visible: true, dataProperty: "Stato",
-        template: this._createStatusCellTemplate("Stato") };
-      if (mP.propertyKey) oStatoProps.propertyKey = "Stato";
-      this._colStatoS3 = new MdcColumn(oStatoProps);
-      oTbl.addColumn(this._colStatoS3);
-
-      aCfgUnique.forEach(function (f) {
-        var sKey = String(f.ui || "").trim();
-        if (!sKey) return;
-        var sHeader = (f.label || sKey) + (f.required ? " *" : "");
-        var oColProps = { header: sHeader, visible: true, dataProperty: sKey,
-          template: this._createCellTemplate(sKey, f) };
-        if (mP.propertyKey) oColProps.propertyKey = sKey;
-        oTbl.addColumn(new MdcColumn(oColProps));
-      }.bind(this));
     },
 
     _createCellTemplate: function (sKey, oMeta) {
@@ -429,69 +309,30 @@ var oVm = self.getOwnerComponent().getModel("vm");
 
     // ==================== BIND RECORDS ====================
     _bindRecords: async function (aRecords) {
-      var oDetail = this._getODetail();
-      var a = aRecords || [];
-      oDetail.setProperty("/RecordsAll", a);
-      oDetail.setProperty("/Records", a);
-      oDetail.setProperty("/RecordsCount", a.length);
-
-      var oVm = this.getOwnerComponent().getModel("vm");
-      var sRole = String((oVm && oVm.getProperty("/userType")) || "").trim().toUpperCase();
-      var aSt = a.map(function (r) { return String((r && (r.__status || r.Stato)) || "ST").trim().toUpperCase(); });
-      var allAP = aSt.length > 0 && aSt.every(function (s) { return s === "AP"; });
-      var anyRJ = aSt.some(function (s) { return s === "RJ"; });
-      var anyCH = aSt.some(function (s) { return s === "CH"; });
-      var sAgg = allAP ? "AP" : (anyRJ ? "RJ" : (anyCH ? "CH" : "ST"));
-
-      oDetail.setProperty("/__status", sAgg);
-      oDetail.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, sAgg));
-      oDetail.setProperty("/__role", sRole);
-
-      // ── NoMatList: disabilita add/copy/delete ──
-      if (this._bNoMatListMode) {
-        oDetail.setProperty("/__canAddRow", false);
-        oDetail.setProperty("/__noMatListMode", true);
-        oDetail.setProperty("/__canCopyRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
-        oDetail.setProperty("/__canDeleteRow", sRole === "E" && StatusUtil.canEdit(sRole, sAgg));
-      } else {
-        oDetail.setProperty("/__canCopyRow", oDetail.getProperty("/__canAddRow"));
-        oDetail.setProperty("/__canDeleteRow", oDetail.getProperty("/__canAddRow"));
-      }
-
-      var bCanApproveReject = (sRole === "I" || sRole === "S");
-      oDetail.setProperty("/__canApprove", bCanApproveReject);
-      oDetail.setProperty("/__canReject", bCanApproveReject);
-
-      RecordsUtil.refreshHeader3Fields(oDetail);
-      this._log("_refreshHeader3Fields done");
-      this._snapshotRecords = deepClone(a);
-      if (!this._bKeepOriginalSnapshot) {
-        this._originalSnapshot = deepClone(a);
-      }
-
-      var oTbl = this.byId("mdcTable3");
-      var aCfg01Table = oDetail.getProperty("/_mmct/s01Table") || [];
-      this._ensureMdcCfgScreen3(aCfg01Table);
-      this._inlineFS = MdcTableUtil.ensureInlineFS(this._inlineFS);
-      MdcTableUtil.resetInlineHeaderControls(this._inlineFS);
-      await this._rebuildColumnsHard(oTbl, aCfg01Table);
-      TableColumnAutoSize.autoSize(this.byId("mdcTable3"), 60);
-      if (oTbl && oTbl.initialized) await oTbl.initialized();
-      if (oTbl) oTbl.setModel(oDetail, "detail");
-
-      await this._applyInlineHeaderFilterSort(oTbl);
-      this._applyClientFilters();
-      if (oTbl && typeof oTbl.rebind === "function") oTbl.rebind();
-
-      this._clearSelectionMdc();
-
-      await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
-      await this._applyInlineHeaderFilterSort(oTbl);
-
-      this._scheduleHeaderFilterSort(oTbl);
-
-      this._logTable("TABLE STATE @ after _bindRecords");
-      this._ensurePostErrorRowHooks(oTbl);
+      return Screen3BindingUtil.bindRecords({
+        records: aRecords,
+        detailModel: this._getODetail(),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        noMatListMode: !!this._bNoMatListMode,
+        keepOriginalSnapshot: !!this._bKeepOriginalSnapshot,
+        setSnapshotRecordsFn: function (aSnapshot) { this._snapshotRecords = aSnapshot; }.bind(this),
+        setOriginalSnapshotFn: function (aSnapshot) { this._originalSnapshot = aSnapshot; }.bind(this),
+        table: this.byId("mdcTable3"),
+        inlineFs: this._inlineFS,
+        setInlineFsFn: function (oInlineFs) { this._inlineFS = oInlineFs; }.bind(this),
+        onGoToScreen4FromRowFn: this.onGoToScreen4FromRow.bind(this),
+        createStatusCellTemplateFn: this._createStatusCellTemplate.bind(this),
+        createCellTemplateFn: this._createCellTemplate.bind(this),
+        setStatusColumnFn: function (oCol) { this._colStatoS3 = oCol; }.bind(this),
+        getStatusColumnFn: function () { return this._colStatoS3; }.bind(this),
+        applyInlineHeaderFilterSortFn: this._applyInlineHeaderFilterSort.bind(this),
+        applyClientFiltersFn: this._applyClientFilters.bind(this),
+        clearSelectionFn: this._clearSelectionMdc.bind(this),
+        scheduleHeaderFilterSortFn: this._scheduleHeaderFilterSort.bind(this),
+        ensurePostErrorRowHooksFn: this._ensurePostErrorRowHooks.bind(this),
+        logFn: this._log.bind(this),
+        logTableFn: this._logTable.bind(this)
+      });
     },
 
     // ==================== FILTERS ====================

@@ -24,13 +24,13 @@ sap.ui.define([
     try {
       if (oCtrl.data && oCtrl.data("dirtyHooked")) return;
       if (oCtrl.data) oCtrl.data("dirtyHooked", true);
-    } catch (e) {}
+    } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
 
     try {
       if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) {
         oCtrl.setValueLiveUpdate(true);
       }
-    } catch (e2) {}
+    } catch (e2) { console.debug("[dirtyHookUtil] suppressed error", e2); }
 
     function getCtx(ctrl) {
       return (ctrl && ctrl.getBindingContext && (ctrl.getBindingContext(sModelName) || ctrl.getBindingContext())) || null;
@@ -48,7 +48,7 @@ sap.ui.define([
         if (m) return m;
       }
       if (typeof hookOpts.getVmModelFn === "function") {
-        try { return hookOpts.getVmModelFn(); } catch (e) {}
+        try { return hookOpts.getVmModelFn(); } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
       }
       return null;
     }
@@ -90,7 +90,7 @@ sap.ui.define([
       var basePath = (ctx.getPath && ctx.getPath()) || "";
       var fullPath = rel.charAt(0) === "/" ? rel : (basePath ? (basePath + "/" + rel) : rel);
 
-      try { oModel.setProperty(fullPath, v); } catch (e) {}
+      try { oModel.setProperty(fullPath, v); } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
     }
 
     function _normStr(v) { return String(v == null ? "" : v).trim(); }
@@ -132,7 +132,7 @@ sap.ui.define([
             touchCodAggParentFn(row, sPath);
           }
         }, (oEvt && oEvt.getId && oEvt.getId() === "liveChange") ? 150 : 0);
-      } catch (e) {}
+      } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
     }
 
     try {
@@ -141,11 +141,11 @@ sap.ui.define([
           var rel = getBindingRelPath(oCtrl);
           if (!rel) return;
           if (_hasSuggestionsForField(rel)) {
-            try { oCtrl.data("__oldVal", oCtrl.getValue()); } catch (e) {}
+            try { oCtrl.data("__oldVal", oCtrl.getValue()); } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
           }
         });
       }
-    } catch (e3) {}
+    } catch (e3) { console.debug("[dirtyHookUtil] suppressed error", e3); }
 
     function handler(oEvt) {
       var src = (oEvt && oEvt.getSource && oEvt.getSource()) || oCtrl;
@@ -159,7 +159,7 @@ sap.ui.define([
           scheduleDirty(src, oEvt);
           return;
         }
-      } catch (e0) {}
+      } catch (e0) { console.debug("[dirtyHookUtil] suppressed error", e0); }
 
       forceUpdateModelIfNeeded(src);
 
@@ -194,7 +194,7 @@ sap.ui.define([
                 return true;
               });
             }
-          } catch (eUniq) {}
+          } catch (eUniq) { console.debug("[dirtyHookUtil] suppressed error", eUniq); }
 
           if (bDuplicate) {
             var oldValDup = _normStr(src.data("__oldVal"));
@@ -204,7 +204,7 @@ sap.ui.define([
             try {
               if (src.data) src.data("__skipConfirmOnce", true);
               src.setValue(oldValDup);
-            } catch (e2) {}
+            } catch (e2) { console.debug("[dirtyHookUtil] suppressed error", e2); }
             forceUpdateModelIfNeeded(src);
             return;
           }
@@ -220,13 +220,13 @@ sap.ui.define([
               emphasizedAction: MessageBox.Action.OK,
               onClose: function (action) {
                 if (action === MessageBox.Action.OK) {
-                  try { src.data("__oldVal", newVal); } catch (e) {}
+                  try { src.data("__oldVal", newVal); } catch (e) { console.debug("[dirtyHookUtil] suppressed error", e); }
                   scheduleDirty(src, oEvt);
                 } else {
                   try {
                     if (src.data) src.data("__skipConfirmOnce", true);
                     src.setValue(oldVal);
-                  } catch (e2) {}
+                  } catch (e2) { console.debug("[dirtyHookUtil] suppressed error", e2); }
                   forceUpdateModelIfNeeded(src);
                 }
               }

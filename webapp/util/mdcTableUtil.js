@@ -25,7 +25,7 @@ sap.ui.define([
       }
       if (!oInner && oMdcTbl && oMdcTbl._oTable) oInner = oMdcTbl._oTable;
       if (!oInner && oMdcTbl && typeof oMdcTbl._getTable === "function") oInner = oMdcTbl._getTable();
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
 
     // unwrap “TableType”
     try {
@@ -34,7 +34,7 @@ sap.ui.define([
         else if (typeof oInner.getInnerTable === "function") oInner = oInner.getInnerTable();
         else if (oInner._oTable) oInner = oInner._oTable;
       }
-    } catch (e2) { }
+    } catch (e2) { console.debug("[mdcTableUtil] suppressed error", e2); }
 
     return oInner || null;
   }
@@ -48,7 +48,7 @@ sap.ui.define([
       if (oInner && typeof oInner.setColumnHeaderHeight === "function") {
         oInner.setColumnHeaderHeight(bShow ? 64 : 32);
       }
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
   }
 
   function setInnerColumnHeader(oInnerCol, oHeaderControl) {
@@ -56,7 +56,7 @@ sap.ui.define([
       if (!oInnerCol) return;
       if (typeof oInnerCol.setLabel === "function") oInnerCol.setLabel(oHeaderControl);
       else if (typeof oInnerCol.setHeader === "function") oInnerCol.setHeader(oHeaderControl);
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
   }
 
   // =========================
@@ -83,7 +83,7 @@ sap.ui.define([
     ["sortBtns", "filterInputs", "headerTitles", "headerRows", "headerBoxes"].forEach(function (k) {
       var m = oInlineFS[k] || {};
       Object.keys(m).forEach(function (key) {
-        try { m[key] && m[key].destroy && m[key].destroy(); } catch (e) { }
+        try { m[key] && m[key].destroy && m[key].destroy(); } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
       });
       oInlineFS[k] = {};
     });
@@ -170,11 +170,11 @@ sap.ui.define([
 
     try {
       if (oMdcTbl.initialized) await oMdcTbl.initialized();
-    } catch (eInit) { }
+    } catch (eInit) { console.debug("[mdcTableUtil] suppressed error", eInit); }
 
     var oInner = getInnerTableFromMdc(oMdcTbl);
     if (!oInner || typeof oInner.getColumns !== "function") {
-      try { if (typeof fnLog === "function") fnLog("InlineFS: inner table non trovata o non compatibile"); } catch (eLog) { }
+      try { if (typeof fnLog === "function") fnLog("InlineFS: inner table non trovata o non compatibile"); } catch (eLog) { console.debug("[mdcTableUtil] suppressed error", eLog); }
       return;
     }
 
@@ -186,7 +186,7 @@ sap.ui.define([
       try {
         if (col && typeof col.getFilterProperty === "function") k = col.getFilterProperty() || "";
         if (!k && col && typeof col.getSortProperty === "function") k = col.getSortProperty() || "";
-      } catch (e) { }
+      } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
 
       k = String(k || "").trim();
       if (k.indexOf(">") >= 0) k = k.split(">").pop();
@@ -236,7 +236,7 @@ sap.ui.define([
       // --- Sort Button (riuso) ---
       var oSortBtn = oInlineFS.sortBtns[sField];
       if (isDead(oSortBtn)) {
-        try { oSortBtn && oSortBtn.destroy && oSortBtn.destroy(); } catch (e0) { }
+        try { oSortBtn && oSortBtn.destroy && oSortBtn.destroy(); } catch (e0) { console.debug("[mdcTableUtil] suppressed error", e0); }
         oSortBtn = null;
         delete oInlineFS.sortBtns[sField];
       }
@@ -302,7 +302,7 @@ sap.ui.define([
 
       setInnerColumnHeader(innerCol, oV);
 
-      try { if (innerCol.data) innerCol.data("__inlineFS", true); } catch (eD) { }
+      try { if (innerCol.data) innerCol.data("__inlineFS", true); } catch (eD) { console.debug("[mdcTableUtil] suppressed error", eD); }
     }
 
     refreshInlineSortIcons(oInlineFS);
@@ -311,7 +311,7 @@ sap.ui.define([
     try {
       var bShow = !!(oUiModel && oUiModel.getProperty && oUiModel.getProperty("/showHeaderFilters"));
       setInnerHeaderHeight(oMdcTbl, bShow);
-    } catch (eH) { }
+    } catch (eH) { console.debug("[mdcTableUtil] suppressed error", eH); }
   }
 
   // =========================
@@ -331,7 +331,7 @@ sap.ui.define([
         });
         if (aObj.length) return aObj;
       }
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
 
     // 2) Inner table fallback
     var oInner = getInnerTableFromMdc(oMdc);
@@ -347,7 +347,7 @@ sap.ui.define([
         });
         if (aObj.length) return aObj;
       }
-    } catch (e2) { }
+    } catch (e2) { console.debug("[mdcTableUtil] suppressed error", e2); }
 
     // sap.m.Table / ListBase
     try {
@@ -360,7 +360,7 @@ sap.ui.define([
         });
         if (aObj.length) return aObj;
       }
-    } catch (e3) { }
+    } catch (e3) { console.debug("[mdcTableUtil] suppressed error", e3); }
 
     // single selection fallback
     try {
@@ -372,7 +372,7 @@ sap.ui.define([
           if (o2) aObj.push(o2);
         }
       }
-    } catch (e4) { }
+    } catch (e4) { console.debug("[mdcTableUtil] suppressed error", e4); }
 
     return aObj;
   }
@@ -383,7 +383,7 @@ sap.ui.define([
         oMdc.clearSelection();
         return;
       }
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
 
     var oInner = getInnerTableFromMdc(oMdc);
 
@@ -392,14 +392,14 @@ sap.ui.define([
         oInner.clearSelection();
         return;
       }
-    } catch (e2) { }
+    } catch (e2) { console.debug("[mdcTableUtil] suppressed error", e2); }
 
     try {
       if (oInner && typeof oInner.removeSelections === "function") {
         oInner.removeSelections(true);
         return;
       }
-    } catch (e3) { }
+    } catch (e3) { console.debug("[mdcTableUtil] suppressed error", e3); }
   }
 
   function selectFirstRowMdc(oMdc) {
@@ -411,7 +411,7 @@ sap.ui.define([
         oInner.setSelectedIndex(0);
         return;
       }
-    } catch (e) { }
+    } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
 
     // sap.m.Table / ListBase
     try {
@@ -420,7 +420,7 @@ sap.ui.define([
         if (it) oInner.setSelectedItem(it, true);
         return;
       }
-    } catch (e2) { }
+    } catch (e2) { console.debug("[mdcTableUtil] suppressed error", e2); }
   }
 
   /**

@@ -17,16 +17,16 @@
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/core/routing/History",
-  "sap/ui/core/BusyIndicator",
   "sap/ui/mdc/p13n/StateUtil",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/vmCache",
-  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/filterSortUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil",
-  "apptracciabilita/apptracciabilita/util/i18nUtil"
-], function (Controller, History, BusyIndicator, StateUtil, N, VmCache, VmPaths, MdcTableUtil, FilterSortUtil, P13nUtil, I18n) {
+  "apptracciabilita/apptracciabilita/util/i18nUtil",
+  "apptracciabilita/apptracciabilita/util/baseUserInfoUtil",
+  "apptracciabilita/apptracciabilita/util/baseApprovalUtil"
+], function (Controller, History, StateUtil, N, VmCache, MdcTableUtil, FilterSortUtil, P13nUtil, I18n, BaseUserInfoUtil, BaseApprovalUtil) {
   "use strict";
 
   return Controller.extend("apptracciabilita.apptracciabilita.controller.BaseController", {
@@ -100,133 +100,10 @@ sap.ui.define([
      *   this._ensureUserInfosLoaded().then(function() { ... proceed ... });
      */
     _ensureUserInfosLoaded: function () {
-      if (this._isUserInfosLoaded()) {
-        return Promise.resolve();
-      }
-
-      var oComponent = this.getOwnerComponent();
-      var oVm = oComponent.getModel("vm");
-      var oModel = oComponent.getModel(); // OData model
-
-      // If vm doesn't exist yet, create a minimal one
-      if (!oVm) {
-        var JSONModel = sap.ui.require("sap/ui/model/json/JSONModel");
-        oVm = new JSONModel({
-          userId: "", userType: "",
-          cache: { dataRowsByKey: {}, recordsByKey: {} },
-          mdcCfg: {}, domainsByName: {}, domainsByKey: {},
-          mmctFieldsByCat: {}
-        });
-        oComponent.setModel(oVm, "vm");
-      }
-
-      if (!oModel || typeof oModel.read !== "function") {
-        this._log("_ensureUserInfosLoaded: no OData model, redirecting to Screen0");
-        oComponent.getRouter().navTo("Screen0", {}, true);
-        return new Promise(function () {});
-      }
-
-      var self = this;
-      this._log("_ensureUserInfosLoaded: reloading UserInfos from backend...");
-      BusyIndicator.show(0);
-
-      return new Promise(function (resolve, reject) {
-        oModel.metadataLoaded().then(function () {
-          // Use the same userId as Screen0 — read from vm or default
-          var sUserId = oVm.getProperty("/userId") || "";
-          var sPath = "/UserInfosSet('" + sUserId + "')";
-
-          oModel.read(sPath, {
-            urlParameters: {
-              /* "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields,UserInfosVend", */
-              "$expand": "UserInfosDomains/DomainsValues,UserInfosMMCT/UserMMCTFields",
-              "sap-language": "IT"
-            },
-            success: function (oData) {
-              BusyIndicator.hide();
-              if (!oData) {
-                self._log("_ensureUserInfosLoaded: no data returned, redirecting to Screen0");
-                oComponent.getRouter().navTo("Screen0", {}, true);
-                reject();
-                return;
-              }
-
-              var sUserType = oData.UserType || "";
-              var aDomains = (oData.UserInfosDomains && oData.UserInfosDomains.results) || [];
-              var aMMCT = (oData.UserInfosMMCT && oData.UserInfosMMCT.results) || [];
-              /* var aVend = (oData.UserInfosVend && oData.UserInfosVend.results) || []; */
-
-              var domainsByName = aDomains.reduce(function (acc, d) {
-                acc[d.Domain] = ((d.DomainsValues && d.DomainsValues.results) || []).map(function (x) {
-                  return { key: x.Value, text: x.Descrizione };
-                });
-                return acc;
-              }, {});
-
-              var domainsByKey = Object.keys(domainsByName).reduce(function (acc, dom) {
-                var m = {};
-                (domainsByName[dom] || []).forEach(function (it) { m[it.key] = it.text; });
-                acc[dom] = m;
-                return acc;
-              }, {});
-
-              var aAllFields = aMMCT.reduce(function (acc, cat) {
-                return acc.concat((cat.UserMMCTFields && cat.UserMMCTFields.results) || []);
-              }, []);
-
-              var mmctFieldsByCat = aAllFields.reduce(function (acc, f) {
-                var c = f && f.CatMateriale;
-                if (!c) return acc;
-                if (!acc[c]) acc[c] = [];
-                acc[c].push(f);
-                return acc;
-              }, {});
-
-              var t = String(sUserType || "").trim().toUpperCase();
-              var auth = {
-                role: (t === "E" ? "FORNITORE" : (t === "I" ? "VALENTINO" : (t === "S" ? "SUPERUSER" : "UNKNOWN"))),
-                isSupplier: t === "E", isValentino: t === "I", isSuperuser: t === "S"
-              };
-
-              oVm.setData({
-                userId: sUserId,
-                userType: sUserType,
-                userDescription: oData.UserDescription || "",
-                showAggregatedTile: sUserType !== "E",
-                auth: auth,
-                userDomains: aDomains,
-                userCategories: aMMCT,
-                /* userVendors: aVend, */
-                userMMCT: aMMCT,
-                mmctFieldsByCat: mmctFieldsByCat,
-                UserInfosMMCT: aMMCT,
-                /* UserInfosVend: aVend, */
-                UserInfosDomains: aDomains,
-                domainsByName: domainsByName,
-                domainsByKey: domainsByKey,
-                mdcCfg: oVm.getProperty("/mdcCfg") || {},
-                cache: oVm.getProperty("/cache") || { dataRowsByKey: {}, recordsByKey: {} }
-              }, true);
-
-              self._log("_ensureUserInfosLoaded: OK", {
-                userId: sUserId, userType: sUserType,
-                /* vendors: aVend.length, mmctCats: Object.keys(mmctFieldsByCat).length */
-              });
-              resolve();
-            },
-            error: function (oError) {
-              BusyIndicator.hide();
-              console.error("[BaseController] _ensureUserInfosLoaded ERROR", oError);
-              oComponent.getRouter().navTo("Screen0", {}, true);
-              reject(oError);
-            }
-          });
-        }).catch(function (err) {
-          BusyIndicator.hide();
-          console.error("[BaseController] _ensureUserInfosLoaded metadata ERROR", err);
-          oComponent.getRouter().navTo("Screen0", {}, true);
-          reject(err);
-        });
+      return BaseUserInfoUtil.ensureUserInfosLoaded({
+        component: this.getOwnerComponent(),
+        isLoadedFn: this._isUserInfosLoaded.bind(this),
+        logFn: this._log.bind(this)
       });
     },
 
@@ -399,122 +276,24 @@ sap.ui.define([
      * @param {string} sNote - Rejection note (empty for approval)
      */
     _applyStatusChange: function (aSelected, sNewStatus, sNote) {
-      var oDetail = this._getODetail();
-      if (!oDetail) return;
-
-      // Determine if we're operating on parent records (Screen3) or detail rows (Screen4)
-      // Screen3 parents represent ALL fibras for a Guid -> always match by Guid only
       var sTableId = this._getApproveTableId ? this._getApproveTableId() : "";
-      var bIsParentTable = (sTableId === "mdcTable3" || sTableId === this.PARENT_TABLE_ID);
-
-      // Build keys for matching
-      var aMatchGuids = []; // Guid-only matching (Screen3)
-      var aCompositeKeys = []; // Guid+Fibra matching (Screen4)
-      aSelected.forEach(function (r) {
-        if (!r) return;
-        var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
-        if (!sGuid) return;
-
-        if (bIsParentTable) {
-          // Screen3: parent represents all fibras -> match by Guid only
-          aMatchGuids.push(sGuid);
-        } else {
-          var sFibra = String(r.Fibra || r.FIBRA || "").trim();
-          aCompositeKeys.push({ guid: sGuid, fibra: sFibra });
-        }
+      BaseApprovalUtil.applyStatusChange({
+        context: this,
+        detailModel: this._getODetail(),
+        vmModel: this._getOVm(),
+        cacheKey: this._getExportCacheKey(),
+        selectedRows: aSelected,
+        newStatus: sNewStatus,
+        note: sNote,
+        isParentTable: (sTableId === "mdcTable3" || sTableId === this.PARENT_TABLE_ID),
+        onStatusChangeAppliedFn: (typeof this._onStatusChangeApplied === "function") ? this._onStatusChangeApplied.bind(this) : null
       });
-
-      function matchesRow(r) {
-        var sGuid = String(r.guidKey || r.Guid || r.GUID || "").trim();
-        if (bIsParentTable) {
-          // Screen3: match by Guid only (all fibras in this record)
-          return aMatchGuids.indexOf(sGuid) >= 0;
-        }
-        // Screen4: match by Guid+Fibra
-        var sFibra = String(r.Fibra || r.FIBRA || "").trim();
-        return aCompositeKeys.some(function (ck) {
-          if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
-          return ck.guid === sGuid;
-        });
-      }
-
-      // Update RecordsAll (Screen3) or RowsAll (Screen4)
-      var iUpdated = 0;
-      var aAllPaths = ["/RecordsAll", "/RowsAll"];
-      aAllPaths.forEach(function (sPath) {
-        var aAll = oDetail.getProperty(sPath);
-        if (!Array.isArray(aAll)) return;
-        aAll.forEach(function (r) {
-          if (!r || !matchesRow(r)) return;
-          iUpdated++;
-
-          r.Stato = sNewStatus;
-          r.__status = sNewStatus;
-          r.StatoText = (sNewStatus === "AP") ? "Approvato" : "Rifiutato";
-          r.__readOnly = true;
-          r.__canEdit = false;
-          r.__canApprove = false;
-          r.__canReject = false;
-
-          if (sNewStatus === "RJ" && sNote) {
-            r.Note = sNote;
-          }
-        });
-      });
-
-      // Also update raw cache rows
-      var oVm = this._getOVm();
-      var sCacheKey = this._getExportCacheKey();
-      var aRawAll = oVm.getProperty(VmPaths.dataRowsByKeyPath(sCacheKey));
-      var iRawUpdated = 0;
-      if (Array.isArray(aRawAll)) {
-        aRawAll.forEach(function (r) {
-          if (!r) return;
-          var sGuid = String(r.Guid || r.GUID || "").trim();
-
-          var bMatch;
-          if (bIsParentTable) {
-            bMatch = aMatchGuids.indexOf(sGuid) >= 0;
-          } else {
-            var sFibra = String(r.Fibra || r.FIBRA || "").trim();
-            bMatch = aCompositeKeys.some(function (ck) {
-              if (ck.fibra) return ck.guid === sGuid && ck.fibra === sFibra;
-              return ck.guid === sGuid;
-            });
-          }
-          if (!bMatch) return;
-          iRawUpdated++;
-
-          r.Stato = sNewStatus;
-          if (sNewStatus === "RJ" && sNote) r.Note = sNote;
-
-          // Mark as updated so POST includes this row
-          r.CodAgg = "U";
-          if (r.CODAGG !== undefined) delete r.CODAGG;
-        });
-      }
-
-      oDetail.refresh(true);
-
-      // Notify subclass
-      if (typeof this._onStatusChangeApplied === "function") {
-        this._onStatusChangeApplied(sNewStatus, aSelected);
-      }
-
-      sap.m.MessageToast.show(
-        I18n.text(
-          this,
-          "msg.statusAppliedSavePrompt",
-          [aSelected.length, (sNewStatus === "AP" ? "approvati" : "rifiutati")],
-          "{0} record {1}. Premi Salva per confermare."
-        )
-      );
     },
 
     // ==================== HEADER FILTER / SORT (Screen3/5/6) ====================
 
     _setInnerHeaderHeight: function (oMdcTbl) {
-      try { MdcTableUtil.setInnerHeaderHeight(oMdcTbl, !!this.getView().getModel("ui").getProperty("/showHeaderFilters")); } catch (e) { }
+      try { MdcTableUtil.setInnerHeaderHeight(oMdcTbl, !!this.getView().getModel("ui").getProperty("/showHeaderFilters")); } catch (e) { console.debug("[BaseController] suppressed error", e); }
     },
 
     _applyInlineHeaderFilterSort: async function (oMdcTbl) {

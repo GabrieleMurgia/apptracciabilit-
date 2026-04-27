@@ -21,10 +21,10 @@ sap.ui.define([
 
         var html = [];
         html.push("<html><head><meta charset='utf-8'>");
-        html.push("<title>Stampa - Tracciabilità</title>");
+        html.push("<title>" + I18n.text(null, "screen4.printDocumentTitle", [], "Stampa - Tracciabilità") + "</title>");
         html.push("<style>body{font-family:Arial,sans-serif;font-size:12px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #999;padding:6px;vertical-align:top} th{background:#eee}</style>");
         html.push("</head><body>");
-        html.push("<h3>Tracciabilità</h3>");
+        html.push("<h3>" + I18n.text(null, "common.traceability", [], "Tracciabilità") + "</h3>");
         html.push("<table><thead><tr>");
         cols.forEach(function (c) { html.push("<th>" + (c.label || c.key) + "</th>"); });
         html.push("</tr></thead><tbody>");

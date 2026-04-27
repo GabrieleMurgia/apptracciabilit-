@@ -104,7 +104,7 @@ sap.ui.define([
             }
             return false;
           });
-        } catch (e) {}
+        } catch (e) { console.debug("[Screen1] suppressed error", e); }
         aCatList.push({ key: k, text: sDesc ? (k + " – " + sDesc) : k });
       });
 

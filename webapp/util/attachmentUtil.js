@@ -393,7 +393,7 @@ sap.ui.define([
           oDialogModel.setProperty("/loading", false);
           // Notify caller to update the cell counter
           if (fnCountChange) {
-            try { fnCountChange(iCount); } catch (e) {}
+            try { fnCountChange(iCount); } catch (e) { console.debug("[attachmentUtil] suppressed error", e); }
           }
         })
         .catch(function (err) {
@@ -525,7 +525,8 @@ sap.ui.define([
           });
 
 
-        }).catch(function () {
+        }).catch(function (err) {
+          console.debug("[attachmentUtil] suppressed error", err);
         });
       };
       reader.onerror = function () {
@@ -566,7 +567,7 @@ sap.ui.define([
       ]),
       afterClose: function () {
         // Clean up hidden file input
-        try { document.body.removeChild(oFileInput); } catch (e) {}
+        try { document.body.removeChild(oFileInput); } catch (e) { console.debug("[attachmentUtil] suppressed error", e); }
         oDialog.destroy();
       }
     });

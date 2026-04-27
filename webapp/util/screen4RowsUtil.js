@@ -65,8 +65,8 @@ sap.ui.define([
     hookDirtyOnEdit: function (opts) {
       var oCtrl = opts.control;
       if (!oCtrl) return;
-      try { if (oCtrl.data && oCtrl.data("dirtyHooked")) return; if (oCtrl.data) oCtrl.data("dirtyHooked", true); } catch (e) {}
-      try { if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) oCtrl.setValueLiveUpdate(true); } catch (e) {}
+      try { if (oCtrl.data && oCtrl.data("dirtyHooked")) return; if (oCtrl.data) oCtrl.data("dirtyHooked", true); } catch (e) { console.debug("[screen4RowsUtil] suppressed error", e); }
+      try { if (oCtrl.isA && oCtrl.isA("sap.m.Input") && oCtrl.setValueLiveUpdate) oCtrl.setValueLiveUpdate(true); } catch (e) { console.debug("[screen4RowsUtil] suppressed error", e); }
 
       var self = this;
       var fn = function (oEvt) {
@@ -124,7 +124,7 @@ sap.ui.define([
       var oTbl = opts.table;
       if (!oTbl) return [];
       var aCtx = [];
-      try { aCtx = (typeof oTbl.getSelectedContexts === "function") ? (oTbl.getSelectedContexts() || []) : []; } catch (e) {}
+      try { aCtx = (typeof oTbl.getSelectedContexts === "function") ? (oTbl.getSelectedContexts() || []) : []; } catch (e) { console.debug("[screen4RowsUtil] suppressed error", e); }
       if (!aCtx.length && typeof oTbl.getTable === "function") {
         try {
           var t = oTbl.getTable();
@@ -132,7 +132,7 @@ sap.ui.define([
           else if (t && t.getSelectedItems) aCtx = (t.getSelectedItems() || []).map(function (x) {
             return (x.getBindingContext && (x.getBindingContext("detail") || x.getBindingContext())) || null;
           }).filter(Boolean);
-        } catch (e2) {}
+        } catch (e2) { console.debug("[screen4RowsUtil] suppressed error", e2); }
       }
       return aCtx.map(function (c) { return c && c.getObject ? c.getObject() : null; }).filter(Boolean);
     },
@@ -241,7 +241,7 @@ sap.ui.define([
           shouldUpd = Object.values(opts.vmModel.getData().cache.dataRowsByKey)[0]
             .filter(function (i) { return i.Guid === oNew.Guid; })
             .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
-        } catch (e) {}
+        } catch (e) { console.debug("[screen4RowsUtil] suppressed error", e); }
 
         oNew.CodAgg = shouldUpd ? "U" : "I";
         oNew.__isNew = true;
@@ -307,7 +307,7 @@ sap.ui.define([
           shouldUpd = Object.values(opts.vmModel.getData().cache.dataRowsByKey)[0]
             .filter(function (i) { return i.Guid === oNew.Guid; })
             .filter(function (i) { return !(i && i.Guid && i.Guid.toLowerCase().indexOf("new") >= 0); }).length > 0;
-        } catch (e) {}
+        } catch (e) { console.debug("[screen4RowsUtil] suppressed error", e); }
 
         oNew.CodAgg = shouldUpd ? "U" : "I";
         oNew.__isNew = true;

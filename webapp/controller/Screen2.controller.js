@@ -8,97 +8,13 @@ sap.ui.define([
   "sap/m/MessageToast",
   "apptracciabilita/apptracciabilita/util/normalize",
   "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
+  "apptracciabilita/apptracciabilita/util/screen2FlowUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
-], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, ScreenFlowStateUtil, I18n) {
+], function (BaseController, JSONModel, Filter, FilterOperator, Sorter, BusyIndicator, MessageToast, N, ScreenFlowStateUtil, Screen2FlowUtil, I18n) {
   "use strict";
 
   // Local helpers (use N.safeStr / N.lc from normalize.js)
   var safeStr = N.safeStr;
-  var lc = N.lc;
-
-  function recomputeSupportFields(row) {
-    var searchAll = [
-      safeStr(row.Material),
-      safeStr(row.MaterialOriginal),
-      safeStr(row.MaterialDescription),
-      safeStr(row.DescCatMateriale),
-      safeStr(row.CatMateriale),
-      safeStr(row.Stagione),
-      safeStr(row.MatStatus),
-      safeStr(row.Open),
-      safeStr(row.Rejected),
-      safeStr(row.Pending),
-      safeStr(row.Approved)
-    ].join(" ");
-
-    row.StagioneLC = lc(row.Stagione);
-    row.MaterialLC = lc(row.Material);
-    row.DescCatMaterialeLC = lc(row.DescCatMateriale);
-    row.MaterialOriginalLC = lc(row.MaterialOriginal);
-    row.SearchAllLC = lc(searchAll);
-  }
-
-  function buildRow(m) {
-    var materialOrig = safeStr(m.Materiale).trim();
-    var desc = safeStr(m.DescMateriale).trim();
-    var descCat = safeStr(m.DescCatMateriale).trim();
-    var catMat = safeStr(m.CatMateriale).trim();
-    var season = safeStr(m.Stagione).trim();
-    var status = safeStr(m.MatStatus).trim();
-
-    var open = safeStr(m.Open).trim();
-    var rejected = Number(m.Rejected) || 0;
-    var pending = Number(m.ToApprove) || 0;
-    var approved = Number(m.Approved) || 0;
-    var modified = Number(m.Modified) || 0;
-
-    var searchAll = [
-      materialOrig, desc, descCat, catMat, season, status,
-      open, rejected, pending, approved
-    ].join(" ");
-
-    var row = {
-      Material: materialOrig,
-      MaterialOriginal: materialOrig,
-      MaterialDescription: desc,
-      DescCatMateriale: descCat,
-      CatMateriale: catMat,
-
-      Stagione: season,
-      MatStatus: status,
-
-      OpenPo: open === "X" ? 1 : 0,
-      Open: open,
-      Rejected: rejected,
-      Pending: pending,
-      ToApprove: pending,
-      Approved: approved,
-      Modified: modified,
-    };
-    recomputeSupportFields(row);
-    return row;
-  }
-
-  function _extractDistinctFilterValues(aMaterials, oViewModel) {
-    var oSeenCat = {}, oSeenSeason = {};
-    var aDescCatValues = [], aStagioneValues = [];
-
-    aMaterials.forEach(function (r) {
-      var cat = (r.DescCatMateriale || "").trim();
-      if (cat && !oSeenCat[cat]) {
-        oSeenCat[cat] = true;
-        aDescCatValues.push({ key: cat, text: cat });
-      }
-      var stag = (r.Stagione || "").trim();
-      if (stag && !oSeenSeason[stag]) {
-        oSeenSeason[stag] = true;
-        aStagioneValues.push({ key: stag, text: stag });
-      }
-    });
-
-    oViewModel.setProperty("/DescCatMaterialeValues", aDescCatValues);
-    oViewModel.setProperty("/StagioneValues", aStagioneValues);
-  }
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen2", {
 
@@ -108,69 +24,13 @@ sap.ui.define([
       var oBtn = oEvent.getSource();
       var oCtx = oBtn.getBindingContext();
       if (!oCtx) return;
-
-      var oRow = oCtx.getObject() || {};
-      var sPath = oCtx.getPath();
-
-      var sVendor = N.normalizeVendor10(this._sVendorId);
-
-      var sMateriale = safeStr(oRow.MaterialOriginal || oRow.Material).trim();
-      var sStagione = safeStr(oRow.Stagione).trim();
-      var sCurr = safeStr(oRow.MatStatus).trim();
-      var sNewStatus = (sCurr === "LOCK") ? "RELE" : "LOCK";
-
-      var oPayload = {
-        Fornitore: sVendor,
-        Materiale: sMateriale,
-        Stagione: sStagione,
-        MatStatus: sNewStatus
-      };
-
-      var oODataModel = this.getOwnerComponent().getModel();
-      var oJsonModel = this.getView().getModel();
-
-      oBtn.setEnabled(false);
-      BusyIndicator.show(0);
-
-      oODataModel.create("/MaterialStatusSet", oPayload, {
-        success: function (oData) {
-          BusyIndicator.hide();
-          oBtn.setEnabled(true);
-
-          var sReturnedStatus = safeStr((oData && oData.MatStatus) || sNewStatus).trim();
-          oJsonModel.setProperty(sPath + "/MatStatus", sReturnedStatus);
-
-          if (oData && oData.Stagione !== undefined) {
-            oJsonModel.setProperty(sPath + "/Stagione", safeStr(oData.Stagione).trim());
-          }
-          if (oData && oData.Open !== undefined) {
-            var openVal = safeStr(oData.Open).trim();
-            oJsonModel.setProperty(sPath + "/Open", openVal);
-            oJsonModel.setProperty(sPath + "/OpenPo", openVal === "X" ? 1 : 0);
-          }
-          if (oData && oData.Rejected !== undefined) {
-            oJsonModel.setProperty(sPath + "/Rejected", Number(oData.Rejected) || 0);
-          }
-          if (oData && oData.ToApprove !== undefined) {
-            var pend = Number(oData.ToApprove) || 0;
-            oJsonModel.setProperty(sPath + "/Pending", pend);
-            oJsonModel.setProperty(sPath + "/ToApprove", pend);
-          }
-          if (oData && oData.Approved !== undefined) {
-            oJsonModel.setProperty(sPath + "/Approved", Number(oData.Approved) || 0);
-          }
-
-          var row = oJsonModel.getProperty(sPath);
-          recomputeSupportFields(row);
-          oJsonModel.refresh(true);
-          MessageToast.show(I18n.text(this, "msg.statusUpdatedSuccessfully", [], "Stato aggiornato con successo"));
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          oBtn.setEnabled(true);
-          console.error("[Screen2] MaterialStatusSet POST error", oError);
-          MessageToast.show(I18n.text(this, "msg.statusUpdateError", [N.getBackendErrorMessage(oError)], "Errore aggiornamento stato: {0}"));
-        }
+      Screen2FlowUtil.onMatStatusPress({
+        context: oCtx,
+        button: oBtn,
+        vendorId: this._sVendorId,
+        odataModel: this.getOwnerComponent().getModel(),
+        viewModel: this.getView().getModel(),
+        contextForI18n: this
       });
     },
 
@@ -459,44 +319,12 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       var oViewModel = this.getView().getModel();
       var oVm = this.getOwnerComponent().getModel("vm");
       this._log("_loadMaterials", { vendorId: this._sVendorId, userId: (oVm && oVm.getProperty("/userId")) || "" });
-
-      var oODataModel = this.getOwnerComponent().getModel();
-      var that = this;
-      var sVendorId = this._sVendorId;
-      var sUserId2 = (oVm && oVm.getProperty("/userId")) || "";
-
-      BusyIndicator.show(0);
-
-      var aFilters = [
-        new Filter("Fornitore", FilterOperator.EQ, sVendorId),
-        new Filter("UserID", FilterOperator.EQ, sUserId2)
-      ];
-
-      // Category filter passed from Screen1
-      var sSelectedCat = ScreenFlowStateUtil.getSelectedCatMateriale(oVm);
-      if (sSelectedCat) {
-        aFilters.push(new Filter("CatMateriale", FilterOperator.EQ, sSelectedCat));
-      }
-
-      oODataModel.read("/MaterialDataSet", {
-        filters: aFilters,
-        success: function (oData) {
-          BusyIndicator.hide();
-          var aResults = (oData && oData.results) || [];
-          var aMaterials = aResults.map(buildRow);
-
-          oViewModel.setProperty("/Materials", aMaterials);
-          oViewModel.setProperty("/showMatStatusCol",
-            aMaterials.some(function (r) { return String(r.MatStatus || "").trim() !== "DMMY"; })
-          );
-          _extractDistinctFilterValues(aMaterials, oViewModel);
-          that._applyFilters();
-        },
-        error: function (oError) {
-          BusyIndicator.hide();
-          console.error("Errore lettura MaterialDataSet", oError);
-          MessageToast.show(N.getBackendErrorMessage(oError));
-        }
+      Screen2FlowUtil.loadMaterials({
+        vendorId: this._sVendorId,
+        vmModel: oVm,
+        viewModel: oViewModel,
+        odataModel: this.getOwnerComponent().getModel(),
+        applyFiltersFn: this._applyFilters.bind(this)
       });
     },
 
@@ -514,59 +342,14 @@ _massUpdateMaterialStatus: function (sTargetStatus) {
       var oTable = this.byId("tableMaterials2");
       var oBinding = oTable && oTable.getBinding("items");
       if (!oBinding) return;
-
-      var bOnlyIncomplete = this.byId("switchOnlyIncomplete2").getState();
-      var aSelectedSeasons = this.byId("inputSeasonFilter2").getSelectedKeys();
-      var sMaterialOnly = (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase();
-      var sGeneral = (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase();
-      var aSelectedDescCat = this.byId("inputDescCatFilter2").getSelectedKeys();
-
-      var aFilters = [];
-
-      if (bOnlyIncomplete) {
-        aFilters.push(new Filter({
-          filters: [
-            new Filter("OpenPo", FilterOperator.GT, 0),
-            new Filter("Pending", FilterOperator.GT, 0),
-            new Filter("Rejected", FilterOperator.GT, 0)
-          ],
-          and: false
-        }));
-      }
-
-      if (aSelectedDescCat.length > 0) {
-        aFilters.push(new Filter({
-          filters: aSelectedDescCat.map(function (v) {
-            return new Filter("DescCatMateriale", FilterOperator.EQ, v);
-          }),
-          and: false
-        }));
-      }
-
-      if (aSelectedSeasons.length > 0) {
-        aFilters.push(new Filter({
-          filters: aSelectedSeasons.map(function (v) {
-            return new Filter("Stagione", FilterOperator.EQ, v);
-          }),
-          and: false
-        }));
-      }
-
-      if (sMaterialOnly) {
-        aFilters.push(new Filter({
-          filters: [
-            new Filter("MaterialLC", FilterOperator.Contains, sMaterialOnly),
-            new Filter("MaterialOriginalLC", FilterOperator.Contains, sMaterialOnly)
-          ],
-          and: false
-        }));
-      }
-
-      if (sGeneral) {
-        aFilters.push(new Filter("SearchAllLC", FilterOperator.Contains, sGeneral));
-      }
-
-      oBinding.filter(aFilters, "Application");
+      Screen2FlowUtil.applyFilters({
+        binding: oBinding,
+        onlyIncomplete: this.byId("switchOnlyIncomplete2").getState(),
+        selectedSeasons: this.byId("inputSeasonFilter2").getSelectedKeys(),
+        materialOnly: (this.byId("inputMaterialOnly2").getValue() || "").trim().toLowerCase(),
+        generalQuery: (this.byId("inputMaterialFilter2").getValue() || "").trim().toLowerCase(),
+        selectedDescCats: this.byId("inputDescCatFilter2").getSelectedKeys()
+      });
     },
 
     // ==================== SORT DIALOG ====================

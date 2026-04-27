@@ -12,7 +12,7 @@ sap.ui.define([
           return oModelFromComponent.getResourceBundle();
         }
       }
-    } catch (e1) {}
+    } catch (e1) { console.debug("[i18nUtil] suppressed error", e1); }
 
     try {
       if (oContext && typeof oContext.getModel === "function") {
@@ -21,14 +21,14 @@ sap.ui.define([
           return oModelFromContext.getResourceBundle();
         }
       }
-    } catch (e2) {}
+    } catch (e2) { console.debug("[i18nUtil] suppressed error", e2); }
 
     try {
       var oCoreModel = Core.getModel("i18n");
       if (oCoreModel && oCoreModel.getResourceBundle) {
         return oCoreModel.getResourceBundle();
       }
-    } catch (e3) {}
+    } catch (e3) { console.debug("[i18nUtil] suppressed error", e3); }
 
     return null;
   }
@@ -39,7 +39,7 @@ sap.ui.define([
       if (oBundle && oBundle.getText) {
         try {
           return oBundle.getText(sKey, aArgs || []);
-        } catch (e) {}
+        } catch (e) { console.debug("[i18nUtil] suppressed error", e); }
       }
       if (sFallback !== undefined) {
         if (!aArgs || !aArgs.length) return sFallback;

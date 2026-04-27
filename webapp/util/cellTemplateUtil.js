@@ -112,7 +112,7 @@ sap.ui.define([
       var oVm = opts.view && opts.view.getModel && opts.view.getModel("vm");
       var aSug = oVm && oVm.getProperty("/suggestionsByField/" + sKey);
       bHasSuggestions = Array.isArray(aSug) && aSug.length > 0;
-    } catch (e) {}
+    } catch (e) { console.debug("[cellTemplateUtil] suppressed error", e); }
 
     var bUseCombo = !!sDomain && (
       (typeof domainHasValuesFn === "function" && domainHasValuesFn(sDomain)) ||
@@ -147,7 +147,7 @@ sap.ui.define([
                   }
                 }
               }
-            } catch (e) {}
+            } catch (e) { console.debug("[cellTemplateUtil] suppressed error", e); }
             return _formatCellValue(v);
           }
         },

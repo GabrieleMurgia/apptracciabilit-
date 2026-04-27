@@ -2,31 +2,27 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/controller/BaseController",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast",
-  "sap/ui/mdc/table/Column",
   "sap/ui/mdc/p13n/StateUtil",
 
   "apptracciabilita/apptracciabilita/util/normalize",
-  "apptracciabilita/apptracciabilita/util/vmModelPaths",
   "apptracciabilita/apptracciabilita/util/domains",
-  "apptracciabilita/apptracciabilita/util/statusUtil",
   "apptracciabilita/apptracciabilita/util/mmctUtil",
   "apptracciabilita/apptracciabilita/util/mdcTableUtil",
   "apptracciabilita/apptracciabilita/util/p13nUtil",
   "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
-  "apptracciabilita/apptracciabilita/util/screen4LoaderUtil",
+  "apptracciabilita/apptracciabilita/util/screen4DetailUtil",
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
   "apptracciabilita/apptracciabilita/util/screen4RowsUtil",
   "apptracciabilita/apptracciabilita/util/recordsUtil",
-  "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/screenFlowStateUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 ], function (
-  BaseController, JSONModel, MessageToast, MdcColumn, StateUtil,
-  N, VmPaths, Domains, StatusUtil, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, S4Filter, S4Export, S4Loader, Screen4SaveUtil, Screen4AttachUtil, Screen4RowsUtil, RecordsUtil, TableColumnAutoSize, ScreenFlowStateUtil, I18n
+  BaseController, JSONModel, MessageToast, StateUtil,
+  N, Domains, MmctUtil, MdcTableUtil, P13nUtil,
+  CellTemplateUtil, S4Filter, S4Export, Screen4DetailUtil, Screen4SaveUtil, Screen4AttachUtil, Screen4RowsUtil, RecordsUtil, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
@@ -70,7 +66,7 @@ sap.ui.define([
         if (this._dlgSort) { this._dlgSort.destroy(); this._dlgSort = null; }
         S4Filter.resetHeaderCaches(this._hdrFilter, this._hdrSortBtns);
         this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-      } catch (e) { }
+      } catch (e) { console.debug("[Screen4] suppressed error", e); }
     },
 
     // _log inherited from BaseController
@@ -242,239 +238,120 @@ sap.ui.define([
 
     // ==================== LOAD SELECTED RECORD ROWS ====================
     _loadSelectedRecordRows: function (fnDone) {
-      var oVm = this._getOVm();
-      var sKey = this._getDataCacheKey();
-      var self = this;
-      var aAllRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || null;
-      var aRecords = oVm.getProperty(VmPaths.recordsByKeyPath(sKey)) || null;
-
-      function apply() {
-        self._applySelectedRecordToDetail(
-          Array.isArray(aAllRows) ? aAllRows : [],
-          Array.isArray(aRecords) ? aRecords : [],
-          sKey,
-          fnDone
-        );
-      }
-
-      if (Array.isArray(aAllRows) && Array.isArray(aRecords) && (aAllRows.length || aRecords.length)) {
-        apply();
-        return;
-      }
-
-      var oNoMatListCtx = ScreenFlowStateUtil.getNoMatListContext(oVm);
-      S4Loader.reloadDataFromBackend({
-        oVm: oVm, oDataModel: this.getOwnerComponent().getModel(),
-        vendorId: this._sVendorId, material: this._sMaterial,
-        catMateriale: oNoMatListCtx.catMateriale,
-        season: ScreenFlowStateUtil.getCurrentSeason(oVm),
-        logFn: this._log.bind(this)
-      }, function (aRes) {
-        aAllRows = Array.isArray(aRes) ? aRes : [];
-        var sCat = S4Loader.pickCat(aAllRows[0] || {});
-        aRecords = S4Loader.buildRecords01ForCache(aAllRows, sCat ? self._cfgForScreen(sCat, "01") : [], oVm);
-        oVm.setProperty(VmPaths.dataRowsByKeyPath(sKey), aAllRows);
-        oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecords);
-        apply();
+      return Screen4DetailUtil.loadSelectedRecordRows({
+        vmModel: this._getOVm(),
+        odataModel: this.getOwnerComponent().getModel(),
+        cacheKey: this._getDataCacheKey(),
+        vendorId: this._sVendorId,
+        material: this._sMaterial,
+        logFn: this._log.bind(this),
+        cfgForScreenFn: this._cfgForScreen.bind(this),
+        applySelectedRecordToDetailFn: this._applySelectedRecordToDetail.bind(this),
+        doneFn: fnDone
       });
     },
 
     _applySelectedRecordToDetail: function (aAllRows, aRecords, sKey, fnDone) {
-      var oVm = this._getOVm();
-      var oD = this.getView().getModel("detail");
-
-      var iIdx = parseInt(this._sRecordKey, 10);
-      if (isNaN(iIdx) || iIdx < 0) iIdx = 0;
-
-      var oSel = ScreenFlowStateUtil.getSelectedParentForScreen4(oVm);
-      if (oSel) aRecords[iIdx] = oSel;
-      oVm.setProperty(VmPaths.recordsByKeyPath(sKey), aRecords);
-
-      var oRec = oSel || aRecords[iIdx] || aRecords[0] || null;
-      if (!oRec) {
-        oD.setProperty("/RowsAll", []);
-        oD.setProperty("/Rows", []);
-        oD.setProperty("/RowsCount", 0);
-        oD.setProperty("/_mmct/cat", "");
-        oD.setProperty("/_mmct/s02", []);
-        this._applyUiPermissions();
-        if (typeof fnDone === "function") fnDone();
-        return;
-      }
-
-      var sGuid = N.toStableString(
-        oRec.guidKey || oRec.Guid || oRec.GUID || oRec.ItmGuid ||
-        oRec.ItemGuid || oRec.GUID_ITM || oRec.GUID_ITM2 || ""
-      );
-      var aSelected = this._resolveOrSynthRowsForGuid(sGuid, oRec, oSel, aAllRows, sKey);
-      aAllRows = oVm.getProperty(VmPaths.dataRowsByKeyPath(sKey)) || aAllRows;
-
-      this._applyGroupStatusAndPerms(aSelected, oVm, oD);
-
-      var sCat = this._resolveCatForSelection(aSelected, oRec, oSel, aAllRows, aRecords);
-      var aCfg02 = this._resolveCfg02ForSelection(sCat, aSelected, oRec, oSel, aAllRows, aRecords);
-
-      this._applyCfg02NormalizationToRows(aSelected, aCfg02);
-
-      var oHdr = this._buildHeader4FromMmct00(sCat);
-      oD.setProperty("/_mmct/s00", oHdr.s00);
-      oD.setProperty("/_mmct/hdr4", oHdr.hdr4);
-      oD.setProperty("/_mmct/rec", oRec || oSel || {});
-      oD.setProperty("/_mmct/cat", sCat);
-      oD.setProperty("/_mmct/s02", aCfg02);
-      oD.setProperty("/guidKey", sGuid);
-      oD.setProperty("/Fibra", "");
-      oD.setProperty("/RowsAll", aSelected);
-      oD.setProperty("/Rows", aSelected);
-      oD.setProperty("/RowsCount", aSelected.length);
-      this._snapshotRows = N.deepClone(aSelected);
-
-      this._refreshHeader4Fields();
-      this._applyUiPermissions();
-      this._applyFiltersAndSort();
-      this._syncAttachmentCounters();
-
-      if (typeof fnDone === "function") fnDone();
+      return Screen4DetailUtil.applySelectedRecordToDetail({
+        allRows: aAllRows,
+        records: aRecords,
+        cacheKey: sKey,
+        recordKey: this._sRecordKey,
+        vmModel: this._getOVm(),
+        detailModel: this.getView().getModel("detail"),
+        cfgForScreenFn: this._cfgForScreen.bind(this),
+        toArrayMultiFn: this._toArrayMulti.bind(this),
+        buildHeader4FromMmct00Fn: this._buildHeader4FromMmct00.bind(this),
+        refreshHeader4FieldsFn: this._refreshHeader4Fields.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        applyFiltersAndSortFn: this._applyFiltersAndSort.bind(this),
+        syncAttachmentCountersFn: this._syncAttachmentCounters.bind(this),
+        setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this),
+        doneFn: fnDone
+      });
     },
 
     // Resolve the list of rows belonging to the selected parent Guid. If none
     // exist (pure template / new record), synthesize a placeholder row and
     // append it to the rows cache so the table has something to bind.
     _resolveOrSynthRowsForGuid: function (sGuid, oRec, oSel, aAllRows, sKey) {
-      var aByGuid = aAllRows.filter(function (r) {
-        return N.toStableString(S4Loader.rowGuidKey(r) || (r && r.guidKey)) === N.toStableString(sGuid);
+      return Screen4DetailUtil.resolveOrSynthRowsForGuid({
+        guid: sGuid,
+        record: oRec,
+        selectedParent: oSel,
+        allRows: aAllRows,
+        cacheKey: sKey,
+        vmModel: this._getOVm()
       });
-      if (aByGuid.length) return aByGuid;
-
-      var sRecFibra = N.toStableString(oRec.Fibra || oRec.FIBRA || oRec.Fiber || oRec.FIBER || "");
-      var oS = N.deepClone(oSel || oRec) || {};
-      oS.guidKey = sGuid;
-      oS.Guid = sGuid;
-      oS.GUID = sGuid;
-      oS.Fibra = sRecFibra || N.toStableString((oSel && (oSel.Fibra || oSel.FIBRA)) || "") || "";
-      if (oS.Approved == null) oS.Approved = 0;
-      if (oS.ToApprove == null) oS.ToApprove = 1;
-      if (oS.Rejected == null) oS.Rejected = 0;
-      oS.__synthetic = true;
-      oS.__localId = oS.__localId || ("SYNTH_" + Date.now());
-
-      var aNext = aAllRows.slice();
-      aNext.push(oS);
-      this._getOVm().setProperty(VmPaths.dataRowsByKeyPath(sKey), aNext);
-      return [oS];
     },
 
     _applyGroupStatusAndPerms: function (aSelected, oVm, oD) {
-      var sRole = String(oVm.getProperty("/userType") || "").trim().toUpperCase();
-      var aRowSt = aSelected.map(function (r) { return StatusUtil.normStatoRow(r, oVm); });
-      var gSt;
-      if (aRowSt.length && aRowSt.every(function (s) { return s === "AP"; })) gSt = "AP";
-      else if (aRowSt.some(function (s) { return s === "RJ"; })) gSt = "RJ";
-      else if (aRowSt.some(function (s) { return s === "CH"; })) gSt = "CH";
-      else gSt = "ST";
-
-      aSelected.forEach(function (r) {
-        r.Stato = StatusUtil.normStatoRow(r, oVm);
-        r.__readOnly = !StatusUtil.canEdit(sRole, r.Stato);
+      return Screen4DetailUtil.applyGroupStatusAndPerms({
+        selectedRows: aSelected,
+        vmModel: oVm,
+        detailModel: oD
       });
-
-      oD.setProperty("/__role", sRole);
-      oD.setProperty("/__status", gSt);
-      oD.setProperty("/__canEdit", StatusUtil.canEdit(sRole, gSt));
-      oD.setProperty("/__canAddRow", StatusUtil.canAddRow(sRole, gSt));
-      oD.setProperty("/__canApprove", false);
-      oD.setProperty("/__canReject", false);
     },
 
     _resolveCatForSelection: function (aSelected, oRec, oSel, aAllRows, aRecords) {
-      var r0 = aSelected[0] || {};
-      var sCat = S4Loader.pickCat(r0) || S4Loader.pickCat(oRec) || (oSel ? S4Loader.pickCat(oSel) : "") || "";
-      if (!sCat) {
-        var f1 = aAllRows.find(function (r) { return !!S4Loader.pickCat(r); });
-        if (f1) sCat = S4Loader.pickCat(f1);
-      }
-      if (!sCat) {
-        var f2 = (aRecords || []).find(function (r) { return !!S4Loader.pickCat(r); });
-        if (f2) sCat = S4Loader.pickCat(f2);
-      }
-      if (sCat) {
-        [r0, oRec, oSel].forEach(function (o) {
-          if (o && !S4Loader.pickCat(o)) o.CatMateriale = sCat;
-        });
-      }
-      return sCat;
+      return Screen4DetailUtil.resolveCatForSelection({
+        selectedRows: aSelected,
+        record: oRec,
+        selectedParent: oSel,
+        allRows: aAllRows,
+        records: aRecords
+      });
     },
 
     _resolveCfg02ForSelection: function (sCat, aSelected, oRec, oSel, aAllRows, aRecords) {
-      var aCfg02 = sCat ? this._cfgForScreen(sCat, "02") : [];
-      if (aCfg02.length) return aCfg02;
-
-      var r0 = aSelected[0] || {};
-      aCfg02 = S4Loader.buildCfgFallbackFromObject(
-        aAllRows[0] || (aRecords || [])[0] || r0 || oRec || {}
-      );
-      if (aCfg02.length > 1) return aCfg02;
-
-      aCfg02 = S4Loader.buildCfgFallbackFromObject(r0);
-      var m2 = {};
-      aCfg02.forEach(function (x) { m2[x.ui] = x; });
-      S4Loader.buildCfgFallbackFromObject(oRec).forEach(function (x) {
-        if (!m2[x.ui]) { m2[x.ui] = x; aCfg02.push(x); }
+      return Screen4DetailUtil.resolveCfg02ForSelection({
+        cat: sCat,
+        selectedRows: aSelected,
+        record: oRec,
+        allRows: aAllRows,
+        records: aRecords,
+        cfgForScreenFn: this._cfgForScreen.bind(this)
       });
-      return aCfg02;
     },
 
     _applyCfg02NormalizationToRows: function (aSelected, aCfg02) {
-      var self = this;
-      aSelected.forEach(function (row) {
-        (aCfg02 || []).forEach(function (f) {
-          if (!f || !f.ui) return;
-          var k = String(f.ui).trim();
-          if (f.multiple) row[k] = self._toArrayMulti(row[k]);
-          else if (row[k] == null) row[k] = "";
-        });
+      return Screen4DetailUtil.applyCfg02NormalizationToRows({
+        selectedRows: aSelected,
+        cfg02: aCfg02,
+        toArrayMultiFn: this._toArrayMulti.bind(this)
       });
     },
 
     // ==================== MDC TABLE ====================
     _ensureMdcCfgScreen4: function (aCfg02) {
-      var oVm = this._getOVm();
-      oVm.setProperty("/mdcCfg/screen4", { modelName: "detail", collectionPath: "/Rows",
-        properties: S4Filter.dedupeCfgByUi(aCfg02).map(function (f) {
-          return { name: f.ui, label: f.label || f.ui, dataType: "String", domain: f.domain || "", required: !!f.required };
-        })
+      return Screen4DetailUtil.ensureMdcCfgScreen4({
+        cfg02: aCfg02,
+        vmModel: this._getOVm(),
+        dedupeCfgByUiFn: S4Filter.dedupeCfgByUi
       });
     },
 
     _rebuildColumnsHard: async function (oTbl, aCfg02) {
-      if (!oTbl) return;
-      if (oTbl.initialized) await oTbl.initialized();
-      (oTbl.getColumns && oTbl.getColumns() || []).slice().forEach(function (c) { oTbl.removeColumn(c); c.destroy(); });
-      S4Filter.dedupeCfgByUi(aCfg02).forEach(function (f) {
-        var sKey = String(f.ui || "").trim(); if (!sKey) return;
-        var mP = MdcColumn.getMetadata().getAllProperties();
-        var o = { header: (f.label || sKey) + (f.required ? " *" : ""), visible: true, dataProperty: sKey,
-          template: this._createCellTemplate(sKey, f) };
-        if (mP.propertyKey) o.propertyKey = sKey;
-        oTbl.addColumn(new MdcColumn(o));
-      }.bind(this));
+      return Screen4DetailUtil.rebuildColumnsHard({
+        table: oTbl,
+        cfg02: aCfg02,
+        dedupeCfgByUiFn: S4Filter.dedupeCfgByUi,
+        createCellTemplateFn: this._createCellTemplate.bind(this)
+      });
     },
 
     _bindRowsAndColumns: async function () {
-      var oD = this.getView().getModel("detail"), oTbl = this.byId("mdcTable4"); if (!oTbl) return;
-      this._ensureMdcCfgScreen4(oD.getProperty("/_mmct/s02") || []);
-      await this._rebuildColumnsHard(oTbl, oD.getProperty("/_mmct/s02") || []);
-      TableColumnAutoSize.autoSize(this.byId("mdcTable4"), 60);
-      if (oTbl.initialized) await oTbl.initialized();
-      oTbl.setModel(oD, "detail");
-      this._snapshotRows = N.deepClone(oD.getProperty("/RowsAll") || []);
-      if (typeof oTbl.rebind === "function") oTbl.rebind();
-      await P13nUtil.forceP13nAllVisible(oTbl, StateUtil, this._log.bind(this), "t0");
-      var self = this;
-      setTimeout(function () { P13nUtil.forceP13nAllVisible(oTbl, StateUtil, self._log.bind(self), "t300"); }, 300);
-      if (oTbl.initialized) oTbl.initialized().then(function () { self._injectHeaderFilters("bind"); });
-      else self._injectHeaderFilters("bind");
-      this._applyUiPermissions();
+      return Screen4DetailUtil.bindRowsAndColumns({
+        detailModel: this.getView().getModel("detail"),
+        table: this.byId("mdcTable4"),
+        vmModel: this.getOwnerComponent().getModel("vm"),
+        dedupeCfgByUiFn: S4Filter.dedupeCfgByUi,
+        createCellTemplateFn: this._createCellTemplate.bind(this),
+        injectHeaderFiltersFn: this._injectHeaderFilters.bind(this),
+        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
+        logFn: this._log.bind(this),
+        setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this)
+      });
     },
 
     _applyUiPermissions: function () {
@@ -483,7 +360,7 @@ sap.ui.define([
         var oA = this.byId("btnAddRow"), oDl = this.byId("btnDeleteRows");
         if (oA && oA.setEnabled) oA.setEnabled(!!oD.getProperty("/__canAddRow"));
         if (oDl && oDl.setEnabled) oDl.setEnabled(!!oD.getProperty("/__canEdit"));
-      } catch (e) { }
+      } catch (e) { console.debug("[Screen4] suppressed error", e); }
     },
 
     // ==================== FILTER / SORT ====================

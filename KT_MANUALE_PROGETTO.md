@@ -696,6 +696,7 @@ Suite coperte:
 2. Non duplicare path `vm`; usare `vmModelPaths` / `screenFlowStateUtil`.
 3. Non toccare la semantica di `CodAgg` senza capire il payload POST.
 4. Non toccare la cache key senza test e smoke.
+5. Per il collaudo manuale su backend reale usa sempre [SMOKE_BACKEND_RUOLI.md](/Users/gabrielemurgia/Desktop/progettoVALENTINO/apptracciabilit-/SMOKE_BACKEND_RUOLI.md) e registra l'esito su [SMOKE_BACKEND_RUOLI_REPORT_TEMPLATE.md](/Users/gabrielemurgia/Desktop/progettoVALENTINO/apptracciabilit-/SMOKE_BACKEND_RUOLI_REPORT_TEMPLATE.md).
 5. Non refattorizzare `Screen3` / `Screen4` / `Screen6` senza rilanciare la safety net completa.
 
 ## 16. Come fare debug

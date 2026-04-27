@@ -4,6 +4,10 @@ specVersion: "4.0"
 metadata:
   name: apptracciabilita.apptracciabilita
 type: application
+builder:
+  componentPreload:
+    excludes:
+      - apptracciabilita/apptracciabilita/thirdparty/xlsx.full.min.js
 server:
   customMiddleware:
     - name: fiori-tools-proxy

@@ -19,18 +19,18 @@ sap.ui.define([
         var oModel = this.getOwnerComponent && this.getOwnerComponent().getModel && this.getOwnerComponent().getModel();
         if (oModel && oModel.__vendTraceBackendDownToastShown) return;
         if (oModel) oModel.__vendTraceBackendDownToastShown = true;
-      } catch (e0) { /* ignore */ }
+      } catch (e0) { console.debug("[Screen0] suppressed error", e0); }
 
-      try { BusyIndicator.hide(); } catch (e1) { /* ignore */ }
+      try { BusyIndicator.hide(); } catch (e1) { console.debug("[Screen0] suppressed error", e1); }
 
       var sMsg = "Backend non raggiungibile";
       try {
         if (oError && N && N.getBackendErrorMessage) {
           sMsg = N.getBackendErrorMessage(oError);
         }
-      } catch (e3) { /* ignore */ }
+      } catch (e3) { console.debug("[Screen0] suppressed error", e3); }
 
-      try { MessageToast.show(sMsg); } catch (e2) { /* ignore */ }
+      try { MessageToast.show(sMsg); } catch (e2) { console.debug("[Screen0] suppressed error", e2); }
 
       console.error("[Screen0][BACKEND DOWN]", sMsg, info || {});
     },

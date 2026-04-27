@@ -12,6 +12,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/cellTemplateUtil",
   "apptracciabilita/apptracciabilita/util/screen4FilterUtil",
   "apptracciabilita/apptracciabilita/util/screen4ExportUtil",
+  "apptracciabilita/apptracciabilita/util/screen4ControllerFlowUtil",
   "apptracciabilita/apptracciabilita/util/screen4DetailUtil",
   "apptracciabilita/apptracciabilita/util/screen4SaveUtil",
   "apptracciabilita/apptracciabilita/util/screen4AttachUtil",
@@ -22,176 +23,36 @@ sap.ui.define([
 ], function (
   BaseController, JSONModel, MessageToast, StateUtil,
   N, Domains, MmctUtil, MdcTableUtil, P13nUtil,
-  CellTemplateUtil, S4Filter, S4Export, Screen4DetailUtil, Screen4SaveUtil, Screen4AttachUtil, Screen4RowsUtil, RecordsUtil, ScreenFlowStateUtil, I18n
+  CellTemplateUtil, S4Filter, S4Export, Screen4ControllerFlowUtil, Screen4DetailUtil, Screen4SaveUtil, Screen4AttachUtil, Screen4RowsUtil, RecordsUtil, ScreenFlowStateUtil, I18n
 ) {
   "use strict";
 
   return BaseController.extend("apptracciabilita.apptracciabilita.controller.Screen4", {
 
     _sLogPrefix: "[S4]",
-    // ==================== INIT ====================
-    onInit: function () {
-
-      var oVm = this._getOVm();
-      oVm.setProperty("/mdcCfg/screen4", { modelName: "detail", collectionPath: "/Rows", properties: [] });
-
-      this._log("onInit");
-      this.getOwnerComponent().getRouter().getRoute("Screen4").attachPatternMatched(this._onRouteMatched, this);
-      this.getView().setModel(new JSONModel({ showHeaderFilters: false, showHeaderSort: true }), "ui");
-      this._hdrSortBtns = {};
-
-      this.getView().setModel(new JSONModel({
-        VendorId: "", Header4Fields: [], Material: "", recordKey: "0", guidKey: "", Fibra: "",
-        RowsAll: [], Rows: [], RowsCount: 0,
-        _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
-        __dirty: false, __role: "", __status: "",
-        __canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false
-      }), "detail");
-
-      // Periodically sync attachment counters across rows.
-      // The attachment dialog updates only ONE row via onCountChange callback.
-      // Since JSONModel.attachPropertyChange doesn't fire for nested array changes,
-      // we use a lightweight polling approach (500ms) that only runs while Screen4 is active.
-      var self = this;
-      this._attachSyncInterval = null;
-
-      this._snapshotRows = null;
-      this._filterState = { globalQuery: "", colFilters: {}, sortState: null };
-      this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-    },
-
-    onExit: function () {
-      try {
-        this._stopAttachmentSyncPolling();
-        if (this._dlgSort) { this._dlgSort.destroy(); this._dlgSort = null; }
-        S4Filter.resetHeaderCaches(this._hdrFilter, this._hdrSortBtns);
-        this._hdrFilter = { boxesByKey: {}, seenLast: {} };
-      } catch (e) { console.debug("[Screen4] suppressed error", e); }
-    },
+    onInit: Screen4ControllerFlowUtil.onInit,
+    onExit: Screen4ControllerFlowUtil.onExit,
 
     // _log inherited from BaseController
 
     // ==================== ROUTE ====================
-    _onRouteMatched: function (oEvent) {
-      var oArgs = oEvent.getParameter("arguments") || {};
-      this._sMode = oArgs.mode || "A";
-      this._sVendorId = decodeURIComponent(oArgs.vendorId || "");
-      this._sMaterial = decodeURIComponent(oArgs.material || "");
-      this._sRecordKey = decodeURIComponent(oArgs.recordKey || "0");
-
-      var self = this;
-      this._ensureUserInfosLoaded().then(function () {
-        self._log("_onRouteMatched args", oArgs);
-
-        self._snapshotRows = null;
-        self._attachSnapshot = null;
-
-        self._filterState = { globalQuery: "", colFilters: {}, sortState: null };
-        var oInp = self.byId("inputFilter4");
-        if (oInp && oInp.setValue) oInp.setValue("");
-        S4Filter.syncHeaderFilterCtrlsFromState(true, {}, self._hdrFilter);
-
-        var oDetail = self.getView().getModel("detail");
-        oDetail.setData({
-          VendorId: self._sVendorId, Material: self._sMaterial, recordKey: self._sRecordKey,
-          guidKey: "", Fibra: "", RowsAll: [], Rows: [], RowsCount: 0, Header4Fields: [],
-          _mmct: { cat: "", s00: [], hdr4: [], s02: [] },
-          __dirty: false, __role: "", __status: "",
-          __canEdit: false, __canAddRow: false, __canCopyRow: false, __canDeleteRow: false, __canApprove: false, __canReject: false
-        }, true);
-
-        self._applyUiPermissions();
-        S4Filter.resetHeaderCaches(self._hdrFilter, self._hdrSortBtns);
-        self._hdrFilter = { boxesByKey: {}, seenLast: {} };
-        self._hdrSortBtns = {};
-
-        self._startAttachmentSyncPolling();
-
-        self._loadSelectedRecordRows(function () { self._bindRowsAndColumns(); }.bind(self));
-      });
-    },
+    _onRouteMatched: Screen4ControllerFlowUtil._onRouteMatched,
 
     // ==================== CACHE / CONFIG ====================
     // _getOVm, _getCacheKeySafe inherited from BaseController
-    _getDataCacheKey: function () {
-      return "REAL|" + this._getCacheKeySafe();
-    },
-    _cfgForScreen: function (sCat, s) { return MmctUtil.cfgForScreen(this.getOwnerComponent().getModel("vm"), sCat, s); },
-    _domainHasValues: function (d) { return Domains.domainHasValues(this.getOwnerComponent(), d); },
+    _getDataCacheKey: Screen4ControllerFlowUtil._getDataCacheKey,
+    _cfgForScreen: Screen4ControllerFlowUtil._cfgForScreen,
+    _domainHasValues: Screen4ControllerFlowUtil._domainHasValues,
 
     _toArrayMulti: N.toArrayMulti,
 
     // ==================== DIRTY / CODAGG ====================
-
-    _markDirty: function () {
-      var oD = this.getView().getModel("detail"); if (!oD) return;
-      oD.setProperty("/__dirty", true);
-      var sRole = String(oD.getProperty("/__role") || "").trim().toUpperCase();
-      if (sRole === "E" && String(oD.getProperty("/__status") || "").trim().toUpperCase() !== "AP") {
-        oD.setProperty("/__canEdit", true); oD.setProperty("/__canAddRow", true);
-        oD.setProperty("/__canApprove", false); oD.setProperty("/__canReject", false);
-      }
-      this._applyUiPermissions();
-
-      // Live check percentage sum after each edit — with cell coloring
-      RecordsUtil.checkPercAndApply(this.byId("mdcTable4"), oD, { rowsPath: "/RowsAll" });
-
-      // Sync attachment counters across all rows (attachments are per-field, not per-row)
-      this._syncAttachmentCounters();
-    },
-
-    /**
-     * In Screen4, all rows share the same Guid → attachments are at field level.
-     * When an attachment counter changes on one row, propagate the MAX value to ALL rows
-     * for each attachment column. This ensures all rows show the same counter.
-     */
-    _syncAttachmentCounters: function () {
-      return Screen4AttachUtil.syncAttachmentCounters({
-        getDetailModel: function () { return this.getView().getModel("detail"); }.bind(this),
-        getAttachSnapshot: function () { return this._attachSnapshot; }.bind(this),
-        setAttachSnapshot: function (oSnapshot) { this._attachSnapshot = oSnapshot; }.bind(this),
-        isSyncing: function () { return !!this._bSyncingAttach; }.bind(this),
-        setSyncing: function (bVal) { this._bSyncingAttach = bVal; }.bind(this)
-      });
-    },
-
-    _startAttachmentSyncPolling: function () {
-      return Screen4AttachUtil.startPolling({
-        intervalMs: 500,
-        syncFn: this._syncAttachmentCounters.bind(this),
-        getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
-        setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
-        setIntervalFn: window.setInterval.bind(window),
-        clearIntervalFn: window.clearInterval.bind(window)
-      });
-    },
-
-    _stopAttachmentSyncPolling: function () {
-      return Screen4AttachUtil.stopPolling({
-        getIntervalId: function () { return this._attachSyncInterval; }.bind(this),
-        setIntervalId: function (iInterval) { this._attachSyncInterval = iInterval; }.bind(this),
-        clearIntervalFn: window.clearInterval.bind(window)
-      });
-    },
-    _hookDirtyOnEdit: function (oCtrl) {
-      return Screen4RowsUtil.hookDirtyOnEdit({
-        control: oCtrl,
-        detailModel: this.getView().getModel("detail"),
-        markDirtyFn: this._markDirty.bind(this),
-        snapshotRowsFn: function () { return this._snapshotRows; }.bind(this),
-        applyUiPermissionsFn: this._applyUiPermissions.bind(this)
-      });
-    },
-
-    _checkRowDirtyRevert: function (row, ctx) {
-      return Screen4RowsUtil.checkRowDirtyRevert({
-        row: row,
-        context: ctx,
-        detailModel: this.getView().getModel("detail"),
-        snapshotRows: this._snapshotRows,
-        applyUiPermissionsFn: this._applyUiPermissions.bind(this)
-      });
-    },
+    _markDirty: Screen4ControllerFlowUtil._markDirty,
+    _syncAttachmentCounters: Screen4ControllerFlowUtil._syncAttachmentCounters,
+    _startAttachmentSyncPolling: Screen4ControllerFlowUtil._startAttachmentSyncPolling,
+    _stopAttachmentSyncPolling: Screen4ControllerFlowUtil._stopAttachmentSyncPolling,
+    _hookDirtyOnEdit: Screen4ControllerFlowUtil._hookDirtyOnEdit,
+    _checkRowDirtyRevert: Screen4ControllerFlowUtil._checkRowDirtyRevert,
 
     _createCellTemplate: function (sKey, oMeta) {
     return CellTemplateUtil.createCellTemplate(sKey, oMeta, {
@@ -202,132 +63,21 @@ sap.ui.define([
     },
 
     // ==================== STATUS ====================
-    _updateVmRecordStatus: function (sCK, sGuid, sFibra, sRole, sStatus) {
-      return Screen4RowsUtil.updateVmRecordStatus({
-        vmModel: this._getOVm(),
-        cacheKey: sCK,
-        guid: sGuid,
-        fibra: sFibra,
-        role: sRole,
-        status: sStatus
-      });
-    },
+    _updateVmRecordStatus: Screen4ControllerFlowUtil._updateVmRecordStatus,
 
     // ==================== HEADER ====================
-    _buildHeader4FromMmct00: function (sCat) {
-      var a00 = sCat ? (this._cfgForScreen(sCat, "00") || []) : [];
-      var aRaw = a00.filter(function (f) { return !!(f && f.testata2); })
-        .sort(function (a, b) { return ((a && a.order != null) ? a.order : 9999) - ((b && b.order != null) ? b.order : 9999); });
-      var seen = {};
-      return { s00: a00, hdr4: aRaw.filter(function (f) {
-        var ui = String(f && (f.ui || f.UiFieldname || f.UIFIELDNAME) || "").trim();
-        if (!ui) return false; var k = ui.toUpperCase(); if (seen[k]) return false; seen[k] = true; return true;
-      }) };
-    },
-
-    _refreshHeader4Fields: function () {
-      var oD = this.getView().getModel("detail");
-      var aHdr = oD.getProperty("/_mmct/hdr4") || [], oRec = oD.getProperty("/_mmct/rec") || {};
-      var r0 = (oD.getProperty("/RowsAll") || [])[0] || {};
-      function gv(k) { if (oRec[k] != null && oRec[k] !== "") return oRec[k]; if (r0[k] != null && r0[k] !== "") return r0[k]; return ""; }
-      oD.setProperty("/Header4Fields", aHdr.slice()
-        .sort(function (a, b) { return (a.order ?? 9999) - (b.order ?? 9999); })
-        .map(function (f) { var k = String(f.ui || "").trim(); return { key: k, label: f.label || k, value: N.valToText(gv(k)) }; })
-        .filter(function (x) { return x.key.toUpperCase() !== "FORNITORE"; }));
-    },
+    _buildHeader4FromMmct00: Screen4ControllerFlowUtil._buildHeader4FromMmct00,
+    _refreshHeader4Fields: Screen4ControllerFlowUtil._refreshHeader4Fields,
 
     // ==================== LOAD SELECTED RECORD ROWS ====================
-    _loadSelectedRecordRows: function (fnDone) {
-      return Screen4DetailUtil.loadSelectedRecordRows({
-        vmModel: this._getOVm(),
-        odataModel: this.getOwnerComponent().getModel(),
-        cacheKey: this._getDataCacheKey(),
-        vendorId: this._sVendorId,
-        material: this._sMaterial,
-        logFn: this._log.bind(this),
-        cfgForScreenFn: this._cfgForScreen.bind(this),
-        applySelectedRecordToDetailFn: this._applySelectedRecordToDetail.bind(this),
-        doneFn: fnDone
-      });
-    },
-
-    _applySelectedRecordToDetail: function (aAllRows, aRecords, sKey, fnDone) {
-      return Screen4DetailUtil.applySelectedRecordToDetail({
-        allRows: aAllRows,
-        records: aRecords,
-        cacheKey: sKey,
-        recordKey: this._sRecordKey,
-        vmModel: this._getOVm(),
-        detailModel: this.getView().getModel("detail"),
-        cfgForScreenFn: this._cfgForScreen.bind(this),
-        toArrayMultiFn: this._toArrayMulti.bind(this),
-        buildHeader4FromMmct00Fn: this._buildHeader4FromMmct00.bind(this),
-        refreshHeader4FieldsFn: this._refreshHeader4Fields.bind(this),
-        applyUiPermissionsFn: this._applyUiPermissions.bind(this),
-        applyFiltersAndSortFn: this._applyFiltersAndSort.bind(this),
-        syncAttachmentCountersFn: this._syncAttachmentCounters.bind(this),
-        setSnapshotRowsFn: function (aRows) { this._snapshotRows = aRows; }.bind(this),
-        doneFn: fnDone
-      });
-    },
-
-    _refreshAfterBackendSaveInPlace: function () {
-      var self = this;
-      this._loadSelectedRecordRows(function () {
-        self._bindRowsAndColumns();
-      });
-    },
-
-    // Resolve the list of rows belonging to the selected parent Guid. If none
-    // exist (pure template / new record), synthesize a placeholder row and
-    // append it to the rows cache so the table has something to bind.
-    _resolveOrSynthRowsForGuid: function (sGuid, oRec, oSel, aAllRows, sKey) {
-      return Screen4DetailUtil.resolveOrSynthRowsForGuid({
-        guid: sGuid,
-        record: oRec,
-        selectedParent: oSel,
-        allRows: aAllRows,
-        cacheKey: sKey,
-        vmModel: this._getOVm()
-      });
-    },
-
-    _applyGroupStatusAndPerms: function (aSelected, oVm, oD) {
-      return Screen4DetailUtil.applyGroupStatusAndPerms({
-        selectedRows: aSelected,
-        vmModel: oVm,
-        detailModel: oD
-      });
-    },
-
-    _resolveCatForSelection: function (aSelected, oRec, oSel, aAllRows, aRecords) {
-      return Screen4DetailUtil.resolveCatForSelection({
-        selectedRows: aSelected,
-        record: oRec,
-        selectedParent: oSel,
-        allRows: aAllRows,
-        records: aRecords
-      });
-    },
-
-    _resolveCfg02ForSelection: function (sCat, aSelected, oRec, oSel, aAllRows, aRecords) {
-      return Screen4DetailUtil.resolveCfg02ForSelection({
-        cat: sCat,
-        selectedRows: aSelected,
-        record: oRec,
-        allRows: aAllRows,
-        records: aRecords,
-        cfgForScreenFn: this._cfgForScreen.bind(this)
-      });
-    },
-
-    _applyCfg02NormalizationToRows: function (aSelected, aCfg02) {
-      return Screen4DetailUtil.applyCfg02NormalizationToRows({
-        selectedRows: aSelected,
-        cfg02: aCfg02,
-        toArrayMultiFn: this._toArrayMulti.bind(this)
-      });
-    },
+    _loadSelectedRecordRows: Screen4ControllerFlowUtil._loadSelectedRecordRows,
+    _applySelectedRecordToDetail: Screen4ControllerFlowUtil._applySelectedRecordToDetail,
+    _refreshAfterBackendSaveInPlace: Screen4ControllerFlowUtil._refreshAfterBackendSaveInPlace,
+    _resolveOrSynthRowsForGuid: Screen4ControllerFlowUtil._resolveOrSynthRowsForGuid,
+    _applyGroupStatusAndPerms: Screen4ControllerFlowUtil._applyGroupStatusAndPerms,
+    _resolveCatForSelection: Screen4ControllerFlowUtil._resolveCatForSelection,
+    _resolveCfg02ForSelection: Screen4ControllerFlowUtil._resolveCfg02ForSelection,
+    _applyCfg02NormalizationToRows: Screen4ControllerFlowUtil._applyCfg02NormalizationToRows,
 
     // ==================== MDC TABLE ====================
     _ensureMdcCfgScreen4: function (aCfg02) {
@@ -415,9 +165,7 @@ sap.ui.define([
     },
 
     // ==================== ROW CRUD ====================
-    _getSelectedRowObjects: function () {
-      return Screen4RowsUtil.getSelectedRowObjects({ table: this.byId("mdcTable4") });
-    },
+    _getSelectedRowObjects: Screen4ControllerFlowUtil._getSelectedRowObjects,
 
     onDeleteRows: function () {
       return Screen4RowsUtil.onDeleteRows({

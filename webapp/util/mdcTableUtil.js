@@ -456,7 +456,7 @@ sap.ui.define([
                   if (oDom) oDom.scrollIntoView({ behavior: "smooth", block: "center" });
                 }
               }
-            } catch (e) { /* ignore focus errors */ }
+            } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
           }, 100);
           return;
         }
@@ -474,7 +474,7 @@ sap.ui.define([
                 try {
                   var oFocusable = oDom.querySelector("input, button, [tabindex]");
                   if (oFocusable) oFocusable.focus();
-                } catch (e) { /* ignore */ }
+                } catch (e) { console.debug("[mdcTableUtil] suppressed error", e); }
               }, 100);
             }
           }

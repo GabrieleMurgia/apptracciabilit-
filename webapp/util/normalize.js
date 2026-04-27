@@ -404,7 +404,9 @@ function getBackendErrorMessage(oError) {
             if (typeof sMsg === "object") sMsg = sMsg.value;
             if (sMsg) return sMsg; // Messaggio di Fabio → mostralo così com'è
         }
-    } catch (e) { /* JSON parse failed → non è una risposta backend */ }
+    } catch (e) {
+      console.debug("[normalize] suppressed error", e);
+    }
 
     // 2) Se siamo qui, il backend non ha risposto con un messaggio parsabile
     var iStatus = parseInt(oError && oError.statusCode, 10) || 0;

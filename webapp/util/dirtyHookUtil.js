@@ -100,7 +100,10 @@ sap.ui.define([
         var oVm = getVmModel();
         var aSug = oVm && oVm.getProperty("/suggestionsByField/" + field);
         return Array.isArray(aSug) && aSug.length > 0;
-      } catch (e) { return false; }
+      } catch (e) {
+        console.debug("[dirtyHookUtil] suppressed error", e);
+        return false;
+      }
     }
 
     function _isValueInSuggestions(field, value) {
@@ -113,7 +116,10 @@ sap.ui.define([
           var k = (x && x.key != null) ? x.key : x;
           return _normStr(k).toUpperCase() === v;
         });
-      } catch (e) { return true; }
+      } catch (e) {
+        console.debug("[dirtyHookUtil] suppressed error", e);
+        return true;
+      }
     }
 
     function scheduleDirty(ctrl, oEvt) {

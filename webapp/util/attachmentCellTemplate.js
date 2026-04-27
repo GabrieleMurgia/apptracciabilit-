@@ -344,7 +344,9 @@ sap.ui.define([
             try {
               var oBody = JSON.parse(oError.responseText);
               sMsg = (oBody.error && oBody.error.message && oBody.error.message.value) || sMsg;
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+              console.debug("[attachmentCellTemplate] suppressed error", e);
+            }
             MessageBox.error(sMsg);
           }
         });

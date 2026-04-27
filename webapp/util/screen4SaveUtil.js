@@ -200,6 +200,7 @@ sap.ui.define([
         ScreenFlowStateUtil.setSelectedParentForScreen4(oVm, aFreshRecords.find(function (r) {
           return N.toStableString(r && (r.guidKey || r.Guid || r.GUID || "")) === sCurrentGuid;
         }) || aFreshRecords[0] || null);
+        ScreenFlowStateUtil.markForceScreen3CacheReload(oVm);
 
         oD.setProperty("/__dirty", false);
         if (typeof opts.afterReloadInPlaceFn === "function") {

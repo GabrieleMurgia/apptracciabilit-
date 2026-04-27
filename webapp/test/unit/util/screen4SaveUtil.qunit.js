@@ -322,7 +322,7 @@ sap.ui.define([
       assert.strictEqual(spyRefresh.callCount, 1, "Screen4 refresh callback triggered once");
       assert.strictEqual(spyNav.callCount, 0, "router.navTo is not called");
       assert.strictEqual(ScreenFlowStateUtil.shouldSkipScreen3BackendOnce(oVm), false, "skip-back flag is not armed");
-      assert.strictEqual(ScreenFlowStateUtil.shouldForceScreen3CacheReload(oVm), false, "force-reload flag is not armed");
+      assert.strictEqual(ScreenFlowStateUtil.shouldForceScreen3CacheReload(oVm), true, "force-reload flag is armed so Screen3 ignores stale snapshot on next back nav");
       assert.strictEqual(oVm.getProperty("/selectedScreen3Record/guidKey"), "GUID-001", "selected parent is updated to the fresh record");
       assert.strictEqual(oDetail.getProperty("/__dirty"), false, "dirty flag reset");
     } finally {

@@ -22,6 +22,60 @@ sap.ui.define([
       (vr.errors.length > 15 ? I18n.text(null, "msg.moreValidationErrors", [vr.errors.length - 15], "\n\n... altri {0} errori") : "");
   }
 
+  function buildDuplicatePartitaFibraMessage(aDupes) {
+    var top = aDupes.slice(0, 15).map(function (d) {
+      return "- Partita " + d.partita + " / Fibra " + d.fibra;
+    }).join("\n");
+
+    return I18n.text(
+      null,
+      "msg.duplicateVendorBatchFiberBeforeSave",
+      [],
+      "Sono presenti righe con la stessa combinazione Partita Fornitore + Fibra. Correggi i duplicati prima di salvare.\n\n"
+    ) + top + (
+      aDupes.length > 15
+        ? I18n.text(null, "msg.moreValidationErrors", [aDupes.length - 15], "\n\n... altri {0} errori")
+        : ""
+    );
+  }
+
+  function findDuplicatePartitaFibraLines(aLines) {
+    var mByKey = Object.create(null);
+    var aDupes = [];
+
+    (aLines || []).forEach(function (line) {
+      var ca = N.getCodAgg(line);
+      if (ca === "D") return;
+
+      var partita = String(line && (line.PartitaFornitore || line.PARTITAFORNITORE) || "").trim();
+      var fibra = String(line && (line.Fibra || line.FIBRA) || "").trim();
+      var guid = N.toStableString(line && (line.Guid || line.GUID || line.guidKey || line.GuidKey || ""));
+      if (!partita || !fibra || !guid) return;
+
+      var key = partita.toUpperCase() + "\u0000" + fibra.toUpperCase();
+      if (!mByKey[key]) {
+        mByKey[key] = {
+          partita: partita,
+          fibra: fibra,
+          guidSet: Object.create(null)
+        };
+      }
+      mByKey[key].guidSet[guid] = true;
+    });
+
+    Object.keys(mByKey).forEach(function (k) {
+      var entry = mByKey[k];
+      if (Object.keys(entry.guidSet).length > 1) {
+        aDupes.push({
+          partita: entry.partita,
+          fibra: entry.fibra
+        });
+      }
+    });
+
+    return aDupes;
+  }
+
   return {
     onSaveLocal: function (opts) {
       try {
@@ -242,6 +296,13 @@ sap.ui.define([
         material: opts.material
       });
       if (!oBuild) return;
+
+      var aDupes = findDuplicatePartitaFibraLines(oBuild.payload && oBuild.payload.PostDataCollection);
+      if (aDupes.length) {
+        oBuild.proxy.destroy();
+        MessageBox.error(buildDuplicatePartitaFibraMessage(aDupes));
+        return;
+      }
 
       opts.logFn("onSaveToBackend payload", {
         lines: oBuild.payload.PostDataCollection ? oBuild.payload.PostDataCollection.length : 0

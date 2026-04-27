@@ -341,6 +341,53 @@ sap.ui.define([
     }
   });
 
+  QUnit.test("onSaveToBackend blocks duplicate PartitaFornitore + Fibra pairs before POST", function (assert) {
+    var stubMb = sinon.stub(MessageBox, "error");
+    var stubPerc = sinon.stub(RecordsUtil, "validatePercBeforeSave").returns(true);
+    var stubAssign = sinon.stub(Screen4SaveUtil, "assignStableGuidBeforeSave").returns([{ guidKey: "GUID-PARENT" }]);
+    var destroySpy = sinon.spy();
+    var stubBuild = sinon.stub(Screen4SaveUtil, "buildSavePayload").returns({
+      proxy: { destroy: destroySpy },
+      payload: {
+        PostDataCollection: [
+          { Guid: "GUID-1", PartitaFornitore: "ok", Fibra: "CO", CodAgg: "U" },
+          { Guid: "GUID-2", PartitaFornitore: "ok", Fibra: "CO", CodAgg: "I" }
+        ]
+      }
+    });
+    var spyExec = sinon.spy(Screen4SaveUtil, "executePostAndReload");
+
+    try {
+      var sCK = "CK-DUP";
+      var oVm = buildVm(sCK);
+      oVm.setProperty(VmPaths.recordsByKeyPath(sCK), [{ guidKey: "GUID-PARENT" }]);
+      var oDetail = new JSONModel({ __dirty: false, RowsAll: [{ Guid: "GUID-1" }] });
+
+      Screen4SaveUtil.onSaveToBackend({
+        detailModel: oDetail,
+        vmModel: oVm,
+        cacheKey: sCK,
+        cfgForScreenFn: function () { return []; },
+        getCacheKeySafeFn: function () { return sCK; },
+        getDataCacheKeyFn: function () { return sCK; },
+        vendorId: "0000123456",
+        material: "MAT",
+        logFn: function () {}
+      });
+
+      assert.strictEqual(spyExec.callCount, 0, "POST is not executed when the payload has duplicate vendor-batch/fiber keys");
+      assert.strictEqual(destroySpy.callCount, 1, "proxy model is destroyed before aborting");
+      assert.strictEqual(stubMb.callCount, 1, "duplicate error is shown once");
+      assert.ok(/Partita ok \/ Fibra CO/.test(stubMb.firstCall.args[0]), "error message names the duplicate business key");
+    } finally {
+      spyExec.restore();
+      stubBuild.restore();
+      stubAssign.restore();
+      stubPerc.restore();
+      stubMb.restore();
+    }
+  });
+
   QUnit.test("reloadAfterSaveInPlace reloads cache and refreshes Screen4 without redirecting to Screen3", function (assert) {
     var sCK = "CK-NAV";
     var oVm = buildVm(sCK);

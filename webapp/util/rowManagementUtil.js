@@ -308,7 +308,9 @@ sap.ui.define([
     /**
      * Clona un record esistente (parent + righe dettaglio) per la copia.
      * Il nuovo record riceve un Guid fresco, CodAgg "I", stato "ST", attachment
-     * azzerati. Le righe raw mantengono tutti i campi tranne guid/stato/note.
+     * azzerati. Le righe raw mantengono tutti i campi tranne guid/stato/note e
+     * il Vendor Batch, che va reinserito per evitare collisioni sulla business key
+     * PartitaFornitore+Fibra dopo la copia.
      */
     cloneRecordForCopy: function (opts) {
       var oSource = opts.source;
@@ -338,6 +340,7 @@ sap.ui.define([
       oNewParent.__canReject = false;
       oNewParent.__readOnly = false;
       oNewParent.Note = "";
+      oNewParent.PartitaFornitore = "";
       resetAttachmentCounters(oNewParent);
 
       var aNewRaws = aSourceRaws.map(function (r) {
@@ -348,6 +351,7 @@ sap.ui.define([
         x.CodAgg = "I";
         x.Stato = "ST";
         x.Note = "";
+        x.PartitaFornitore = "";
         x.__isNew = true;
         delete x.__metadata;
         resetAttachmentCounters(x);

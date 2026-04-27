@@ -199,6 +199,42 @@ sap.ui.define([
     }
   });
 
+  QUnit.test("cloneRecordForCopy resets notes and vendor batch on both parent and raw detail rows", function (assert) {
+    var oClone = RowManagementUtil.cloneRecordForCopy({
+      source: {
+        idx: 1,
+        Guid: "GUID-OLD",
+        guidKey: "GUID-OLD",
+        PartitaFornitore: "OVA",
+        Note: "KEEP-NOT",
+        Attachment: "2"
+      },
+      sourceRaws: [
+        {
+          Guid: "GUID-OLD",
+          guidKey: "GUID-OLD",
+          Fibra: "CO",
+          PartitaFornitore: "OVA",
+          Note: "ROW-NOTE",
+          Attachment: "3"
+        }
+      ],
+      newIdx: 99,
+      newGuid: "GUID-NEW",
+      attachmentUiKeys: ["Attachment"]
+    });
+
+    assert.strictEqual(oClone.parent.Guid, "GUID-NEW", "parent guid replaced");
+    assert.strictEqual(oClone.parent.PartitaFornitore, "", "parent vendor batch cleared");
+    assert.strictEqual(oClone.parent.Note, "", "parent note cleared");
+    assert.strictEqual(oClone.parent.Attachment, "0", "parent attachment counter reset");
+    assert.strictEqual(oClone.raws.length, 1, "one raw detail row cloned");
+    assert.strictEqual(oClone.raws[0].Guid, "GUID-NEW", "raw guid replaced");
+    assert.strictEqual(oClone.raws[0].PartitaFornitore, "", "raw vendor batch cleared");
+    assert.strictEqual(oClone.raws[0].Note, "", "raw note cleared");
+    assert.strictEqual(oClone.raws[0].Attachment, "0", "raw attachment counter reset");
+  });
+
   QUnit.test("onDeleteRows removes selected parents from records and raw caches, purges Screen4 cache and clears selection", function (assert) {
     var sCacheKey = "CK-S3-DEL";
     var oVm = buildVm(sCacheKey);

@@ -140,7 +140,8 @@ sap.ui.define([
           getCodAgg: N.getCodAgg,
           getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oProxyDetail); },
           normalizeMultiString: N.normalizeMultiString,
-          uuidv4: N.uuidv4
+          uuidv4: N.uuidv4,
+          skipParentToDetailKeys: ["PartitaFornitore"]
         })
       };
     },

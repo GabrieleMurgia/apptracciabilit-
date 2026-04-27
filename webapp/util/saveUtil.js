@@ -202,6 +202,12 @@ sap.ui.define([
       var getMultiFieldsMap = opts.getMultiFieldsMap;
       var normalizeMultiString = opts.normalizeMultiString;
       var uuidv4Fn = opts.uuidv4;
+      var aSkipParentToDetailKeys = Array.isArray(opts.skipParentToDetailKeys) ? opts.skipParentToDetailKeys : [];
+      var mSkipParentToDetailKeys = Object.create(null);
+      aSkipParentToDetailKeys.forEach(function (k) {
+        var sKey = String(k || "").trim();
+        if (sKey) mSkipParentToDetailKeys[sKey] = true;
+      });
 
       var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
 
@@ -351,6 +357,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
           aParentKeys.forEach(function (k) {
             // NEVER override Stato/Note from parent — each row keeps its own
             if (k === "Stato" || k === "Note") return;
+            if (mSkipParentToDetailKeys[k]) return;
             if (p && p[k] !== undefined) r[k] = p[k];
           });
 
@@ -360,6 +367,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
             if (k === "idx" || k === "guidKey" || k === "StatoText") return;
             // NEVER override Stato/Note from parent
             if (k === "Stato" || k === "Note") return;
+            if (mSkipParentToDetailKeys[k]) return;
             if (r[k] === undefined || isEmpty(r[k])) r[k] = p[k];
           });
 

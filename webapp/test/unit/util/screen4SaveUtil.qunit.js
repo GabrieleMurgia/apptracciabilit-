@@ -283,6 +283,64 @@ sap.ui.define([
     }
   });
 
+  QUnit.test("buildSavePayload does not backfill PartitaFornitore from parent into new Screen4 detail rows", function (assert) {
+    var stubVal = sinon.stub(SaveUtil, "validateRequiredBeforePost").returns({ ok: true, errors: [] });
+    try {
+      var sCK = "CK-S4-BATCH";
+      var oVm = buildVm(sCK);
+      oVm.setProperty("/userId", "USER1");
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), [{
+        Guid: "GUID-NEW",
+        guidKey: "GUID-NEW",
+        Fibra: "CO",
+        PartitaFornitore: "",
+        Materiale: "MAT",
+        Fornitore: "0000123456",
+        CodAgg: "I"
+      }]);
+
+      var oDetail = new JSONModel({
+        _mmct: { cat: "CR" },
+        RowsAll: [{ Guid: "GUID-NEW", guidKey: "GUID-NEW", Fibra: "CO", PartitaFornitore: "", CodAgg: "I" }]
+      });
+
+      var ret = Screen4SaveUtil.buildSavePayload({
+        detailModel: oDetail,
+        vmModel: oVm,
+        cacheKey: sCK,
+        recordsAll: [{
+          idx: 0,
+          guidKey: "GUID-NEW",
+          Guid: "GUID-NEW",
+          PartitaFornitore: "ok",
+          Materiale: "MAT",
+          Fornitore: "0000123456",
+          Stato: "ST"
+        }],
+        cfgForScreenFn: function (sCat, sScreen) {
+          if (sScreen === "01") {
+            return [{ ui: "PartitaFornitore" }, { ui: "Stato" }];
+          }
+          if (sScreen === "02") {
+            return [{ ui: "PartitaFornitore" }, { ui: "Fibra" }];
+          }
+          return [];
+        },
+        getCacheKeySafeFn: function () { return sCK; },
+        getDataCacheKeyFn: function () { return sCK; },
+        vendorId: "0000123456",
+        material: "MAT"
+      });
+
+      assert.ok(ret && ret.payload && ret.payload.PostDataCollection, "payload built");
+      assert.strictEqual(ret.payload.PostDataCollection.length, 1, "single line in payload");
+      assert.strictEqual(ret.payload.PostDataCollection[0].PartitaFornitore, "", "parent vendor batch is not backfilled into copied/new detail row");
+      ret.proxy.destroy();
+    } finally {
+      stubVal.restore();
+    }
+  });
+
   QUnit.test("reloadAfterSaveInPlace reloads cache and refreshes Screen4 without redirecting to Screen3", function (assert) {
     var sCK = "CK-NAV";
     var oVm = buildVm(sCK);

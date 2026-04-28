@@ -8,16 +8,38 @@ const { spawn } = require("child_process");
 
 const PORT = parseInt(process.env.UI5_TEST_PORT || "8765", 10);
 const HOST = process.env.UI5_TEST_HOST || "localhost";
-const QUNIT_URL = process.env.QUNIT_URL || "http://" + HOST + ":" + PORT + "/test/unit/unitTests.qunit.html";
-const UI5_HEALTH_URL = "http://" + HOST + ":" + PORT + "/test/unit/unitTests.qunit.html";
+const DEFAULT_QUNIT_PATH = "/test/unit/unitTests.qunit.html";
+const EXPLICIT_QUNIT_URL = process.env.QUNIT_URL || "";
 const UI5_CONFIG = process.env.UI5_TEST_CONFIG || "ui5-test.yaml";
 const UI5_BIN = require.resolve("@ui5/cli/bin/ui5.cjs");
 const RUNNER_PATH = path.join(__dirname, "run-qunit.cjs");
 const START_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 500;
+const STOP_TIMEOUT_MS = 5000;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatHost(host) {
+  if (!host) return "localhost";
+  return host.indexOf(":") >= 0 && host.charAt(0) !== "[" ? "[" + host + "]" : host;
+}
+
+function buildUrl(host, pathname) {
+  return "http://" + formatHost(host) + ":" + PORT + pathname;
+}
+
+function unique(list) {
+  return list.filter(function (item, index) {
+    return item && list.indexOf(item) === index;
+  });
+}
+
+function buildCandidateUrls(pathname) {
+  if (EXPLICIT_QUNIT_URL) return [EXPLICIT_QUNIT_URL];
+  var hosts = unique([HOST, "::1", "localhost", "127.0.0.1"]);
+  return hosts.map(function (host) { return buildUrl(host, pathname); });
 }
 
 function probe(url) {
@@ -34,10 +56,27 @@ function probe(url) {
   });
 }
 
-async function waitForServer(url, timeoutMs) {
+async function findReachableUrl(urls) {
+  for (const url of urls) {
+    if (await probe(url)) return url;
+  }
+  return null;
+}
+
+async function waitForServer(urls, timeoutMs) {
   const startedAt = Date.now();
   while ((Date.now() - startedAt) < timeoutMs) {
-    if (await probe(url)) return true;
+    const url = await findReachableUrl(urls);
+    if (url) return url;
+    await wait(POLL_INTERVAL_MS);
+  }
+  return null;
+}
+
+async function waitForServerToStop(urls, timeoutMs) {
+  const startedAt = Date.now();
+  while ((Date.now() - startedAt) < timeoutMs) {
+    if (!(await findReachableUrl(urls))) return true;
     await wait(POLL_INTERVAL_MS);
   }
   return false;
@@ -59,25 +98,33 @@ function killChild(child) {
 (async () => {
   let ui5Process = null;
   let startedLocally = false;
+  const candidateUrls = buildCandidateUrls(DEFAULT_QUNIT_PATH);
+  let resolvedQunitUrl = await findReachableUrl(candidateUrls);
 
-  if (!(await probe(UI5_HEALTH_URL))) {
+  if (!resolvedQunitUrl) {
     startedLocally = true;
     ui5Process = spawnNode(UI5_BIN, ["serve", "--config", UI5_CONFIG, "--port", String(PORT)]);
-    const ready = await waitForServer(UI5_HEALTH_URL, START_TIMEOUT_MS);
-    if (!ready) {
+    resolvedQunitUrl = await waitForServer(candidateUrls, START_TIMEOUT_MS);
+    if (!resolvedQunitUrl) {
       killChild(ui5Process);
       process.exit(2);
     }
   }
 
-  const runner = spawnNode(RUNNER_PATH, [], { QUNIT_URL: QUNIT_URL });
-  runner.on("exit", (code) => {
-    if (startedLocally) killChild(ui5Process);
+  const runner = spawnNode(RUNNER_PATH, [], { QUNIT_URL: resolvedQunitUrl });
+  runner.on("exit", async (code) => {
+    if (startedLocally) {
+      killChild(ui5Process);
+      await waitForServerToStop(candidateUrls, STOP_TIMEOUT_MS);
+    }
     process.exit(code == null ? 3 : code);
   });
 
-  runner.on("error", () => {
-    if (startedLocally) killChild(ui5Process);
+  runner.on("error", async () => {
+    if (startedLocally) {
+      killChild(ui5Process);
+      await waitForServerToStop(candidateUrls, STOP_TIMEOUT_MS);
+    }
     process.exit(3);
   });
 })().catch(() => {

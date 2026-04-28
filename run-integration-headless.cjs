@@ -11,17 +11,39 @@ const puppeteer = require("puppeteer");
 
 const PORT = parseInt(process.env.UI5_IT_PORT || "8766", 10);
 const HOST = process.env.UI5_TEST_HOST || "localhost";
-const QUNIT_URL = process.env.QUNIT_URL || "http://" + HOST + ":" + PORT + "/test/integration/opaTests.qunit.html";
-const UI5_HEALTH_URL = "http://" + HOST + ":" + PORT + "/test/integration/opaTests.qunit.html";
+const DEFAULT_QUNIT_PATH = "/test/integration/opaTests.qunit.html";
+const EXPLICIT_QUNIT_URL = process.env.QUNIT_URL || "";
 const UI5_CONFIG = process.env.UI5_TEST_CONFIG || "ui5-test.yaml";
 const UI5_BIN = require.resolve("@ui5/cli/bin/ui5.cjs");
 const START_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 500;
+const STOP_TIMEOUT_MS = 5000;
 const QUNIT_TIMEOUT_MS = parseInt(process.env.QUNIT_TIMEOUT_MS || "180000", 10);
 const PUPPETEER_EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || resolveExecutablePath();
 
 function wait(ms) {
   return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+function formatHost(host) {
+  if (!host) return "localhost";
+  return host.indexOf(":") >= 0 && host.charAt(0) !== "[" ? "[" + host + "]" : host;
+}
+
+function buildUrl(host, pathname) {
+  return "http://" + formatHost(host) + ":" + PORT + pathname;
+}
+
+function unique(list) {
+  return list.filter(function (item, index) {
+    return item && list.indexOf(item) === index;
+  });
+}
+
+function buildCandidateUrls(pathname) {
+  if (EXPLICIT_QUNIT_URL) return [EXPLICIT_QUNIT_URL];
+  var hosts = unique([HOST, "::1", "localhost", "127.0.0.1"]);
+  return hosts.map(function (host) { return buildUrl(host, pathname); });
 }
 
 function walkExecutables(rootDir, fileName, bucket) {
@@ -67,10 +89,27 @@ function probe(url) {
   });
 }
 
-async function waitForServer(url, timeoutMs) {
+async function findReachableUrl(urls) {
+  for (var i = 0; i < urls.length; i++) {
+    if (await probe(urls[i])) return urls[i];
+  }
+  return null;
+}
+
+async function waitForServer(urls, timeoutMs) {
   var startedAt = Date.now();
   while ((Date.now() - startedAt) < timeoutMs) {
-    if (await probe(url)) return true;
+    var url = await findReachableUrl(urls);
+    if (url) return url;
+    await wait(POLL_INTERVAL_MS);
+  }
+  return null;
+}
+
+async function waitForServerToStop(urls, timeoutMs) {
+  var startedAt = Date.now();
+  while ((Date.now() - startedAt) < timeoutMs) {
+    if (!(await findReachableUrl(urls))) return true;
     await wait(POLL_INTERVAL_MS);
   }
   return false;
@@ -93,7 +132,7 @@ function summarizeText(text) {
   return String(text || "").replace(/\s+/g, " ").trim();
 }
 
-async function runOpaSuite() {
+async function runOpaSuite(qunitUrl) {
   var browser = await puppeteer.launch({
     headless: true,
     executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
@@ -115,8 +154,8 @@ async function runOpaSuite() {
   if (PUPPETEER_EXECUTABLE_PATH) {
     console.log("→ browser", PUPPETEER_EXECUTABLE_PATH);
   }
-  console.log("→ opening " + QUNIT_URL);
-  await page.goto(QUNIT_URL, { waitUntil: "domcontentloaded", timeout: QUNIT_TIMEOUT_MS });
+  console.log("→ opening " + qunitUrl);
+  await page.goto(qunitUrl, { waitUntil: "domcontentloaded", timeout: QUNIT_TIMEOUT_MS });
 
   try {
     await page.waitForFunction(function () {
@@ -184,21 +223,26 @@ async function runOpaSuite() {
 (async function () {
   var ui5Process = null;
   var startedLocally = false;
+  var candidateUrls = buildCandidateUrls(DEFAULT_QUNIT_PATH);
+  var resolvedQunitUrl = await findReachableUrl(candidateUrls);
 
-  if (!(await probe(UI5_HEALTH_URL))) {
+  if (!resolvedQunitUrl) {
     startedLocally = true;
     ui5Process = spawnNode(UI5_BIN, ["serve", "--config", UI5_CONFIG, "--port", String(PORT)]);
-    var ready = await waitForServer(UI5_HEALTH_URL, START_TIMEOUT_MS);
-    if (!ready) {
+    resolvedQunitUrl = await waitForServer(candidateUrls, START_TIMEOUT_MS);
+    if (!resolvedQunitUrl) {
       killChild(ui5Process);
       process.exit(2);
     }
   }
 
   try {
-    await runOpaSuite();
+    await runOpaSuite(resolvedQunitUrl);
   } finally {
-    if (startedLocally) killChild(ui5Process);
+    if (startedLocally) {
+      killChild(ui5Process);
+      await waitForServerToStop(candidateUrls, STOP_TIMEOUT_MS);
+    }
   }
 })().catch(function (err) {
   if (!PUPPETEER_EXECUTABLE_PATH) {

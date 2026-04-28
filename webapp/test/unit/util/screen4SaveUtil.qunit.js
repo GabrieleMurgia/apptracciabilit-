@@ -283,7 +283,7 @@ sap.ui.define([
     }
   });
 
-  QUnit.test("buildSavePayload does not backfill PartitaFornitore from parent into new Screen4 detail rows", function (assert) {
+  QUnit.test("buildSavePayload backfills PartitaFornitore from parent into empty Screen4 detail rows only when missing", function (assert) {
     var stubVal = sinon.stub(SaveUtil, "validateRequiredBeforePost").returns({ ok: true, errors: [] });
     try {
       var sCK = "CK-S4-BATCH";
@@ -334,11 +334,121 @@ sap.ui.define([
 
       assert.ok(ret && ret.payload && ret.payload.PostDataCollection, "payload built");
       assert.strictEqual(ret.payload.PostDataCollection.length, 1, "single line in payload");
-      assert.strictEqual(ret.payload.PostDataCollection[0].PartitaFornitore, "", "parent vendor batch is not backfilled into copied/new detail row");
+      assert.strictEqual(ret.payload.PostDataCollection[0].PartitaFornitore, "ok", "parent vendor batch is backfilled into copied/new detail row when missing");
       ret.proxy.destroy();
     } finally {
       stubVal.restore();
     }
+  });
+
+  QUnit.test("buildSavePayload preserves a non-empty Screen4 detail PartitaFornitore instead of overwriting it from parent", function (assert) {
+    var stubVal = sinon.stub(SaveUtil, "validateRequiredBeforePost").returns({ ok: true, errors: [] });
+    try {
+      var sCK = "CK-S4-BATCH-KEEP";
+      var oVm = buildVm(sCK);
+      oVm.setProperty("/userId", "USER1");
+      oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), [{
+        Guid: "GUID-KEEP",
+        guidKey: "GUID-KEEP",
+        Fibra: "CO",
+        PartitaFornitore: "detail-batch",
+        Materiale: "MAT",
+        Fornitore: "0000123456",
+        CodAgg: "U"
+      }]);
+
+      var oDetail = new JSONModel({
+        _mmct: { cat: "CR" },
+        RowsAll: [{ Guid: "GUID-KEEP", guidKey: "GUID-KEEP", Fibra: "CO", PartitaFornitore: "detail-batch", CodAgg: "U" }]
+      });
+
+      var ret = Screen4SaveUtil.buildSavePayload({
+        detailModel: oDetail,
+        vmModel: oVm,
+        cacheKey: sCK,
+        recordsAll: [{
+          idx: 0,
+          guidKey: "GUID-KEEP",
+          Guid: "GUID-KEEP",
+          PartitaFornitore: "parent-batch",
+          Materiale: "MAT",
+          Fornitore: "0000123456",
+          Stato: "ST"
+        }],
+        cfgForScreenFn: function (sCat, sScreen) {
+          if (sScreen === "01") {
+            return [{ ui: "PartitaFornitore" }, { ui: "Stato" }];
+          }
+          if (sScreen === "02") {
+            return [{ ui: "PartitaFornitore" }, { ui: "Fibra" }];
+          }
+          return [];
+        },
+        getCacheKeySafeFn: function () { return sCK; },
+        getDataCacheKeyFn: function () { return sCK; },
+        vendorId: "0000123456",
+        material: "MAT"
+      });
+
+      assert.ok(ret && ret.payload && ret.payload.PostDataCollection, "payload built");
+      assert.strictEqual(ret.payload.PostDataCollection[0].PartitaFornitore, "detail-batch", "existing detail vendor batch is preserved");
+      ret.proxy.destroy();
+    } finally {
+      stubVal.restore();
+    }
+  });
+
+  QUnit.test("buildSavePayload validation accepts an empty Screen4 detail PartitaFornitore when parent provides it", function (assert) {
+    var sCK = "CK-S4-BATCH-VALID";
+    var oVm = buildVm(sCK);
+    oVm.setProperty("/userId", "USER1");
+    oVm.setProperty(VmPaths.dataRowsByKeyPath(sCK), [{
+      Guid: "GUID-VALID",
+      guidKey: "GUID-VALID",
+      Fibra: "CO",
+      PartitaFornitore: "",
+      Materiale: "MAT",
+      Fornitore: "0000123456",
+      CodAgg: "I",
+      Stato: "ST"
+    }]);
+
+    var oDetail = new JSONModel({
+      _mmct: { cat: "CR" },
+      RowsAll: [{ Guid: "GUID-VALID", guidKey: "GUID-VALID", Fibra: "CO", PartitaFornitore: "", CodAgg: "I", Stato: "ST" }]
+    });
+
+    var ret = Screen4SaveUtil.buildSavePayload({
+      detailModel: oDetail,
+      vmModel: oVm,
+      cacheKey: sCK,
+      recordsAll: [{
+        idx: 0,
+        guidKey: "GUID-VALID",
+        Guid: "GUID-VALID",
+        PartitaFornitore: "parent-batch",
+        Materiale: "MAT",
+        Fornitore: "0000123456",
+        Stato: "ST"
+      }],
+      cfgForScreenFn: function (sCat, sScreen) {
+        if (sScreen === "01") {
+          return [{ ui: "PartitaFornitore", required: true }, { ui: "Stato" }];
+        }
+        if (sScreen === "02") {
+          return [{ ui: "PartitaFornitore", required: true }, { ui: "Fibra", required: true }];
+        }
+        return [];
+      },
+      getCacheKeySafeFn: function () { return sCK; },
+      getDataCacheKeyFn: function () { return sCK; },
+      vendorId: "0000123456",
+      material: "MAT"
+    });
+
+    assert.ok(ret, "payload build succeeds");
+    assert.strictEqual(ret.payload.PostDataCollection[0].PartitaFornitore, "parent-batch", "parent value is used for POST");
+    ret.proxy.destroy();
   });
 
   QUnit.test("onSaveToBackend blocks duplicate PartitaFornitore + Fibra pairs before POST", function (assert) {

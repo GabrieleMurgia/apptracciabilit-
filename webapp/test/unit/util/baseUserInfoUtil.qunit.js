@@ -9,6 +9,8 @@ sap.ui.define([
 
   QUnit.test("buildVmData normalizes domains, MMCT and auth flags into vm structure", function (assert) {
     var oVm = new JSONModel({
+      legalYear: "2026",
+      logoSrc: "/logo/value",
       mdcCfg: { keep: true },
       cache: { dataRowsByKey: { X: [] }, recordsByKey: {} }
     });
@@ -35,6 +37,8 @@ sap.ui.define([
     assert.strictEqual(oResult.userType, "I", "user type preserved");
     assert.strictEqual(oResult.auth.role, "VALENTINO", "role derived");
     assert.strictEqual(oResult.showAggregatedTile, true, "aggregated tile enabled for non-supplier");
+    assert.strictEqual(oResult.legalYear, "2026", "existing legal year preserved");
+    assert.strictEqual(oResult.logoSrc, "/logo/value", "existing logo src preserved");
     assert.deepEqual(oResult.domainsByName.COLOR, [{ key: "BA", text: "Blue Angel" }], "domainsByName built");
     assert.strictEqual(oResult.domainsByKey.COLOR.BA, "Blue Angel", "domainsByKey built");
     assert.strictEqual(oResult.mmctFieldsByCat.CAT1.length, 1, "MMCT grouped by category");

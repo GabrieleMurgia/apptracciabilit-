@@ -25,9 +25,16 @@ sap.ui.define([
       var toStableString = opts.toStableString;
       var rowGuidKey = opts.rowGuidKey;
       var getCodAgg = opts.getCodAgg;
+      var aAllowParentBackfillKeys = Array.isArray(opts.allowParentBackfillKeys) ? opts.allowParentBackfillKeys : [];
+      var mAllowParentBackfillKeys = Object.create(null);
       var sFromScreen = String(opts.fromScreen || "S3").toUpperCase();
       var sLabel01 = (sFromScreen === "S4") ? "Schermata precedente" : "Pagina corrente";
       var sLabel02 = (sFromScreen === "S4") ? "Schermata corrente" : "Dettaglio";
+
+      aAllowParentBackfillKeys.forEach(function (k) {
+        var sKey = String(k || "").trim();
+        if (sKey) mAllowParentBackfillKeys[sKey] = true;
+      });
 
       var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
       if (!Array.isArray(aParents)) aParents = [];
@@ -163,6 +170,9 @@ sap.ui.define([
           Object.keys(req02).forEach(function (k) {
             var meta = req02[k] || {};
             var v = r ? r[k] : undefined;
+            if (isEmpty(v) && mAllowParentBackfillKeys[k] && p && !isEmpty(p[k])) {
+              return;
+            }
             if (isEmpty(v)) {
               addErr(sLabel02, rowNo, k, meta.label || k);
             }
@@ -203,10 +213,16 @@ sap.ui.define([
       var normalizeMultiString = opts.normalizeMultiString;
       var uuidv4Fn = opts.uuidv4;
       var aSkipParentToDetailKeys = Array.isArray(opts.skipParentToDetailKeys) ? opts.skipParentToDetailKeys : [];
+      var aAllowParentBackfillKeys = Array.isArray(opts.allowParentBackfillKeys) ? opts.allowParentBackfillKeys : [];
       var mSkipParentToDetailKeys = Object.create(null);
+      var mAllowParentBackfillKeys = Object.create(null);
       aSkipParentToDetailKeys.forEach(function (k) {
         var sKey = String(k || "").trim();
         if (sKey) mSkipParentToDetailKeys[sKey] = true;
+      });
+      aAllowParentBackfillKeys.forEach(function (k) {
+        var sKey = String(k || "").trim();
+        if (sKey) mAllowParentBackfillKeys[sKey] = true;
       });
 
       var aParents = (oDetail && oDetail.getProperty("/RecordsAll")) || [];
@@ -358,6 +374,7 @@ if (aParentKeys.indexOf("MaterialeFornitore") < 0) aParentKeys.push("MaterialeFo
             // NEVER override Stato/Note from parent — each row keeps its own
             if (k === "Stato" || k === "Note") return;
             if (mSkipParentToDetailKeys[k]) return;
+            if (mAllowParentBackfillKeys[k]) return;
             if (p && p[k] !== undefined) r[k] = p[k];
           });
 

@@ -58,6 +58,8 @@ sap.ui.define([
       userType: sUserType,
       userDescription: oData.UserDescription || "",
       showAggregatedTile: sUserType !== "E",
+      legalYear: oVm.getProperty("/legalYear") || "",
+      logoSrc: oVm.getProperty("/logoSrc") || "",
       auth: buildAuth(sUserType),
       userDomains: aDomains,
       userCategories: aMMCT,

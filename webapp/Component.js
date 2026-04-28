@@ -2,9 +2,10 @@ sap.ui.define([
         "sap/ui/core/UIComponent",
         "sap/ui/core/Core",
         "sap/ui/Device",
-        "apptracciabilita/apptracciabilita/model/models"
+        "apptracciabilita/apptracciabilita/model/models",
+        "apptracciabilita/apptracciabilita/util/vmCache"
     ],
-    function (UIComponent, Core, Device, models) {
+    function (UIComponent, Core, Device, models, VmCache) {
         "use strict";
 
         return UIComponent.extend("apptracciabilita.apptracciabilita.Component", {
@@ -49,11 +50,15 @@ sap.ui.define([
 
                 // Screen0/1/2: set year on vm model for XML binding
                 var self = this;
-                var fnSetYear = function () {
-                    var oVm = self.getModel("vm");
-                    if (oVm) {
-                        oVm.setProperty("/legalYear", sYear);
+                var fnGetVm = function () {
+                    var oVm = VmCache.ensureVmCache(self);
+                    if (!oVm.getProperty("/mdcCfg")) {
+                        oVm.setProperty("/mdcCfg", {});
                     }
+                    return oVm;
+                };
+                var fnSetYear = function () {
+                    fnGetVm().setProperty("/legalYear", sYear);
                 };
                 fnSetYear();
                 this.getRouter().attachRouteMatched(fnSetYear);
@@ -69,10 +74,7 @@ sap.ui.define([
 
 
                 var fnSetLogo = function () {
-                    var oVm = self.getModel("vm");
-                    if (oVm) {
-                        oVm.setProperty("/logoSrc", sLogoUrl);
-                    }
+                    fnGetVm().setProperty("/logoSrc", sLogoUrl);
                 };
                 fnSetLogo();
                 this.getRouter().attachRouteMatched(fnSetLogo);

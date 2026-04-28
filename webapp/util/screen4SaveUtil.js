@@ -173,6 +173,7 @@ sap.ui.define([
         toStableString: N.toStableString,
         rowGuidKey: RecordsUtil.rowGuidKey,
         getCodAgg: N.getCodAgg,
+        allowParentBackfillKeys: ["PartitaFornitore"],
         fromScreen: "S4"
       });
       if (!vr.ok) {
@@ -195,7 +196,7 @@ sap.ui.define([
           getMultiFieldsMap: function () { return PostUtil.getMultiFieldsMap(oProxyDetail); },
           normalizeMultiString: N.normalizeMultiString,
           uuidv4: N.uuidv4,
-          skipParentToDetailKeys: ["PartitaFornitore"]
+          allowParentBackfillKeys: ["PartitaFornitore"]
         })
       };
     },

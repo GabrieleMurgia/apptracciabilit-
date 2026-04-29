@@ -8,3 +8,33 @@ mta-*
 resources
 archive.zip
 .*_mta_build_tmp
+
+# Local AI / agent tooling
+.claude/
+
+# SAP generator metadata
+.appGenInfo.json
+
+# Local payload captures / sensitive backend traces
+webapp/realPayload.txt
+
+# Generated local outputs
+outputs/
+
+# KT / handover extra docs
+KT_MANUALE_PROGETTO.md
+KT_MANUALE_PROGETTO_JUNIOR.docx
+KT_MANUALE_PROGETTO_JUNIOR.html
+KT_MANUALE_PROGETTO_JUNIOR.md
+KT_MANUALE_PROGETTO_JUNIOR_with_images.md
+KT_MANUALE_PROGETTO_JUNIOR_diagrams/
+SMOKE_BACKEND_RUOLI.md
+SMOKE_BACKEND_RUOLI_REPORT_TEMPLATE.md
+
+# Generic local/editor noise
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp

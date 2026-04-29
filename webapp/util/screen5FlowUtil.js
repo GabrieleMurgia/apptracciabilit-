@@ -1,6 +1,8 @@
 sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
+  "sap/ui/export/library",
+  "sap/ui/export/Spreadsheet",
   "sap/ui/core/BusyIndicator",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
@@ -13,8 +15,10 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/p13nUtil",
   "apptracciabilita/apptracciabilita/util/TableColumnAutoSize",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
-], function (MessageToast, MessageBox, BusyIndicator, Filter, FilterOperator, MdcColumn, StateUtil, N, PostUtil, RecordsUtil, DataLoaderUtil, P13nUtil, TableColumnAutoSize, I18n) {
+], function (MessageToast, MessageBox, exportLibrary, Spreadsheet, BusyIndicator, Filter, FilterOperator, MdcColumn, StateUtil, N, PostUtil, RecordsUtil, DataLoaderUtil, P13nUtil, TableColumnAutoSize, I18n) {
   "use strict";
+
+  var EdmType = exportLibrary.EdmType;
 
   function buildSummaryCfg(aRawFields) {
     var seen = Object.create(null);
@@ -274,8 +278,6 @@ sap.ui.define([
 
       try {
         BusyIndicator.show(0);
-        var Spreadsheet = sap.ui.require("sap/ui/export/Spreadsheet");
-        var EdmType = sap.ui.require("sap/ui/export/library").EdmType;
         var sCat = String(oDetail.getProperty("/_mmct/cat") || "").trim();
         var aCols = buildExportColumns(opts.vmModel.getProperty("/mmctFieldsByCat/" + sCat) || []);
         var aData = aRows.map(function (r) {

@@ -11,6 +11,8 @@ sap.ui.define([
       { UiFieldname: "Fornitore", UiFieldLabel: "Fornitore", Descrizione: "Vendor", Fieldname: "LIFNR" },
       { UiFieldname: "PaesePrAgg", UiFieldLabel: "Paese Produzione", Descrizione: "Production Country", Fieldname: "COUNTRY", MultipleVal: "X" },
       { UiFieldname: "Perccomp", UiFieldLabel: "Percentuale", Descrizione: "Percentage", Fieldname: "PERCCOMP" },
+      { UiFieldname: "MatnrMp", UiFieldLabel: "MatnrMp", Descrizione: "MP Material", Fieldname: "MATNR_MP" },
+      { UiFieldname: "GradoRic", UiFieldLabel: "GradoRic", Descrizione: "Recycled Grade", Fieldname: "GRADO_RIC" },
       { UiFieldname: "Certificato", UiFieldLabel: "Certificato", Descrizione: "Certificate", Fieldname: "CERT", Dominio: "DOM_CERT" },
       { UiFieldname: "CampoReq", UiFieldLabel: "Campo Richiesto", Descrizione: "Required Field", Fieldname: "REQ_FIELD", Impostazione: "O" }
     ];
@@ -63,6 +65,8 @@ sap.ui.define([
       Fornitore: "0000123456",
       PaesePrAgg: "IT|RO",
       Perccomp: "12,5",
+      MatnrMp: 12,
+      GradoRic: "",
       Certificato: "Global Recycled Standard",
       UnknownField: "SHOULD_BE_IGNORED"
     }], "CAT-01", {
@@ -81,6 +85,8 @@ sap.ui.define([
     assert.strictEqual(aPayload[0].Guid, "", "payload guid is blank before backend save");
     assert.strictEqual(aPayload[0].PaesePrAgg, "IT|RO", "multi-value field is preserved");
     assert.strictEqual(aPayload[0].Perccomp, "12.5", "numeric values are normalized");
+    assert.strictEqual(aPayload[0].MatnrMp, "12", "non-numeric-managed numeric Excel values are still posted as strings");
+    assert.strictEqual(aPayload[0].GradoRic, "", "empty numeric fields stay blank instead of becoming zero");
     assert.strictEqual(aPayload[0].Certificato, "GRS", "domain labels are reverse-mapped to keys");
     assert.strictEqual(aPayload[0].UnknownField, undefined, "unknown fields are dropped");
   });
@@ -128,7 +134,7 @@ sap.ui.define([
       { id: 3 }
     ]);
 
-    assert.strictEqual(oPreviewCfg.cfgAll.length, 5, "preview config includes visible MMCT fields");
+    assert.strictEqual(oPreviewCfg.cfgAll.length, 7, "preview config includes visible MMCT fields");
     assert.strictEqual(oPreviewCfg.props[0].name, "Fornitore", "preview props are built for MDC config");
     assert.deepEqual(aFiltered, [{ id: 1, __checkHasError: false }, { id: 3 }], "only valid rows are kept for posting");
   });

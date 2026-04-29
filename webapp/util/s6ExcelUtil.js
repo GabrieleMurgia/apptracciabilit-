@@ -409,12 +409,16 @@ sap.ui.define([
         }
 
         if (mNumeric[k]) {
-          var sVal = String(v != null ? v : "").trim().replace(",", ".");
-          var fNum = parseFloat(sVal);
-          v = isNaN(fNum) ? "0" : String(fNum);
+          var sVal = String(v != null ? v : "").trim();
+          if (sVal === "") {
+            v = "";
+          } else {
+            var fNum = parseFloat(sVal.replace(",", "."));
+            v = isNaN(fNum) ? sVal : String(fNum);
+          }
         }
 
-        o[k] = (v === undefined ? "" : v);
+        o[k] = (v == null ? "" : String(v));
       });
 
       o.CodAgg = "I";

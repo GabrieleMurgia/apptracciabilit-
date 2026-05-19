@@ -496,7 +496,7 @@ sap.ui.define([
 
       BusyIndicator.show(0);
       opts.odataModel.setHeaders({ "sap-language": "IT" });
-      opts.odataModel.create("/PostDataSet", oPayload, {
+      opts.odataModel.create("/PostMassDataSet", oPayload, {
         urlParameters: { "sap-language": "IT" },
         success: function () {
           BusyIndicator.hide();

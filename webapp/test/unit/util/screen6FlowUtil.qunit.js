@@ -179,7 +179,7 @@ sap.ui.define([
       assert.strictEqual(stubBuild.callCount, 1, "payload lines built once");
       assert.strictEqual(oODataModel.setHeaders.callCount, 1, "language header set");
       assert.strictEqual(oCreateSpy.callCount, 1, "POST request executed");
-      assert.strictEqual(oCreateSpy.firstCall.args[0], "/PostDataSet", "POST target path correct");
+      assert.strictEqual(oCreateSpy.firstCall.args[0], "/PostMassDataSet", "POST target path correct");
       assert.strictEqual(oCreateSpy.firstCall.args[1].UserID, "USER1", "payload includes user id");
       assert.strictEqual(oCreateSpy.firstCall.args[1].PostDataCollection.length, 2, "payload includes built lines");
       assert.ok(bCleared, "upload cleared after successful send");

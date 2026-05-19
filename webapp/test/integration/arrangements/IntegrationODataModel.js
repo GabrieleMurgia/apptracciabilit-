@@ -235,7 +235,7 @@ sap.ui.define([
           return;
         }
 
-        if (sCreatePath === "/PostDataSet") {
+        if (sCreatePath === "/PostDataSet" || sCreatePath === "/PostMassDataSet") {
           var aLines = ((oPayload && oPayload.PostDataCollection) || []).map(clone);
           aLines.forEach(function (line) {
             var sCodAgg = toUpper(line.CodAgg);

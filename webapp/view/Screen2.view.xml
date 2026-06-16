@@ -43,7 +43,7 @@
                     <Label id="labelOnlyIncomplete2" text="{i18n>screen2.onlyIncomplete}" class="sapUiSmallMarginBegin sapUiTinyMarginEnd"/>
                     <Switch
                         id="switchOnlyIncomplete2"
-                        state="true"
+                        state="false"
                         change=".onFilterChanged" />
                 </HBox>
                 <HBox id="filterRow2B" alignItems="Center" class="filterRow">

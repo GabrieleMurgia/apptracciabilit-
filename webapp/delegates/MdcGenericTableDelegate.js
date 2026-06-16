@@ -5,8 +5,9 @@ sap.ui.define([
   "sap/m/Text",
   "sap/m/Input",
   "sap/m/MultiComboBox",
-  "sap/ui/core/ListItem"
-], function (BaseTableDelegate, Column, HBox, Text, Input, MultiComboBox, ListItem) {
+  "sap/ui/core/ListItem",
+  "apptracciabilita/apptracciabilita/util/cellFullValueUtil"
+], function (BaseTableDelegate, Column, HBox, Text, Input, MultiComboBox, ListItem, CellFullValueUtil) {
   "use strict";
 
   const Delegate = Object.assign({}, BaseTableDelegate);
@@ -67,9 +68,17 @@ sap.ui.define([
   function _buildTemplate(sBinding, sModelName, sDomain, bRequired) {
     // sBinding es: "vm>Fibra" oppure "Fibra"
     const sReadOnlyExpr = sModelName ? "${" + sModelName + ">__readOnly}" : "${__readOnly}";
+    const sPropertyKey = sBinding.indexOf(">") >= 0 ? sBinding.split(">").pop() : sBinding;
+    const fnTooltipBinding = function () {
+      return {
+        path: sBinding,
+        formatter: CellFullValueUtil.normalizeValue
+      };
+    };
 
     const oText = new Text({
       text: "{" + sBinding + "}",
+      tooltip: fnTooltipBinding(),
       visible: "{= " + sReadOnlyExpr + " }"
     });
 
@@ -85,6 +94,7 @@ sap.ui.define([
       oEditCtrl = new MultiComboBox({
         selectedKeys: "{" + sBinding + "}",
         value: "{" + sBinding + "}",
+        tooltip: fnTooltipBinding(),
         visible: "{= !" + sReadOnlyExpr + " }",
         valueState: sValueState,
         valueStateText: sValueStateText,
@@ -100,14 +110,23 @@ sap.ui.define([
     } else {
       oEditCtrl = new Input({
         value: "{" + sBinding + "}",
+        tooltip: fnTooltipBinding(),
         visible: "{= !" + sReadOnlyExpr + " }",
         valueState: sValueState,
         valueStateText: sValueStateText
       });
     }
 
+    const oFullValueButton = CellFullValueUtil.createFullValueButton({
+      modelName: sModelName,
+      path: sPropertyKey,
+      title: sPropertyKey
+    });
+
     return new HBox({
-      items: [oText, oEditCtrl]
+      width: "100%",
+      alignItems: "Center",
+      items: [oText, oEditCtrl, oFullValueButton]
     });
   }
 

@@ -23,6 +23,7 @@ sap.ui.define([
   "apptracciabilita/apptracciabilita/util/recordsUtil",
   "apptracciabilita/apptracciabilita/util/s6ExcelUtil",
   "apptracciabilita/apptracciabilita/util/screen6FlowUtil",
+  "apptracciabilita/apptracciabilita/util/cellFullValueUtil",
   "apptracciabilita/apptracciabilita/util/i18nUtil"
 
 ], function (
@@ -30,7 +31,7 @@ sap.ui.define([
   Filter, FilterOperator, MdcColumn, HBox, Text, StateUtil,
   N, Domains, MdcTableUtil, P13nUtil,
   FilterSortUtil, MmctUtil, TableColumnAutoSize,
-  PostUtil, RecordsUtil, S6Excel, Screen6FlowUtil, I18n
+  PostUtil, RecordsUtil, S6Excel, Screen6FlowUtil, CellFullValueUtil, I18n
 ) {
   "use strict";
 
@@ -334,7 +335,23 @@ sap.ui.define([
 
     _createCellTemplate: function (sKey) {
       // Screen6: read-only preview — always use Text
-      return new Text({ text: "{detail>" + sKey + "}", wrapping: false });
+      var oText = new Text({
+        width: "100%",
+        text: "{detail>" + sKey + "}",
+        wrapping: false,
+        tooltip: {
+          path: "detail>" + sKey,
+          formatter: CellFullValueUtil.normalizeValue
+        }
+      });
+
+      var oFullValueButton = CellFullValueUtil.createFullValueButton({
+        modelName: "detail",
+        path: sKey,
+        title: sKey
+      });
+
+      return new HBox({ width: "100%", alignItems: "Center", items: [oText, oFullValueButton] });
     },
 
     // ==================== FILTERS ====================

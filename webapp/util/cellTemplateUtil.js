@@ -17,6 +17,7 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "apptracciabilita/apptracciabilita/util/dirtyHookUtil",
+  "apptracciabilita/apptracciabilita/util/cellFullValueUtil",
   "apptracciabilita/apptracciabilita/util/attachmentCellTemplate"
 ], function ( 
   HBox,
@@ -30,6 +31,7 @@ sap.ui.define([
   Filter,
   FilterOperator,
   DirtyHookUtil,
+  CellFullValueUtil,
   AttachmentCellTemplate
 ) {
   "use strict";
@@ -59,6 +61,38 @@ sap.ui.define([
       maxFractionDigits: 2
     });
     return oFormat.format(n);
+  }
+
+  function _formatDomainCellValue(v, sDomain, bMultiple, oView) {
+    if (v == null || v === "") return "";
+    try {
+      var oVmL = oView && oView.getModel && oView.getModel("vm");
+      var aDom = (oVmL && oVmL.getProperty("/domainsByName/" + sDomain)) || [];
+      if (bMultiple) {
+        var arr = Array.isArray(v) ? v : String(v).split(/[;|]+/);
+        var mL = {};
+        aDom.forEach(function (d) { mL[String(d.key)] = d.text || d.key; });
+        return arr.map(function (k) { var s = String(k).trim(); return mL[s] || s; }).filter(Boolean).join(", ");
+      }
+
+      for (var i = 0; i < aDom.length; i++) {
+        if (String(aDom[i].key) === String(v)) {
+          return aDom[i].text || v;
+        }
+      }
+    } catch (e) { console.debug("[cellTemplateUtil] suppressed error", e); }
+
+    return _formatCellValue(v);
+  }
+
+  function _bindFullValueTooltip(oCtrl, sKey, fnValueFormatter) {
+    if (!oCtrl || typeof oCtrl.bindProperty !== "function") return;
+    oCtrl.bindProperty("tooltip", {
+      path: "detail>" + sKey,
+      formatter: function (v) {
+        return CellFullValueUtil.formatValueForDisplay(v, fnValueFormatter);
+      }
+    });
   }
 
   var DecimalDisplayType = sap.ui.model.SimpleType.extend("DecimalDisplay", {
@@ -121,45 +155,22 @@ sap.ui.define([
         opts.view.getModel("vm").getProperty("/domainsByName/" + sDomain).length > 0)
     );
     var bNumeric = !!(oMeta && oMeta.numeric);
-    var oText;
-    if (bUseCombo && sDomain) {
-      var _sDomCapture = sDomain;
-      var _bMultiCapture = bMultiple;
-      var _oViewCapture = opts.view || null;
-      oText = new Text({
-        width: "100%",
-        text: {
-          path: "detail>" + sKey,
-          formatter: function (v) {
-            if (v == null || v === "") return "";
-            try {
-              var oVmL = _oViewCapture && _oViewCapture.getModel && _oViewCapture.getModel("vm");
-              var aDom = (oVmL && oVmL.getProperty("/domainsByName/" + _sDomCapture)) || [];
-              if (_bMultiCapture) {
-                var arr = Array.isArray(v) ? v : String(v).split(/[;|]+/);
-                var mL = {};
-                aDom.forEach(function (d) { mL[String(d.key)] = d.text || d.key; });
-                return arr.map(function (k) { var s = String(k).trim(); return mL[s] || s; }).filter(Boolean).join(", ");
-              } else {
-                for (var i = 0; i < aDom.length; i++) {
-                  if (String(aDom[i].key) === String(v)) {
-                    return aDom[i].text || v;
-                  }
-                }
-              }
-            } catch (e) { console.debug("[cellTemplateUtil] suppressed error", e); }
-            return _formatCellValue(v);
-          }
-        },
-        visible: "{= " + sReadOnlyExpr + " }"
-      });
-    } else {
-      oText = new Text({
-        width: "100%",
-        text: { path: "detail>" + sKey, formatter: bNumeric ? _formatDecimalValue : _formatCellValue },
-        visible: "{= " + sReadOnlyExpr + " }"
-      });
-    }
+    var sFieldLabel = String((oMeta && (oMeta.label || oMeta.UiFieldLabel || oMeta.Descrizione)) || sKey);
+    var fnDisplayFormatter = (bUseCombo && sDomain)
+      ? function (v) { return _formatDomainCellValue(v, sDomain, bMultiple, opts.view || null); }
+      : (bNumeric ? _formatDecimalValue : _formatCellValue);
+
+    var oText = new Text({
+      width: "100%",
+      text: { path: "detail>" + sKey, formatter: fnDisplayFormatter },
+      tooltip: {
+        path: "detail>" + sKey,
+        formatter: function (v) {
+          return CellFullValueUtil.formatValueForDisplay(v, fnDisplayFormatter);
+        }
+      },
+      visible: "{= " + sReadOnlyExpr + " }"
+    });
 
     var oEditCtrl;
 
@@ -271,6 +282,8 @@ sap.ui.define([
       }
     }
 
+    _bindFullValueTooltip(oEditCtrl, sKey, fnDisplayFormatter);
+
     if (typeof opts.hookDirtyOnEditFn === "function") {
       opts.hookDirtyOnEditFn(oEditCtrl);
     } else if (opts.view && typeof opts.touchCodAggParentFn === "function") {
@@ -281,7 +294,14 @@ sap.ui.define([
       oEditCtrl.setValueLiveUpdate(false);
     }
 
-    return new HBox({ items: [oText, oEditCtrl] });
+    var oFullValueButton = CellFullValueUtil.createFullValueButton({
+      modelName: "detail",
+      path: sKey,
+      title: sFieldLabel,
+      valueFormatter: fnDisplayFormatter
+    });
+
+    return new HBox({ width: "100%", alignItems: "Center", items: [oText, oEditCtrl, oFullValueButton] });
   }
 
   return {

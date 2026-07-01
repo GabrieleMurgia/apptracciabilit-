@@ -33,6 +33,25 @@ sap.ui.define([
     assert.strictEqual(aMapped[0].CatMateriale, "CAT-01", "missing category is defaulted");
   });
 
+  QUnit.test("does not let fuzzy fiber supplier columns overwrite Fibra from Excel", function (assert) {
+    var aRawFields = getRawFields().concat([
+      { UiFieldname: "Fibra", UiFieldLabel: "Fibra", Fieldname: "FIBRA", Dominio: "FIBRA", Impostazione: "O" },
+      { UiFieldname: "QtaFibra", UiFieldLabel: "% Fibra", Fieldname: "QTA_FIBRA", Impostazione: "O" },
+      { UiFieldname: "RagSocFibra", UiFieldLabel: "Fornitore lav.Fibra", Fieldname: "RAG_SOC_FIBRA" }
+    ]);
+
+    var aMapped = S6ExcelUtil.mapExcelToMmctFields([{
+      Fibra: "WV",
+      "% Fibra": "90.000",
+      "Fornitore lavor.Fibra": ""
+    }], "CR", aRawFields);
+
+    assert.strictEqual(aMapped.length, 1, "one row is mapped");
+    assert.strictEqual(aMapped[0].Fibra, "WV", "Fibra keeps the value from the exact Excel column");
+    assert.strictEqual(aMapped[0].QtaFibra, "90.000", "% Fibra is still mapped to QtaFibra");
+    assert.strictEqual(aMapped[0].RagSocFibra, "", "similar supplier-fiber header maps to the supplier field");
+  });
+
   QUnit.test("builds category list with fallback MMCT descriptions", function (assert) {
     var aCatList = S6ExcelUtil.buildCategoryList({}, [
       { CatMateriale: "CAT-B", CatMaterialeDesc: "Beta" },

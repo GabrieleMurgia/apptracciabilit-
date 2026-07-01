@@ -220,17 +220,81 @@ sap.ui.define([
     return m;
   }
 
+  function escapeRegExp(s) {
+    return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function normalizeExcelHeaderKey(s) {
+    return String(s || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[._/\\-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function tokensCompatible(sHeader, sKey) {
+    var aHeader = normalizeExcelHeaderKey(sHeader).split(" ").filter(Boolean);
+    var aKey = normalizeExcelHeaderKey(sKey).split(" ").filter(Boolean);
+    if (!aHeader.length || aHeader.length !== aKey.length) return false;
+
+    return aKey.every(function (sKeyToken, i) {
+      var sHeaderToken = aHeader[i];
+      if (sHeaderToken === sKeyToken) return true;
+      if (sHeaderToken.length < 3 || sKeyToken.length < 3) return false;
+      return sHeaderToken.indexOf(sKeyToken) === 0 || sKeyToken.indexOf(sHeaderToken) === 0;
+    });
+  }
+
+  function buildNormalizedLabelToFieldMap(mLabelToField) {
+    var m = {};
+    Object.keys(mLabelToField || {}).forEach(function (k) {
+      var sNorm = normalizeExcelHeaderKey(k);
+      if (sNorm && !m[sNorm]) m[sNorm] = mLabelToField[k];
+    });
+    return m;
+  }
+
+  function findSafeFuzzyMatch(sHeader, mLabelToField) {
+    var sHeaderNorm = normalizeExcelHeaderKey(sHeader);
+    var sBest = "";
+    var iBestScore = -1;
+
+    Object.keys(mLabelToField || {}).forEach(function (k) {
+      var sKeyNorm = normalizeExcelHeaderKey(k);
+      if (!sKeyNorm || sKeyNorm === sHeaderNorm) return;
+
+      var bNumberedColumn = new RegExp("^" + escapeRegExp(sKeyNorm) + "\\s*\\d+$").test(sHeaderNorm);
+      var bTokenMatch = tokensCompatible(sHeaderNorm, sKeyNorm);
+      if (!bNumberedColumn && !bTokenMatch) return;
+
+      if (sKeyNorm.length > iBestScore) {
+        sBest = k;
+        iBestScore = sKeyNorm.length;
+      }
+    });
+
+    return sBest;
+  }
+
   function buildExcelColumnMap(aExcelHeaders, mLabelToField) {
     var mColMap = {};
+    var mNormalizedToField = buildNormalizedLabelToFieldMap(mLabelToField);
+
     aExcelHeaders.forEach(function (h) {
       var sUpper = String(h || "").trim().toUpperCase();
       if (mLabelToField[sUpper]) {
         mColMap[h] = mLabelToField[sUpper];
         return;
       }
-      var sMatch = Object.keys(mLabelToField).find(function (k) {
-        return k.indexOf(sUpper) >= 0 || sUpper.indexOf(k) >= 0;
-      });
+
+      var sNorm = normalizeExcelHeaderKey(h);
+      if (mNormalizedToField[sNorm]) {
+        mColMap[h] = mNormalizedToField[sNorm];
+        return;
+      }
+
+      var sMatch = findSafeFuzzyMatch(h, mLabelToField);
       mColMap[h] = sMatch ? mLabelToField[sMatch] : h;
     });
     return mColMap;
@@ -276,6 +340,10 @@ sap.ui.define([
     return mGroups;
   }
 
+  function isEmptyExcelValue(v) {
+    return v == null || String(v).trim() === "";
+  }
+
   function mapExcelToMmctFields(aJsonRows, sCat, aRawFields) {
     if (!Array.isArray(aJsonRows) || !aJsonRows.length) return [];
 
@@ -288,7 +356,13 @@ sap.ui.define([
     return aJsonRows.map(function (row) {
       var oMapped = {};
       Object.keys(row).forEach(function (h) {
-        oMapped[mColMap[h] || h] = row[h];
+        var sMappedKey = mColMap[h] || h;
+        var v = row[h];
+        if (Object.prototype.hasOwnProperty.call(oMapped, sMappedKey) &&
+          isEmptyExcelValue(v) && !isEmptyExcelValue(oMapped[sMappedKey])) {
+          return;
+        }
+        oMapped[sMappedKey] = v;
       });
 
       Object.keys(mMergeGroups).forEach(function (sTarget) {
